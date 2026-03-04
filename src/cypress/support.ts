@@ -1,13 +1,14 @@
 /**
- * Cypress support file: injected into Cypress to load the aria snapshot IIFE
- * and register custom commands.
+ * Cypress support utilities for loading the aria snapshot IIFE and
+ * interacting with it from tests.
  *
- * This file is referenced by the generated Cypress config's `supportFile`
- * option. It runs before the driver spec in the browser context.
+ * This module is imported directly by the Cypress driver spec (the generated
+ * config sets `supportFile: false`), and its helpers run in the browser
+ * context when invoked from tests.
  *
  * Responsibilities:
  * - Inject the aria snapshot IIFE into the page context
- * - Register `cy.takeAriaSnapshot()` custom command
+ * - Register and/or wrap helpers such as `cy.takeAriaSnapshot()`
  */
 
 /**
