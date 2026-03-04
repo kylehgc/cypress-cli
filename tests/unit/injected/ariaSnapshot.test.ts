@@ -238,3 +238,81 @@ describe('generateAriaTree + renderAriaTree', () => {
     expect(yaml).toContain('[unchanged]');
   });
 });
+
+/**
+ * Snapshot parity tests: golden tests that verify our ported aria snapshot code
+ * produces correct output for known HTML inputs, matching Playwright's behavior.
+ */
+describe('snapshot parity', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    patchDom();
+  });
+
+  afterEach(() => {
+    restoreDom();
+  });
+
+  it('parity: simple button', () => {
+    document.body.innerHTML = '<button>Hello</button>';
+    const snapshot = generateAriaTree(document.body, { mode: 'expect' });
+    const yaml = renderAriaTree(snapshot, { mode: 'expect' });
+    expect(yaml).toBe('- button "Hello"');
+  });
+
+  it('parity: complex form', () => {
+    document.body.innerHTML = `
+      <form aria-label="Login">
+        <label for="email">Email</label>
+        <input id="email" type="email" value="test@example.com">
+        <label for="pw">Password</label>
+        <input id="pw" type="password" value="secret">
+        <input type="checkbox" checked aria-label="Remember me">
+        <button type="submit">Sign In</button>
+      </form>
+    `;
+    const snapshot = generateAriaTree(document.body, { mode: 'expect' });
+    const yaml = renderAriaTree(snapshot, { mode: 'expect' });
+    expect(yaml).toContain('form "Login"');
+    expect(yaml).toContain('textbox "Email"');
+    expect(yaml).toContain('test@example.com');
+    expect(yaml).toContain('textbox "Password"');
+    expect(yaml).toContain('checkbox "Remember me" [checked]');
+    expect(yaml).toContain('button "Sign In"');
+  });
+
+  it('parity: nested navigation', () => {
+    document.body.innerHTML = `
+      <nav>
+        <ul>
+          <li><a href="/home">Home</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/contact">Contact</a></li>
+        </ul>
+      </nav>
+    `;
+    const snapshot = generateAriaTree(document.body, { mode: 'expect' });
+    const yaml = renderAriaTree(snapshot, { mode: 'expect' });
+    expect(yaml).toContain('navigation');
+    expect(yaml).toContain('list');
+    expect(yaml).toContain('listitem');
+    expect(yaml).toContain('link "Home"');
+    expect(yaml).toContain('link "About"');
+    expect(yaml).toContain('link "Contact"');
+  });
+
+  it('parity: ARIA attributes', () => {
+    document.body.innerHTML = `
+      <button aria-label="Close" aria-expanded="true">X</button>
+      <div role="tab" aria-selected="true">Active Tab</div>
+      <div role="checkbox" aria-label="Toggle" aria-checked="mixed">Toggle</div>
+      <h2>Section</h2>
+    `;
+    const snapshot = generateAriaTree(document.body, { mode: 'expect' });
+    const yaml = renderAriaTree(snapshot, { mode: 'expect' });
+    expect(yaml).toContain('button "Close" [expanded]');
+    expect(yaml).toContain('tab "Active Tab" [selected]');
+    expect(yaml).toContain('checkbox "Toggle" [checked=mixed]');
+    expect(yaml).toContain('heading "Section" [level=2]');
+  });
+});
