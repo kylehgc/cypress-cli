@@ -4,7 +4,6 @@ import {
 	declareCommand,
 	parseCommand,
 	CommandValidationError,
-	type CommandRegistryEntry,
 } from '../../../src/client/command.js';
 import {
 	allCommands,
@@ -76,7 +75,7 @@ describe('declareCommand', () => {
 });
 
 describe('command schemas', () => {
-	it('defines all 27 commands', () => {
+	it('defines all 29 commands', () => {
 		expect(allCommands).toHaveLength(29);
 	});
 
@@ -450,6 +449,48 @@ describe('parseCommand', () => {
 		expect(result).toEqual({
 			command: 'assert',
 			args: { ref: 'e5', chainer: 'be.visible' },
+			options: {},
+		});
+	});
+
+	it('rejects extra positional args for commands that do not allow joining', () => {
+		expect(() => {
+			parseCommand({ _: ['click', 'e5', 'extra'] }, commandRegistry);
+		}).toThrow(CommandValidationError);
+		expect(() => {
+			parseCommand({ _: ['click', 'e5', 'extra'] }, commandRegistry);
+		}).toThrow(/Too many positional arguments for "click"/);
+	});
+
+	it('rejects extra positional args for no-arg commands', () => {
+		expect(() => {
+			parseCommand({ _: ['back', 'extra'] }, commandRegistry);
+		}).toThrow(CommandValidationError);
+		expect(() => {
+			parseCommand({ _: ['back', 'extra'] }, commandRegistry);
+		}).toThrow(/Too many positional arguments for "back"/);
+	});
+
+	it('allows joining extra positionals for type command (text field)', () => {
+		const result = parseCommand(
+			{ _: ['type', 'e3', 'hello', 'world', 'foo'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'type',
+			args: { ref: 'e3', text: 'hello world foo' },
+			options: {},
+		});
+	});
+
+	it('allows joining extra positionals for select command (value field)', () => {
+		const result = parseCommand(
+			{ _: ['select', 'e2', 'option', 'one'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'select',
+			args: { ref: 'e2', value: 'option one' },
 			options: {},
 		});
 	});

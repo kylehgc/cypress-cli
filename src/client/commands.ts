@@ -384,7 +384,7 @@ export const waitfor = declareCommand({
 // ---------------------------------------------------------------------------
 
 /**
- * All declared command schemas, keyed by command name.
+ * All declared command schemas as an array (each entry includes its own `name`).
  */
 export const allCommands = [
 	open,

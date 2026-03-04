@@ -128,17 +128,25 @@ export function parseCommand(
 		}
 	}
 
-	// For 'type' command, join remaining positionals as text
-	// (e.g., 'type e3 hello world' → { ref: 'e3', text: 'hello world' })
-	if (
-		entry.positionals.length >= 2 &&
-		positionals.length > entry.positionals.length
-	) {
+	// Handle extra positional args:
+	// - For commands whose last positional is a free-text field (e.g. "text", "value"),
+	//   join the remaining positionals into that argument.
+	// - For all other commands, reject extra positionals explicitly.
+	if (positionals.length > entry.positionals.length) {
 		const lastPositionalName = entry.positionals[entry.positionals.length - 1];
-		const joinedRemaining = positionals
-			.slice(entry.positionals.length - 1)
-			.join(' ');
-		argsObj[lastPositionalName] = joinedRemaining;
+		const allowJoinRemainder =
+			lastPositionalName === 'text' || lastPositionalName === 'value';
+
+		if (allowJoinRemainder) {
+			const joinedRemaining = positionals
+				.slice(entry.positionals.length - 1)
+				.join(' ');
+			argsObj[lastPositionalName] = joinedRemaining;
+		} else {
+			throw new CommandValidationError(
+				`Too many positional arguments for "${commandName}": expected ${entry.positionals.length}, got ${positionals.length}.`,
+			);
+		}
 	}
 
 	// Extract options (everything from argv except _ and command-specific positionals)
