@@ -22,3 +22,35 @@ export {
 	type CloseHandler,
 	type ErrorHandler,
 } from './connection.js';
+
+export {
+	CommandQueue,
+	QueueError,
+	type QueuedCommand,
+	type CommandResult,
+} from './commandQueue.js';
+
+export {
+	Session,
+	SessionMap,
+	SessionError,
+	type SessionState,
+	type SessionConfig,
+} from './session.js';
+
+export {
+	createGetCommandHandler,
+	createCommandResultHandler,
+	createTaskHandlers,
+	type TaskHandlers,
+	type GetCommandResult,
+	type PollSentinel,
+	type StopSentinel,
+} from './taskHandler.js';
+
+export {
+	Daemon,
+	DaemonError,
+	resolveSocketDir,
+	type DaemonOptions,
+} from './daemon.js';
