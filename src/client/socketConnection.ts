@@ -16,7 +16,12 @@ import {
 	type DaemonMessage,
 } from '../daemon/protocol.js';
 
-/** Default timeout (ms) waiting for a response from the daemon. */
+/**
+ * Default timeout (ms) waiting for a response from the daemon.
+ * Cypress commands can take tens of seconds to execute (navigation, assertions
+ * with retries), and the daemon waits for cy.task() round-trips that include
+ * a 110s long-poll timeout, so 120s is appropriate here.
+ */
 const DEFAULT_RESPONSE_TIMEOUT = 120_000;
 
 /** Default connection timeout (ms) for establishing the socket connection. */

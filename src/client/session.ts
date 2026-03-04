@@ -105,6 +105,7 @@ export class ClientSession {
 
 	/**
 	 * Sends a parsed command to the daemon and returns the result.
+	 * Commands are sent one at a time; concurrent calls are not supported.
 	 *
 	 * @param parsed - The parsed and validated command
 	 * @returns The command result
