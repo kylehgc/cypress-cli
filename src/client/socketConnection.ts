@@ -3,7 +3,7 @@
  *
  * Handles:
  * - Connecting to the daemon's Unix domain socket
- * - Newline-delimited JSON framing (reuses daemon's SocketConnection)
+ * - Newline-delimited JSON framing compatible with the daemon's SocketConnection
  * - Reconnect logic with configurable retries
  * - Error framing with typed errors
  * - Send-and-receive pattern (one command at a time)
@@ -37,6 +37,9 @@ const DEFAULT_MAX_RETRIES = 2;
 
 /** Delay between reconnect attempts (ms). */
 const DEFAULT_RETRY_DELAY = 500;
+
+/** Maximum bytes buffered before a newline is received (matches daemon limit). */
+const MAX_BUFFER_SIZE = 10 * 1024 * 1024;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -179,6 +182,7 @@ export class ClientSocketConnection {
 	): Promise<DaemonMessage> {
 		return new Promise<DaemonMessage>((resolve, reject) => {
 			let buffer = '';
+			let bufferByteSize = 0;
 			const decoder = new StringDecoder('utf-8');
 
 			const timer = setTimeout(() => {
@@ -192,7 +196,21 @@ export class ClientSocketConnection {
 
 			socket.on('data', (chunk: Buffer | string) => {
 				const decoded = typeof chunk === 'string' ? chunk : decoder.write(chunk);
+				bufferByteSize += Buffer.byteLength(decoded);
 				buffer += decoded;
+
+				if (bufferByteSize > MAX_BUFFER_SIZE) {
+					clearTimeout(timer);
+					const error = new ClientConnectionError(
+						`Response exceeded maximum buffer size of ${MAX_BUFFER_SIZE} bytes.`,
+					);
+					socket.removeAllListeners('data');
+					socket.removeAllListeners('error');
+					socket.removeAllListeners('close');
+					socket.destroy();
+					reject(error);
+					return;
+				}
 
 				const newlineIndex = buffer.indexOf('\n');
 				if (newlineIndex !== -1) {

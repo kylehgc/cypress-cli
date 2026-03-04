@@ -28,5 +28,8 @@ const isMain = process.argv[1] &&
 if (isMain) {
 	run(process.argv.slice(2)).then((exitCode) => {
 		process.exitCode = exitCode;
+	}).catch((err) => {
+		console.error(err instanceof Error ? (err.stack || err.message) : err);
+		process.exitCode = 1;
 	});
 }

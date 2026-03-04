@@ -76,6 +76,12 @@ describe('parseArgs', () => {
 		const result = parseArgs(['open', 'http://localhost', '--headed']);
 		expect(result['headed']).toBe(true);
 	});
+
+	it('parses --timeout as a number', () => {
+		const result = parseArgs(['navigate', 'https://example.com', '--timeout', '1000']);
+		expect(result['timeout']).toBe(1000);
+		expect(typeof result['timeout']).toBe('number');
+	});
 });
 
 // ---------------------------------------------------------------------------

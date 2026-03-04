@@ -10,9 +10,10 @@
  */
 
 import minimist from 'minimist';
+import { z } from 'zod';
 
 import { parseCommand, CommandValidationError } from './command.js';
-import { commandRegistry } from './commands.js';
+import { commandRegistry, allCommands } from './commands.js';
 import { ClientSession } from './session.js';
 import { startRepl } from './repl.js';
 
@@ -42,7 +43,7 @@ export const EXIT_VALIDATION_ERROR = 3;
 export function parseArgs(argv: string[]): minimist.ParsedArgs {
 	return minimist(argv, {
 		boolean: ['json', 'help', 'version', 'force', 'multiple', 'headed', 'diff'],
-		string: ['session', 'file', 'browser', 'config', 'timeout'],
+		string: ['session', 'file', 'browser', 'config'],
 		alias: {
 			h: 'help',
 			v: 'version',
@@ -56,34 +57,48 @@ export function parseArgs(argv: string[]): minimist.ParsedArgs {
 // Help / version
 // ---------------------------------------------------------------------------
 
-const HELP_TEXT = `Usage: cypress-cli <command> [args] [options]
+function buildHelpText(): string {
+	const lines: string[] = [
+		'Usage: cypress-cli <command> [args] [options]',
+		'',
+		'Commands:',
+	];
 
-Commands:
-  open [url]                      Start a session
-  stop                            Stop the current session
-  status                          Check if a session is running
-  snapshot [--diff]               Get current aria snapshot
-  navigate <url>                  Navigate to a URL
-  back / forward / reload         Browser navigation
-  click <ref>                     Click an element
-  type <ref> <text>               Type text into an element
-  assert <ref> <chainer> [value]  Assert on an element
-  export [--file path]            Export as .cy.ts test file
-  history                         List executed commands
-  repl                            Interactive REPL mode
+	for (const cmd of allCommands) {
+		const entry = commandRegistry.get(cmd.name);
+		const positionals = entry?.positionals ?? [];
+		const argStr = positionals.map((p) => {
+			// Detect optionality from zod schema: optional fields show as [arg], required as <arg>
+			let isOptional = false;
+			if (entry && entry.schema.args instanceof z.ZodObject) {
+				const field = entry.schema.args.shape[p];
+				isOptional = field?.isOptional() ?? false;
+			}
+			return isOptional ? `[${p}]` : `<${p}>`;
+		}).join(' ');
+		const usage = argStr ? `${cmd.name} ${argStr}` : cmd.name;
+		lines.push(`  ${usage.padEnd(36)}${cmd.description}`);
+	}
 
-Options:
-  --json                          Output machine-readable JSON
-  --session <id>                  Target a specific session
-  --help, -h                      Show this help
-  --version, -v                   Show version
+	lines.push(
+		'',
+		'Options:',
+		'  --json                              Output machine-readable JSON',
+		'  --session <id>                      Target a specific session',
+		'  --help, -h                          Show this help',
+		'  --version, -v                       Show version',
+		'',
+		'Exit codes:',
+		'  0  Success',
+		'  1  Command error',
+		'  2  Connection error',
+		'  3  Validation error',
+	);
 
-Exit codes:
-  0  Success
-  1  Command error
-  2  Connection error
-  3  Validation error
-`;
+	return lines.join('\n') + '\n';
+}
+
+const HELP_TEXT = buildHelpText();
 
 const VERSION = '0.1.0';
 
