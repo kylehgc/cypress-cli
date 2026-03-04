@@ -134,19 +134,11 @@ export async function writeConfigToTemp(
 	);
 
 	const config = generateCypressConfig(options);
-	const pluginModulePath = path.resolve(__dirname, 'plugin.js');
-	// Escape backslashes for Windows paths in generated JS
-	const escapedPluginPath = pluginModulePath.replace(/\\/g, '\\\\');
 
 	const configContent = `
 const { defineConfig } = require('cypress');
-const { registerTasks } = require('${escapedPluginPath}');
 
 module.exports = defineConfig(${JSON.stringify(config, null, 2)});
-
-// setupNodeEvents is merged in at runtime by the launcher
-// via the Module API's config override. The static config above
-// provides all JSON-serializable settings.
 `;
 	await fs.writeFile(
 		path.join(tempDir, 'cypress.config.js'),

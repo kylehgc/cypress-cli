@@ -100,7 +100,7 @@ describe('writeConfigToTemp', () => {
 		expect(stat.isFile()).toBe(true);
 	});
 
-	it('config file contains defineConfig and plugin require', async () => {
+	it('config file contains defineConfig', async () => {
 		const queue = new CommandQueue();
 		const tempDir = await writeConfigToTemp({ queue });
 		tempDirs.push(tempDir);
@@ -110,7 +110,6 @@ describe('writeConfigToTemp', () => {
 			'utf-8',
 		);
 		expect(configContent).toContain('defineConfig');
-		expect(configContent).toContain('registerTasks');
 	});
 
 	it('config file contains taskTimeout', async () => {
