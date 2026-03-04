@@ -1,0 +1,224 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+import {
+	parseGlobalFlags,
+	generateHelpText,
+	formatResult,
+	formatError,
+	run,
+	EXIT_SUCCESS,
+	EXIT_VALIDATION_ERROR,
+	type CliResult,
+} from '../../../src/client/cli.js';
+import type { ClientResult } from '../../../src/client/session.js';
+
+// ---------------------------------------------------------------------------
+// Mock ClientSession so `run()` never actually connects to a daemon
+// ---------------------------------------------------------------------------
+
+vi.mock('../../../src/client/session.js', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('../../../src/client/session.js')>();
+	return {
+		...actual,
+		ClientSession: vi.fn().mockImplementation(() => ({
+			sendCommand: vi.fn(),
+		})),
+	};
+});
+
+// ---------------------------------------------------------------------------
+// parseGlobalFlags
+// ---------------------------------------------------------------------------
+
+describe('parseGlobalFlags', () => {
+	it('parses --json flag', () => {
+		const { flags } = parseGlobalFlags(['--json', 'click', 'e1']);
+		expect(flags.json).toBe(true);
+	});
+
+	it('parses -j shorthand for --json', () => {
+		const { flags } = parseGlobalFlags(['-j', 'snapshot']);
+		expect(flags.json).toBe(true);
+	});
+
+	it('parses --session flag with value', () => {
+		const { flags } = parseGlobalFlags(['--session', 'my-session', 'click', 'e1']);
+		expect(flags.session).toBe('my-session');
+	});
+
+	it('parses -s shorthand for --session', () => {
+		const { flags } = parseGlobalFlags(['-s', 'dev', 'snapshot']);
+		expect(flags.session).toBe('dev');
+	});
+
+	it('parses --help flag', () => {
+		const { flags } = parseGlobalFlags(['--help']);
+		expect(flags.help).toBe(true);
+	});
+
+	it('parses --version flag', () => {
+		const { flags } = parseGlobalFlags(['--version']);
+		expect(flags.version).toBe(true);
+	});
+
+	it('passes through command positionals', () => {
+		const { parsed } = parseGlobalFlags(['click', 'e5', '--json']);
+		expect(parsed._).toEqual(['click', 'e5']);
+	});
+
+	it('defaults to json=false, session=undefined, help=false, version=false', () => {
+		const { flags } = parseGlobalFlags(['snapshot']);
+		expect(flags.json).toBe(false);
+		expect(flags.session).toBeUndefined();
+		expect(flags.help).toBe(false);
+		expect(flags.version).toBe(false);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// generateHelpText
+// ---------------------------------------------------------------------------
+
+describe('generateHelpText', () => {
+	it('includes usage line', () => {
+		const help = generateHelpText();
+		expect(help).toContain('Usage: cypress-cli <command>');
+	});
+
+	it('includes all command categories', () => {
+		const help = generateHelpText();
+		// The command registry defines categories such as core, navigation, etc.
+		expect(help).toContain('core:');
+		expect(help).toContain('navigation:');
+		expect(help).toContain('interaction:');
+	});
+
+	it('includes global options section', () => {
+		const help = generateHelpText();
+		expect(help).toContain('Global options:');
+		expect(help).toContain('--json');
+		expect(help).toContain('--session');
+		expect(help).toContain('--help');
+		expect(help).toContain('--version');
+	});
+});
+
+// ---------------------------------------------------------------------------
+// formatResult
+// ---------------------------------------------------------------------------
+
+describe('formatResult', () => {
+	it('returns JSON string when asJson is true', () => {
+		const result: ClientResult = { success: true };
+		const output = formatResult(result, true);
+		expect(JSON.parse(output)).toEqual({ success: true });
+	});
+
+	it('returns snapshot text when available', () => {
+		const result: ClientResult = {
+			success: true,
+			result: { snapshot: '- button "Submit"' },
+		};
+		expect(formatResult(result, false)).toBe('- button "Submit"');
+	});
+
+	it('returns "OK" for success with no extra data', () => {
+		const result: ClientResult = { success: true };
+		expect(formatResult(result, false)).toBe('OK');
+	});
+
+	it('returns error message for failed commands', () => {
+		const result: ClientResult = {
+			success: false,
+			error: 'Element not found',
+		};
+		expect(formatResult(result, false)).toBe('Error: Element not found');
+	});
+
+	it('returns key-value pairs for non-snapshot results', () => {
+		const result: ClientResult = {
+			success: true,
+			result: { url: 'http://localhost:3000', title: 'Home' },
+		};
+		const output = formatResult(result, false);
+		expect(output).toContain('url: http://localhost:3000');
+		expect(output).toContain('title: Home');
+	});
+});
+
+// ---------------------------------------------------------------------------
+// formatError
+// ---------------------------------------------------------------------------
+
+describe('formatError', () => {
+	it('returns JSON string when asJson is true', () => {
+		const output = formatError(new Error('oops'), true);
+		const parsed = JSON.parse(output);
+		expect(parsed).toEqual({ success: false, error: 'oops' });
+	});
+
+	it('returns "Error: message" when asJson is false', () => {
+		expect(formatError(new Error('bad input'), false)).toBe('Error: bad input');
+	});
+
+	it('handles non-Error objects', () => {
+		expect(formatError('string error', false)).toBe('Error: string error');
+		expect(formatError(42, false)).toBe('Error: 42');
+	});
+});
+
+// ---------------------------------------------------------------------------
+// run  (ClientSession is mocked — no actual daemon connection)
+// ---------------------------------------------------------------------------
+
+describe('run', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('returns help text with exit code 0 when no args provided', async () => {
+		const result: CliResult = await run([]);
+		expect(result.exitCode).toBe(EXIT_SUCCESS);
+		expect(result.output).toContain('Usage: cypress-cli');
+	});
+
+	it('returns help text when --help flag is passed', async () => {
+		const result: CliResult = await run(['--help']);
+		expect(result.exitCode).toBe(EXIT_SUCCESS);
+		expect(result.output).toContain('Usage: cypress-cli');
+	});
+
+	it('returns version when --version flag is passed', async () => {
+		const result: CliResult = await run(['--version']);
+		expect(result.exitCode).toBe(EXIT_SUCCESS);
+		expect(result.output).toContain('cypress-cli');
+		expect(result.output).toContain('0.1.0');
+	});
+
+	it('returns version even without positional args (--version takes precedence over help)', async () => {
+		const result: CliResult = await run(['--version']);
+		expect(result.exitCode).toBe(EXIT_SUCCESS);
+		expect(result.output).not.toContain('Usage:');
+	});
+
+	it('returns exit code 3 for unknown commands', async () => {
+		const result: CliResult = await run(['nonexistent']);
+		expect(result.exitCode).toBe(EXIT_VALIDATION_ERROR);
+		expect(result.output).toContain('Error');
+	});
+
+	it('returns exit code 3 for missing required args', async () => {
+		// 'click' requires a selector argument
+		const result: CliResult = await run(['click']);
+		expect(result.exitCode).toBe(EXIT_VALIDATION_ERROR);
+		expect(result.output).toContain('Error');
+	});
+
+	it('returns exit code 3 with JSON output for validation errors when --json passed', async () => {
+		const result: CliResult = await run(['--json', 'nonexistent']);
+		expect(result.exitCode).toBe(EXIT_VALIDATION_ERROR);
+		const parsed = JSON.parse(result.output);
+		expect(parsed.success).toBe(false);
+		expect(parsed.error).toBeDefined();
+	});
+});
