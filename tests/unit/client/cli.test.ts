@@ -61,17 +61,28 @@ describe('parseGlobalFlags', () => {
 		expect(flags.version).toBe(true);
 	});
 
+	it('parses --verbose flag', () => {
+		const { flags } = parseGlobalFlags(['--verbose', 'click', 'e1']);
+		expect(flags.verbose).toBe(true);
+	});
+
+	it('parses -v shorthand for --verbose', () => {
+		const { flags } = parseGlobalFlags(['-v', 'snapshot']);
+		expect(flags.verbose).toBe(true);
+	});
+
 	it('passes through command positionals', () => {
 		const { parsed } = parseGlobalFlags(['click', 'e5', '--json']);
 		expect(parsed._).toEqual(['click', 'e5']);
 	});
 
-	it('defaults to json=false, session=undefined, help=false, version=false', () => {
+	it('defaults to json=false, session=undefined, help=false, version=false, verbose=false', () => {
 		const { flags } = parseGlobalFlags(['snapshot']);
 		expect(flags.json).toBe(false);
 		expect(flags.session).toBeUndefined();
 		expect(flags.help).toBe(false);
 		expect(flags.version).toBe(false);
+		expect(flags.verbose).toBe(false);
 	});
 });
 
@@ -98,6 +109,7 @@ describe('generateHelpText', () => {
 		expect(help).toContain('Global options:');
 		expect(help).toContain('--json');
 		expect(help).toContain('--session');
+		expect(help).toContain('--verbose');
 		expect(help).toContain('--help');
 		expect(help).toContain('--version');
 	});

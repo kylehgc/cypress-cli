@@ -55,6 +55,8 @@ export interface GlobalFlags {
 	help: boolean;
 	/** Show version. */
 	version: boolean;
+	/** Enable debug-level logging. */
+	verbose: boolean;
 }
 
 /**
@@ -76,12 +78,12 @@ export function parseGlobalFlags(argv: string[]): {
 	parsed: ReturnType<typeof minimist>;
 } {
 	const parsed = minimist(argv, {
-		boolean: ['json', 'help', 'version', 'force', 'multiple', 'headed', 'diff'],
+		boolean: ['json', 'help', 'version', 'verbose', 'force', 'multiple', 'headed', 'diff'],
 		string: ['session', 'browser', 'config', 'file'],
 		alias: {
 			s: 'session',
 			h: 'help',
-			v: 'version',
+			v: 'verbose',
 			j: 'json',
 		},
 		'--': false,
@@ -93,6 +95,7 @@ export function parseGlobalFlags(argv: string[]): {
 		session: typeof parsed['session'] === 'string' ? parsed['session'] : undefined,
 		help: parsed['help'] === true,
 		version: parsed['version'] === true,
+		verbose: parsed['verbose'] === true,
 	};
 
 	return { flags, parsed };
@@ -126,8 +129,9 @@ export function generateHelpText(): string {
 	lines.push('Global options:');
 	lines.push('  --json, -j       Output machine-readable JSON');
 	lines.push('  --session, -s    Target a specific session by name');
+	lines.push('  --verbose, -v    Enable debug logging');
 	lines.push('  --help, -h       Show this help text');
-	lines.push('  --version, -v    Show version');
+	lines.push('  --version        Show version');
 
 	return lines.join('\n');
 }
@@ -208,7 +212,7 @@ export async function run(argv: string[]): Promise<CliResult> {
 		for (const [key, value] of Object.entries(parsed)) {
 			if (key === '_') continue;
 			// Skip global flags
-			if (['json', 'session', 'help', 'version', 'j', 's', 'h', 'v'].includes(key)) continue;
+			if (['json', 'session', 'help', 'version', 'verbose', 'j', 's', 'h', 'v'].includes(key)) continue;
 			commandArgv[key] = value;
 		}
 
