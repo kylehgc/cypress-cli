@@ -182,6 +182,7 @@ export class ClientSocketConnection {
 	): Promise<DaemonMessage> {
 		return new Promise<DaemonMessage>((resolve, reject) => {
 			let buffer = '';
+			let bufferByteSize = 0;
 			const decoder = new StringDecoder('utf-8');
 
 			const timer = setTimeout(() => {
@@ -195,15 +196,19 @@ export class ClientSocketConnection {
 
 			socket.on('data', (chunk: Buffer | string) => {
 				const decoded = typeof chunk === 'string' ? chunk : decoder.write(chunk);
+				bufferByteSize += Buffer.byteLength(decoded);
 				buffer += decoded;
 
-				if (buffer.length > MAX_BUFFER_SIZE) {
+				if (bufferByteSize > MAX_BUFFER_SIZE) {
 					clearTimeout(timer);
-					reject(
-						new ClientConnectionError(
-							`Response exceeded maximum buffer size of ${MAX_BUFFER_SIZE} bytes.`,
-						),
+					const error = new ClientConnectionError(
+						`Response exceeded maximum buffer size of ${MAX_BUFFER_SIZE} bytes.`,
 					);
+					socket.removeAllListeners('data');
+					socket.removeAllListeners('error');
+					socket.removeAllListeners('close');
+					socket.destroy();
+					reject(error);
 					return;
 				}
 

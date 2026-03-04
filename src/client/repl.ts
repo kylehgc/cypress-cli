@@ -67,6 +67,7 @@ export async function startRepl(options: ReplOptions): Promise<void> {
 	return new Promise<void>((resolve) => {
 		// Ensure commands are processed one at a time in the order received.
 		let commandQueue: Promise<void> = Promise.resolve();
+		let replClosed = false;
 
 		async function processLine(line: string): Promise<void> {
 			const trimmed = line.trim();
@@ -133,10 +134,14 @@ export async function startRepl(options: ReplOptions): Promise<void> {
 					// unexpected rejections to keep the queue alive.
 					const message = err instanceof Error ? err.message : String(err);
 					stderr.write(`Error: ${message}\n`);
+					if (!replClosed) {
+						rl.prompt();
+					}
 				});
 		});
 
 		rl.on('close', () => {
+			replClosed = true;
 			stdout.write('\n');
 			resolve();
 		});

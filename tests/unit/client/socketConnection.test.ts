@@ -316,5 +316,39 @@ describe('ClientSocketConnection', () => {
 				}),
 			).rejects.toThrow(ClientConnectionError);
 		});
+
+		it('throws ClientConnectionError when response exceeds max buffer size', async () => {
+			await createMockServer((socket) => {
+				// Swallow ECONNRESET: expected when client destroys socket on buffer overflow
+				socket.on('error', () => {});
+				// Write >10MB without a newline to trigger the buffer limit guard
+				const CHUNK_SIZE = 1024 * 1024; // 1MB
+				const chunk = Buffer.alloc(CHUNK_SIZE, 0x78); // 'x'
+				let written = 0;
+				function writeChunksRecursively() {
+					if (written >= 11) return; // 11MB total > 10MB limit
+					socket.write(chunk, () => {
+						written++;
+						writeChunksRecursively();
+					});
+				}
+				writeChunksRecursively();
+			});
+
+			const conn = new ClientSocketConnection({
+				socketPath,
+				connectTimeout: 2000,
+				responseTimeout: 30000,
+				maxRetries: 0,
+			});
+
+			await expect(
+				conn.sendAndReceive({
+					id: 1,
+					method: 'run',
+					params: { args: { _: ['status'] } },
+				}),
+			).rejects.toThrow(ClientConnectionError);
+		});
 	});
 });

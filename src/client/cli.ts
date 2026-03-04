@@ -10,6 +10,7 @@
  */
 
 import minimist from 'minimist';
+import { z } from 'zod';
 
 import { parseCommand, CommandValidationError } from './command.js';
 import { commandRegistry, allCommands } from './commands.js';
@@ -66,7 +67,15 @@ function buildHelpText(): string {
 	for (const cmd of allCommands) {
 		const entry = commandRegistry.get(cmd.name);
 		const positionals = entry?.positionals ?? [];
-		const argStr = positionals.map((p) => `<${p}>`).join(' ');
+		const argStr = positionals.map((p) => {
+			// Detect optionality from zod schema: optional fields show as [arg], required as <arg>
+			let isOptional = false;
+			if (entry && entry.schema.args instanceof z.ZodObject) {
+				const field = entry.schema.args.shape[p];
+				isOptional = field?.isOptional() ?? false;
+			}
+			return isOptional ? `[${p}]` : `<${p}>`;
+		}).join(' ');
 		const usage = argStr ? `${cmd.name} ${argStr}` : cmd.name;
 		lines.push(`  ${usage.padEnd(36)}${cmd.description}`);
 	}
