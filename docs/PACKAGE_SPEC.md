@@ -233,9 +233,21 @@ export default tseslint.config(
 	// Ported Playwright code — relaxed rules to preserve diff-ability
 	{
 		files: ['src/injected/**/*.ts'],
+		linterOptions: {
+			reportUnusedDisableDirectives: 'off',
+		},
+		plugins: {
+			// Stub the notice plugin so eslint-disable notice/notice doesn't error
+			notice: {
+				rules: {
+					notice: { create: () => ({}) },
+				},
+			},
+		},
 		rules: {
 			'@typescript-eslint/no-explicit-any': 'off',
 			'@typescript-eslint/ban-ts-comment': 'off',
+			'@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_|^e$' }],
 			'no-empty': 'off',
 			'no-control-regex': 'off',
 			'no-case-declarations': 'off',
