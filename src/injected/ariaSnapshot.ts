@@ -88,6 +88,18 @@ export function generateAriaTree(rootElement: Element, publicOptions: AriaTreeOp
   const options = toInternalOptions(publicOptions);
   const visited = new Set<Node>();
 
+  // MODIFIED: Pre-collect all aria-owns targets so they are skipped during normal
+  // DOM traversal and only rendered under their owning element.
+  const ariaOwnsTargets = new Set<Element>();
+  for (const ownerEl of rootElement.querySelectorAll('[aria-owns]')) {
+    const ids = ownerEl.getAttribute('aria-owns')!.split(/\s+/);
+    for (const id of ids) {
+      const ownedElement = rootElement.ownerDocument.getElementById(id);
+      if (ownedElement)
+        ariaOwnsTargets.add(ownedElement);
+    }
+  }
+
   const snapshot: AriaSnapshot = {
     root: { role: 'fragment', name: '', children: [], props: {}, box: computeBox(rootElement), receivesPointerEvents: true },
     elements: new Map<string, Element>(),
@@ -96,8 +108,12 @@ export function generateAriaTree(rootElement: Element, publicOptions: AriaTreeOp
   };
   setAriaNodeElement(snapshot.root, rootElement);
 
-  const visit = (ariaNode: AriaNode, node: Node, parentElementVisible: boolean) => {
+  const visit = (ariaNode: AriaNode, node: Node, parentElementVisible: boolean, isAriaOwned?: boolean) => {
     if (visited.has(node))
+      return;
+    // MODIFIED: Skip aria-owns targets during normal traversal; they will be
+    // visited when their owning element processes its ariaChildren.
+    if (!isAriaOwned && node.nodeType === Node.ELEMENT_NODE && ariaOwnsTargets.has(node as Element))
       return;
     visited.add(node);
 
@@ -175,7 +191,7 @@ export function generateAriaTree(rootElement: Element, publicOptions: AriaTreeOp
     }
 
     for (const child of ariaChildren)
-      visit(ariaNode, child, parentElementVisible);
+      visit(ariaNode, child, parentElementVisible, true);
 
     ariaNode.children.push(roleUtils.getCSSContent(element, '::after') || '');
 
@@ -396,7 +412,7 @@ function compareSnapshots(ariaSnapshot: AriaSnapshot, previousSnapshot: AriaSnap
     return same;
   };
 
-  visit(ariaSnapshot.root, previousByRef.get(previousSnapshot?.root?.ref));
+  visit(ariaSnapshot.root, previousSnapshot?.root);
   return result;
 }
 

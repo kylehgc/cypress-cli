@@ -58,8 +58,9 @@ export function findNewNode(from: AriaNode | undefined, to: AriaNode): AriaNode 
         size++;
         childPosition++;
       } else {
-        size += fillMap(child, map, childPosition);
-        childPosition += size;
+        const childSize = fillMap(child, map, childPosition);
+        size += childSize;
+        childPosition += childSize;
       }
     }
     if (!['none', 'presentation', 'fragment', 'iframe', 'generic'].includes(root.role) && root.name) {
