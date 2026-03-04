@@ -12,6 +12,7 @@ export default defineConfig({
 			['tests/unit/codegen/**', 'node'],
 			['tests/unit/protocol/**', 'node'],
 			['tests/integration/**', 'node'],
+			['tests/e2e/**', 'node'],
 		],
 		testTimeout: 10_000,
 		hookTimeout: 10_000,
