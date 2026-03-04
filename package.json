@@ -4,7 +4,7 @@
 	"description": "CLI tool for REPL-like LLM interactions with Cypress tests via Playwright's aria snapshot",
 	"type": "module",
 	"bin": {
-		"cypress-cli": "./dist/client/index.js"
+		"cypress-cli": "./dist/client/main.js"
 	},
 	"scripts": {
 		"build": "npm run build:iife && npm run build:ts",
