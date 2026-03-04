@@ -145,6 +145,21 @@ describe('Logger human format', () => {
 		expect(output.lines()[0]).toContain('total=42');
 	});
 
+	it('handles unserializable data gracefully in human mode', () => {
+		const output = createMockOutput();
+		const log = new Logger({ level: 'info', format: 'human', output });
+
+		// Create circular reference
+		const circular: Record<string, unknown> = {};
+		circular.self = circular;
+
+		log.info('problem', circular);
+
+		const line = output.lines()[0];
+		expect(line).toContain('problem');
+		expect(line).toContain('[unserializable]');
+	});
+
 	it('terminates each line with newline', () => {
 		const output = createMockOutput();
 		const log = new Logger({ level: 'info', format: 'human', output });
@@ -217,6 +232,42 @@ describe('Logger JSON format', () => {
 		const parsed = JSON.parse(output.lines()[0]) as LogEntry;
 		expect(parsed.socketPath).toBe('/tmp/test.sock');
 		expect(parsed.retries).toBe(3);
+	});
+
+	it('filters out reserved keys from data', () => {
+		const output = createMockOutput();
+		const log = new Logger({ level: 'info', format: 'json', component: 'test', output });
+
+		log.info('original message', {
+			timestamp: 'overwritten',
+			level: 'overwritten',
+			component: 'overwritten',
+			message: 'overwritten',
+			safeKey: 'kept',
+		});
+
+		const parsed = JSON.parse(output.lines()[0]) as LogEntry;
+		expect(parsed.message).toBe('original message');
+		expect(parsed.level).toBe('info');
+		expect(parsed.component).toBe('test');
+		expect(parsed.safeKey).toBe('kept');
+	});
+
+	it('handles unserializable data gracefully in JSON mode', () => {
+		const output = createMockOutput();
+		const log = new Logger({ level: 'info', format: 'json', output });
+
+		// Create circular reference
+		const circular: Record<string, unknown> = {};
+		circular.self = circular;
+
+		log.info('problem', circular);
+
+		// Should still produce valid JSON with a fallback message
+		const line = output.lines()[0];
+		expect(line).toBeDefined();
+		const parsed = JSON.parse(line);
+		expect(parsed.message).toContain('problem');
 	});
 
 	it('terminates each entry with newline', () => {

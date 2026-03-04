@@ -3,7 +3,7 @@
  *
  * Two output modes:
  * - **json**: Structured JSON to stderr (used by the daemon)
- * - **human**: Human-readable colored text to stderr (used by the CLI client)
+ * - **human**: Human-readable text to stderr (used by the CLI client)
  *
  * Log levels (in order of severity): error, warn, info, debug.
  * A message is emitted only when its level is >= the configured threshold.
@@ -92,6 +92,16 @@ const VALID_LOG_LEVELS: ReadonlySet<string> = new Set([
 	'debug',
 ]);
 
+/**
+ * Reserved top-level keys in JSON log entries that callers cannot overwrite.
+ */
+const RESERVED_LOG_KEYS: ReadonlySet<string> = new Set([
+	'timestamp',
+	'level',
+	'component',
+	'message',
+]);
+
 // ---------------------------------------------------------------------------
 // Logger class
 // ---------------------------------------------------------------------------
@@ -101,7 +111,7 @@ const VALID_LOG_LEVELS: ReadonlySet<string> = new Set([
  *
  * @example
  * ```ts
- * const log = createLogger({ level: 'debug', format: 'human', component: 'client' });
+ * const log = new Logger({ level: 'debug', format: 'human', component: 'client' });
  * log.info('Connected to daemon', { socketPath: '/tmp/cypress-cli/default.sock' });
  * log.debug('Sending command', { command: 'click', ref: 'e5' });
  * log.error('Connection failed', { error: err.message });
@@ -189,14 +199,28 @@ export class Logger {
 		message: string,
 		data?: Record<string, unknown>,
 	): void {
+		// Filter out reserved top-level keys so callers cannot overwrite them
+		const safeData = data
+			? Object.fromEntries(
+					Object.entries(data).filter(([key]) => !RESERVED_LOG_KEYS.has(key)),
+			  )
+			: undefined;
+
 		const entry: LogEntry = {
 			timestamp: new Date().toISOString(),
 			level,
 			...(this._component && { component: this._component }),
 			message,
-			...data,
+			...safeData,
 		};
-		this._output.write(JSON.stringify(entry) + '\n');
+		try {
+			this._output.write(JSON.stringify(entry) + '\n');
+		} catch {
+			// Best-effort fallback when JSON.stringify fails (e.g. circular refs, BigInt)
+			this._output.write(
+				JSON.stringify({ timestamp: entry.timestamp, level, message: `${message} [data unserializable]` }) + '\n',
+			);
+		}
 	}
 
 	/**
@@ -213,7 +237,14 @@ export class Logger {
 
 		if (data && Object.keys(data).length > 0) {
 			const pairs = Object.entries(data)
-				.map(([k, v]) => `${k}=${typeof v === 'string' ? v : JSON.stringify(v)}`)
+				.map(([k, v]) => {
+					if (typeof v === 'string') return `${k}=${v}`;
+					try {
+						return `${k}=${JSON.stringify(v)}`;
+					} catch {
+						return `${k}=[unserializable]`;
+					}
+				})
 				.join(' ');
 			line += ` ${pairs}`;
 		}

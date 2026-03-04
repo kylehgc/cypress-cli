@@ -16,6 +16,7 @@ import { parseCommand, CommandValidationError } from './command.js';
 import { commandRegistry, allCommands } from './commands.js';
 import { ClientSession, type ClientResult } from './session.js';
 import { ClientConnectionError } from './socketConnection.js';
+import { createClientLogger } from '../shared/logger.js';
 
 /**
  * Reads the package version from package.json at runtime.
@@ -192,6 +193,7 @@ export function formatError(error: unknown, asJson: boolean): string {
  */
 export async function run(argv: string[]): Promise<CliResult> {
 	const { flags, parsed } = parseGlobalFlags(argv);
+	const log = createClientLogger(flags.verbose);
 
 	// Version (check before help so `--version` alone works)
 	if (flags.version) {
@@ -220,8 +222,10 @@ export async function run(argv: string[]): Promise<CliResult> {
 			commandArgv as { _: string[]; [key: string]: unknown },
 			commandRegistry,
 		);
+		log.debug('Parsed command', { command: parsedCommand.command });
 	} catch (err) {
 		if (err instanceof CommandValidationError) {
+			log.debug('Validation error', { error: err.message });
 			return {
 				exitCode: EXIT_VALIDATION_ERROR,
 				output: formatError(err, flags.json),
@@ -236,26 +240,31 @@ export async function run(argv: string[]): Promise<CliResult> {
 			session: flags.session,
 		});
 
+		log.debug('Sending command to daemon', { command: parsedCommand.command, session: flags.session });
 		const result = await session.sendCommand(parsedCommand);
 
 		if (!result.success) {
+			log.debug('Command failed', { error: result.error });
 			return {
 				exitCode: EXIT_COMMAND_ERROR,
 				output: formatResult(result, flags.json),
 			};
 		}
 
+		log.debug('Command succeeded');
 		return {
 			exitCode: EXIT_SUCCESS,
 			output: formatResult(result, flags.json),
 		};
 	} catch (err) {
 		if (err instanceof ClientConnectionError) {
+			log.debug('Connection error', { error: err.message });
 			return {
 				exitCode: EXIT_CONNECTION_ERROR,
 				output: formatError(err, flags.json),
 			};
 		}
+		log.debug('Unexpected error', { error: err instanceof Error ? err.message : String(err) });
 		return {
 			exitCode: EXIT_COMMAND_ERROR,
 			output: formatError(err, flags.json),

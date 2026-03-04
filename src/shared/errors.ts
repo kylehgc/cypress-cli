@@ -4,8 +4,10 @@
  * All errors extend CypressCliError which carries a machine-readable `code`,
  * a human-readable `message`, and an optional `cause` for chaining.
  *
- * Errors cross the socket boundary as structured JSON:
- *   { type: 'error', code: string, message: string }
+ * These error classes provide serialization helpers for structured error
+ * responses. The daemon protocol currently sends `{ id, error: string }`;
+ * the `serializeError` / `deserializeError` helpers here prepare for
+ * migrating to richer `{ type: 'error', code, message }` error payloads.
  */
 
 // ---------------------------------------------------------------------------
@@ -21,6 +23,17 @@ export type ErrorCode =
 	| 'VALIDATION_ERROR'
 	| 'COMMAND_ERROR'
 	| 'SESSION_ERROR';
+
+/**
+ * Set of valid error codes for runtime validation.
+ */
+const VALID_ERROR_CODES: ReadonlySet<string> = new Set([
+	'CONNECTION_ERROR',
+	'TIMEOUT_ERROR',
+	'VALIDATION_ERROR',
+	'COMMAND_ERROR',
+	'SESSION_ERROR',
+]);
 
 // ---------------------------------------------------------------------------
 // Base class
@@ -170,6 +183,7 @@ export function deserializeError(data: SerializedError): CypressCliError {
 
 /**
  * Type guard: checks whether a value is a SerializedError.
+ * Validates that `code` is one of the known ErrorCode values.
  */
 export function isSerializedError(value: unknown): value is SerializedError {
 	if (typeof value !== 'object' || value === null) return false;
@@ -177,6 +191,7 @@ export function isSerializedError(value: unknown): value is SerializedError {
 	return (
 		obj.type === 'error' &&
 		typeof obj.code === 'string' &&
+		VALID_ERROR_CODES.has(obj.code as string) &&
 		typeof obj.message === 'string'
 	);
 }

@@ -237,7 +237,11 @@ describe('isSerializedError', () => {
 	});
 
 	it('returns false when type is not "error"', () => {
-		expect(isSerializedError({ type: 'response', code: 'X', message: 'y' })).toBe(false);
+		expect(isSerializedError({ type: 'response', code: 'COMMAND_ERROR', message: 'y' })).toBe(false);
+	});
+
+	it('returns false when code is not a known ErrorCode', () => {
+		expect(isSerializedError({ type: 'error', code: 'UNKNOWN_CODE', message: 'y' })).toBe(false);
 	});
 
 	it('returns false when code is missing', () => {
