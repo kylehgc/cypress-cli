@@ -3,7 +3,7 @@
  *
  * Handles:
  * - Connecting to the daemon's Unix domain socket
- * - Newline-delimited JSON framing (reuses daemon's SocketConnection)
+ * - Newline-delimited JSON framing compatible with the daemon's SocketConnection
  * - Reconnect logic with configurable retries
  * - Error framing with typed errors
  * - Send-and-receive pattern (one command at a time)
@@ -37,6 +37,9 @@ const DEFAULT_MAX_RETRIES = 2;
 
 /** Delay between reconnect attempts (ms). */
 const DEFAULT_RETRY_DELAY = 500;
+
+/** Maximum bytes buffered before a newline is received (matches daemon limit). */
+const MAX_BUFFER_SIZE = 10 * 1024 * 1024;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -193,6 +196,16 @@ export class ClientSocketConnection {
 			socket.on('data', (chunk: Buffer | string) => {
 				const decoded = typeof chunk === 'string' ? chunk : decoder.write(chunk);
 				buffer += decoded;
+
+				if (buffer.length > MAX_BUFFER_SIZE) {
+					clearTimeout(timer);
+					reject(
+						new ClientConnectionError(
+							`Response exceeded maximum buffer size of ${MAX_BUFFER_SIZE} bytes.`,
+						),
+					);
+					return;
+				}
 
 				const newlineIndex = buffer.indexOf('\n');
 				if (newlineIndex !== -1) {

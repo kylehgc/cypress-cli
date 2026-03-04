@@ -65,7 +65,10 @@ export async function startRepl(options: ReplOptions): Promise<void> {
 	rl.prompt();
 
 	return new Promise<void>((resolve) => {
-		rl.on('line', async (line: string) => {
+		// Ensure commands are processed one at a time in the order received.
+		let commandQueue: Promise<void> = Promise.resolve();
+
+		async function processLine(line: string): Promise<void> {
 			const trimmed = line.trim();
 
 			// Skip empty lines
@@ -119,6 +122,18 @@ export async function startRepl(options: ReplOptions): Promise<void> {
 			}
 
 			rl.prompt();
+		}
+
+		rl.on('line', (line: string) => {
+			// Chain processing to ensure serialized command execution.
+			commandQueue = commandQueue
+				.then(() => processLine(line))
+				.catch((err) => {
+					// processLine handles all expected errors; this catch handles
+					// unexpected rejections to keep the queue alive.
+					const message = err instanceof Error ? err.message : String(err);
+					stderr.write(`Error: ${message}\n`);
+				});
 		});
 
 		rl.on('close', () => {
