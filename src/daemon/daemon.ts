@@ -15,7 +15,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 
-import { SocketConnection, type MessageHandler } from './connection.js';
+import { SocketConnection } from './connection.js';
 import {
 	type CommandMessage,
 	type ProtocolMessage,
@@ -26,7 +26,6 @@ import {
 	SessionMap,
 	Session,
 	type SessionConfig,
-	SessionError,
 } from './session.js';
 import type { QueuedCommand, CommandResult } from './commandQueue.js';
 
@@ -78,6 +77,7 @@ export class Daemon {
 	private _idleTimer: ReturnType<typeof setTimeout> | null = null;
 	private _connections = new Set<SocketConnection>();
 	private _isShuttingDown = false;
+	private _stopPromise: Promise<void> | null = null;
 
 	constructor(options: DaemonOptions) {
 		this._sessions = new SessionMap();
@@ -126,36 +126,43 @@ export class Daemon {
 	 * remove the socket file, and shut down the server.
 	 */
 	async stop(): Promise<void> {
-		if (this._isShuttingDown) {
-			return;
+		// If already shutting down, return the existing promise so concurrent
+		// callers can await the same shutdown work completing.
+		if (this._stopPromise) {
+			return this._stopPromise;
 		}
+
 		this._isShuttingDown = true;
 
-		// Clear idle timer
-		if (this._idleTimer) {
-			clearTimeout(this._idleTimer);
-			this._idleTimer = null;
-		}
+		this._stopPromise = (async () => {
+			// Clear idle timer
+			if (this._idleTimer) {
+				clearTimeout(this._idleTimer);
+				this._idleTimer = null;
+			}
 
-		// Stop all sessions
-		this._sessions.stopAll();
+			// Stop all sessions
+			this._sessions.stopAll();
 
-		// Close all connections
-		for (const conn of this._connections) {
-			conn.close();
-		}
-		this._connections.clear();
+			// Close all connections
+			for (const conn of this._connections) {
+				conn.close();
+			}
+			this._connections.clear();
 
-		// Close the server
-		if (this._server) {
-			await new Promise<void>((resolve) => {
-				this._server!.close(() => resolve());
-			});
-			this._server = null;
-		}
+			// Close the server
+			if (this._server) {
+				await new Promise<void>((resolve) => {
+					this._server!.close(() => resolve());
+				});
+				this._server = null;
+			}
 
-		// Remove socket file
-		await this._removeSocketFile();
+			// Remove socket file
+			await this._removeSocketFile();
+		})();
+
+		return this._stopPromise;
 	}
 
 	// -----------------------------------------------------------------------
@@ -491,8 +498,13 @@ export class Daemon {
 	private async _removeSocketFile(): Promise<void> {
 		try {
 			await fs.unlink(this._socketPath);
-		} catch {
-			// Socket file may not exist — that's fine
+		} catch (err) {
+			const nodeErr = err as NodeJS.ErrnoException;
+			if (nodeErr.code === 'ENOENT') {
+				// Socket file may not exist — that's fine
+				return;
+			}
+			throw err;
 		}
 	}
 }

@@ -45,8 +45,9 @@ describe('Daemon', () => {
 	});
 
 	afterEach(async () => {
-		// Ensure daemon is stopped
-		if (daemon && !daemon.isShuttingDown) {
+		// Always await stop() — it's safe to call even when already shutting down
+		// because stop() returns the same promise for concurrent callers.
+		if (daemon) {
 			await daemon.stop();
 		}
 		// Clean up temp dir

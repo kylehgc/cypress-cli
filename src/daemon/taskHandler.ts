@@ -106,7 +106,16 @@ export function createCommandResultHandler(
 	queue: CommandQueue,
 ): (result: CommandResult) => boolean {
 	return (result: CommandResult): boolean => {
-		queue.reportResult(result);
+		try {
+			queue.reportResult(result);
+		} catch (error) {
+			// If the queue was disposed or there is no in-flight command (e.g. during
+			// shutdown), treat this as a no-op so Cypress teardown does not fail.
+			// For any other unexpected error, rethrow so it is surfaced.
+			if (!queue.isDisposed) {
+				throw error;
+			}
+		}
 		// Cypress tasks must return non-undefined, so we return true as acknowledgment
 		return true;
 	};
