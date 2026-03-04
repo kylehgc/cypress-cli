@@ -291,11 +291,12 @@ cypress-cli/
 ├── bin/
 │   └── cypress-cli          ← CLI entry point shim
 ├── docs/
-│   ├── ARIA_SNAPSHOT_PORT.md ← Line-by-line port plan from Playwright
-│   ├── COMMANDS.md           ← Command definitions and schemas
-│   ├── PACKAGE_SPEC.md       ← package.json, tsconfig.json, build pipeline
-│   ├── TEST_PLAN.md          ← Test strategy and specific test cases
-│   └── TIME_TRAVEL.md        ← Future feature: snapshot-based debugging
+│   ├── ARIA_SNAPSHOT_PORT.md  ← Line-by-line port plan from Playwright
+│   ├── COMMANDS.md            ← Command definitions and schemas
+│   ├── PACKAGE_SPEC.md        ← package.json, tsconfig.json, build pipeline
+│   ├── PHASE1_REVIEW.md       ← Phase 1 implementation review
+│   ├── TEST_PLAN.md           ← Test strategy and specific test cases
+│   └── TIME_TRAVEL.md         ← Future feature: snapshot-based debugging
 ├── src/
 │   ├── client/               ← CLI client (one-shot commands)
 │   │   └── README.md
