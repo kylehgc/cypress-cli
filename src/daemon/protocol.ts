@@ -5,12 +5,51 @@
  * Each message is a single JSON object followed by '\n'.
  */
 
+import { z } from 'zod';
+
 /**
  * Methods supported by the protocol.
  * - "run": execute a CLI command
  * - "stop": shut down the daemon and Cypress session
  */
 export type MessageMethod = 'run' | 'stop';
+
+// ---------------------------------------------------------------------------
+// Zod schemas — used by deserializeMessage for runtime validation
+// ---------------------------------------------------------------------------
+
+const commandMessageSchema = z.object({
+	id: z.number(),
+	method: z.enum(['run', 'stop']),
+	params: z.object({
+		args: z
+			.object({
+				_: z.array(z.string()),
+			})
+			.passthrough(),
+	}),
+});
+
+const responseMessageSchema = z.object({
+	id: z.number(),
+	result: z.object({
+		success: z.boolean(),
+		snapshot: z.string().optional(),
+		selector: z.string().optional(),
+		cypressCommand: z.string().optional(),
+	}),
+});
+
+const errorMessageSchema = z.object({
+	id: z.number(),
+	error: z.string(),
+});
+
+const protocolMessageSchema = z.union([
+	commandMessageSchema,
+	responseMessageSchema,
+	errorMessageSchema,
+]);
 
 /**
  * Message sent from the CLI client to the daemon.
@@ -20,16 +59,7 @@ export type MessageMethod = 'run' | 'stop';
  * { "id": 1, "method": "run", "params": { "args": { "_": ["click", "e5"] } } }
  * ```
  */
-export interface CommandMessage {
-	id: number;
-	method: MessageMethod;
-	params: {
-		args: {
-			_: string[];
-			[key: string]: unknown;
-		};
-	};
-}
+export type CommandMessage = z.infer<typeof commandMessageSchema>;
 
 /**
  * Successful response sent from the daemon to the CLI client.
@@ -39,15 +69,7 @@ export interface CommandMessage {
  * { "id": 1, "result": { "success": true, "snapshot": "..." } }
  * ```
  */
-export interface ResponseMessage {
-	id: number;
-	result: {
-		success: boolean;
-		snapshot?: string;
-		selector?: string;
-		cypressCommand?: string;
-	};
-}
+export type ResponseMessage = z.infer<typeof responseMessageSchema>;
 
 /**
  * Error response sent from the daemon to the CLI client.
@@ -57,10 +79,7 @@ export interface ResponseMessage {
  * { "id": 1, "error": "Element ref e5 not found in current snapshot" }
  * ```
  */
-export interface ErrorMessage {
-	id: number;
-	error: string;
-}
+export type ErrorMessage = z.infer<typeof errorMessageSchema>;
 
 /**
  * A message received over the socket — either a response or an error.
@@ -70,7 +89,7 @@ export type DaemonMessage = ResponseMessage | ErrorMessage;
 /**
  * Any message that can be sent over the socket.
  */
-export type ProtocolMessage = CommandMessage | ResponseMessage | ErrorMessage;
+export type ProtocolMessage = z.infer<typeof protocolMessageSchema>;
 
 /**
  * Type guard: checks whether a message is an ErrorMessage.
@@ -83,11 +102,21 @@ export function isErrorMessage(
 
 /**
  * Type guard: checks whether a message is a ResponseMessage.
+ * Validates that result is a non-null, non-array object with a boolean success field.
  */
 export function isResponseMessage(
 	message: DaemonMessage,
 ): message is ResponseMessage {
-	return 'result' in message && typeof message.result === 'object';
+	if (!('result' in message)) {
+		return false;
+	}
+	const result = (message as Record<string, unknown>).result;
+	return (
+		result !== null &&
+		typeof result === 'object' &&
+		!Array.isArray(result) &&
+		typeof (result as Record<string, unknown>).success === 'boolean'
+	);
 }
 
 /**
@@ -101,11 +130,12 @@ export function serializeMessage(message: ProtocolMessage): string {
 }
 
 /**
- * Deserializes a single JSON line into a protocol message.
+ * Deserializes a single JSON line into a validated protocol message.
+ * Uses zod schemas for runtime validation of the wire format.
  *
  * @param line - A single line of JSON (without trailing newline)
- * @returns The parsed protocol message
- * @throws {ProtocolError} If the line is not valid JSON or lacks required fields
+ * @returns The parsed and validated protocol message
+ * @throws {ProtocolError} If the line is not valid JSON or fails schema validation
  */
 export function deserializeMessage(line: string): ProtocolMessage {
 	const trimmed = line.trim();
@@ -122,18 +152,15 @@ export function deserializeMessage(line: string): ProtocolMessage {
 		);
 	}
 
-	if (typeof parsed !== 'object' || parsed === null) {
-		throw new ProtocolError('Protocol message must be a JSON object.');
+	const result = protocolMessageSchema.safeParse(parsed);
+	if (!result.success) {
+		const issues = result.error.issues
+			.map((issue: z.ZodIssue) => `${issue.path.join('.')}: ${issue.message}`)
+			.join('; ');
+		throw new ProtocolError(`Invalid protocol message: ${issues}`);
 	}
 
-	const obj = parsed as Record<string, unknown>;
-	if (typeof obj.id !== 'number') {
-		throw new ProtocolError('Protocol message must have a numeric "id" field.');
-	}
-
-	// Structural minimum validated (object with numeric id). Callers use type
-	// guards (isErrorMessage, isResponseMessage) for further discrimination.
-	return parsed as unknown as ProtocolMessage;
+	return result.data;
 }
 
 /**

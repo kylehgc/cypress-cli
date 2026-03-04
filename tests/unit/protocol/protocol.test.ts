@@ -93,7 +93,8 @@ describe('deserializeMessage', () => {
 	});
 
 	it('trims whitespace from input line', () => {
-		const line = '  {"id":1,"method":"stop","params":{"args":{"_":["stop"]}}}  ';
+		const line =
+			'  {"id":1,"method":"stop","params":{"args":{"_":["stop"]}}}  ';
 		const msg = deserializeMessage(line);
 		expect(msg.id).toBe(1);
 	});
@@ -117,6 +118,19 @@ describe('deserializeMessage', () => {
 	it('throws ProtocolError if message lacks numeric id', () => {
 		expect(() => deserializeMessage('{"method":"run"}')).toThrow(ProtocolError);
 		expect(() => deserializeMessage('{"id":"abc"}')).toThrow(ProtocolError);
+	});
+
+	it('throws ProtocolError for structurally invalid messages', () => {
+		// Has id but no valid method, result, or error
+		expect(() => deserializeMessage('{"id":1}')).toThrow(ProtocolError);
+		// Command with invalid method
+		expect(() =>
+			deserializeMessage('{"id":1,"method":"invalid","params":{"args":{"_":[]}}}'),
+		).toThrow(ProtocolError);
+		// Response with non-boolean success
+		expect(() =>
+			deserializeMessage('{"id":1,"result":{"success":"yes"}}'),
+		).toThrow(ProtocolError);
 	});
 });
 
@@ -154,18 +168,16 @@ describe('isResponseMessage', () => {
 
 describe('SocketConnection', () => {
 	let clientStream: PassThrough;
-	let serverStream: PassThrough;
 	let connection: SocketConnection;
 
 	beforeEach(() => {
-		// Create a pair of PassThrough streams to simulate a duplex connection.
+		// Create a PassThrough stream to simulate the underlying connection.
 		// clientStream is what the SocketConnection reads from / writes to.
 		clientStream = new PassThrough();
-		serverStream = new PassThrough();
 		connection = new SocketConnection(clientStream);
 	});
 
-	it('parses a single complete message from a data event', async () => {
+	it('parses a single complete message from a data event', () => {
 		const received: ProtocolMessage[] = [];
 		connection.onMessage((msg) => received.push(msg));
 
@@ -176,13 +188,11 @@ describe('SocketConnection', () => {
 		};
 		clientStream.push(serializeMessage(msg));
 
-		// Allow microtask queue to flush
-		await new Promise((r) => setTimeout(r, 10));
 		expect(received).toHaveLength(1);
 		expect(received[0].id).toBe(1);
 	});
 
-	it('handles multiple messages in one buffer', async () => {
+	it('handles multiple messages in one buffer', () => {
 		const received: ProtocolMessage[] = [];
 		connection.onMessage((msg) => received.push(msg));
 
@@ -207,14 +217,13 @@ describe('SocketConnection', () => {
 			serializeMessage(msg1) + serializeMessage(msg2) + serializeMessage(msg3);
 		clientStream.push(combined);
 
-		await new Promise((r) => setTimeout(r, 10));
 		expect(received).toHaveLength(3);
 		expect(received[0].id).toBe(1);
 		expect(received[1].id).toBe(2);
 		expect(received[2].id).toBe(3);
 	});
 
-	it('handles split buffers (message split across data events)', async () => {
+	it('handles split buffers (message split across data events)', () => {
 		const received: ProtocolMessage[] = [];
 		connection.onMessage((msg) => received.push(msg));
 
@@ -230,16 +239,14 @@ describe('SocketConnection', () => {
 		const secondHalf = fullMessage.slice(splitIndex);
 
 		clientStream.push(firstHalf);
-		await new Promise((r) => setTimeout(r, 10));
 		expect(received).toHaveLength(0); // Not yet complete
 
 		clientStream.push(secondHalf);
-		await new Promise((r) => setTimeout(r, 10));
 		expect(received).toHaveLength(1);
 		expect(received[0].id).toBe(42);
 	});
 
-	it('handles split buffers across three chunks', async () => {
+	it('handles split buffers across three chunks', () => {
 		const received: ProtocolMessage[] = [];
 		connection.onMessage((msg) => received.push(msg));
 
@@ -255,12 +262,11 @@ describe('SocketConnection', () => {
 		clientStream.push(fullMessage.slice(third, third * 2));
 		clientStream.push(fullMessage.slice(third * 2));
 
-		await new Promise((r) => setTimeout(r, 10));
 		expect(received).toHaveLength(1);
 		expect(received[0].id).toBe(7);
 	});
 
-	it('handles mixed complete and partial messages', async () => {
+	it('handles mixed complete and partial messages', () => {
 		const received: ProtocolMessage[] = [];
 		connection.onMessage((msg) => received.push(msg));
 
@@ -276,31 +282,34 @@ describe('SocketConnection', () => {
 		// First chunk: complete msg1 + partial msg2
 		const splitPoint = Math.floor(msg2.length / 2);
 		clientStream.push(msg1 + msg2.slice(0, splitPoint));
-		await new Promise((r) => setTimeout(r, 10));
 		expect(received).toHaveLength(1);
 		expect(received[0].id).toBe(1);
 
 		// Second chunk: rest of msg2
 		clientStream.push(msg2.slice(splitPoint));
-		await new Promise((r) => setTimeout(r, 10));
 		expect(received).toHaveLength(2);
 		expect(received[1].id).toBe(2);
 	});
 
-	it('ignores empty lines between messages', async () => {
+	it('ignores empty lines between messages', () => {
 		const received: ProtocolMessage[] = [];
 		connection.onMessage((msg) => received.push(msg));
 
-		const msg1 = serializeMessage({ id: 1, result: { success: true } } as ResponseMessage);
-		const msg2 = serializeMessage({ id: 2, result: { success: false } } as ResponseMessage);
+		const msg1 = serializeMessage({
+			id: 1,
+			result: { success: true },
+		} as ResponseMessage);
+		const msg2 = serializeMessage({
+			id: 2,
+			result: { success: false },
+		} as ResponseMessage);
 
 		// Push with extra newlines between messages
 		clientStream.push(msg1 + '\n\n' + msg2);
-		await new Promise((r) => setTimeout(r, 10));
 		expect(received).toHaveLength(2);
 	});
 
-	it('sends a message through the stream', async () => {
+	it('sends a message through the stream', () => {
 		const chunks: string[] = [];
 		clientStream.on('data', (chunk: Buffer) => {
 			chunks.push(chunk.toString('utf-8'));
@@ -312,7 +321,6 @@ describe('SocketConnection', () => {
 		};
 
 		connection.send(msg);
-		await new Promise((r) => setTimeout(r, 10));
 
 		const combined = chunks.join('');
 		expect(combined).toContain('"id":1');
@@ -330,30 +338,29 @@ describe('SocketConnection', () => {
 	});
 
 	it('fires close handler when stream closes', async () => {
-		const closeFn = vi.fn();
-		connection.onClose(closeFn);
+		const closePromise = new Promise<void>((resolve) => {
+			connection.onClose(resolve);
+		});
 
 		clientStream.destroy();
-		await new Promise((r) => setTimeout(r, 10));
-		expect(closeFn).toHaveBeenCalled();
+		await closePromise;
 	});
 
 	it('fires error handler on stream error', async () => {
-		const errorFn = vi.fn();
-		connection.onError(errorFn);
+		const errorPromise = new Promise<Error>((resolve) => {
+			connection.onError(resolve);
+		});
 
 		clientStream.destroy(new Error('test stream error'));
-		await new Promise((r) => setTimeout(r, 10));
-		expect(errorFn).toHaveBeenCalled();
-		expect(errorFn.mock.calls[0][0].message).toBe('test stream error');
+		const err = await errorPromise;
+		expect(err.message).toBe('test stream error');
 	});
 
-	it('fires error handler on invalid JSON in stream', async () => {
+	it('fires error handler on invalid JSON in stream', () => {
 		const errorFn = vi.fn();
 		connection.onError(errorFn);
 
 		clientStream.push('this is not json\n');
-		await new Promise((r) => setTimeout(r, 10));
 		expect(errorFn).toHaveBeenCalled();
 	});
 
@@ -366,6 +373,19 @@ describe('SocketConnection', () => {
 	it('close is idempotent', () => {
 		connection.close();
 		connection.close(); // Should not throw
+		expect(connection.isClosed).toBe(true);
+	});
+
+	it('closes connection when buffer exceeds max size', () => {
+		const errorFn = vi.fn();
+		connection.onError(errorFn);
+
+		// Push a very large chunk without any newlines
+		const hugeChunk = 'x'.repeat(11 * 1024 * 1024); // 11 MB, exceeds 10 MB limit
+		clientStream.push(hugeChunk);
+
+		expect(errorFn).toHaveBeenCalled();
+		expect(errorFn.mock.calls[0][0].message).toContain('Buffer exceeded maximum size');
 		expect(connection.isClosed).toBe(true);
 	});
 });

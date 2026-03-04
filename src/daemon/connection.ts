@@ -5,18 +5,28 @@
  * - Buffering partial messages split across multiple `data` events
  * - Extracting multiple messages from a single `data` event
  * - Emitting deserialized messages via a callback
+ * - Safe UTF-8 decoding across chunk boundaries via StringDecoder
+ * - Maximum buffer size enforcement to prevent unbounded memory growth
  *
  * Modeled after Playwright's SocketConnection in
  * packages/playwright-core/src/cli/client/socketConnection.ts
  */
 
 import type { Duplex } from 'node:stream';
+import { StringDecoder } from 'node:string_decoder';
 
 import {
 	deserializeMessage,
 	serializeMessage,
 	type ProtocolMessage,
 } from './protocol.js';
+
+/**
+ * Maximum bytes buffered before a newline is received.
+ * Protects against unbounded memory growth from a misbehaving peer.
+ * 10 MB is generous — aria snapshots can be large but not unbounded.
+ */
+const MAX_BUFFER_SIZE = 10 * 1024 * 1024;
 
 /**
  * Callback invoked when a complete protocol message has been received.
@@ -37,10 +47,13 @@ export type ErrorHandler = (error: Error) => void;
  * Manages newline-delimited JSON framing over a duplex stream.
  *
  * Reassembles split buffers and handles multiple messages per buffer.
+ * Uses StringDecoder to safely handle multi-byte UTF-8 characters
+ * that may be split across chunk boundaries.
  * The stream is typically a `net.Socket` (Unix domain socket).
  */
 export class SocketConnection {
 	private _buffer = '';
+	private _decoder = new StringDecoder('utf-8');
 	private _stream: Duplex;
 	private _onMessage: MessageHandler | null = null;
 	private _onClose: CloseHandler | null = null;
@@ -51,7 +64,11 @@ export class SocketConnection {
 		this._stream = stream;
 
 		this._stream.on('data', (chunk: Buffer | string) => {
-			this._onData(typeof chunk === 'string' ? chunk : chunk.toString('utf-8'));
+			// Use StringDecoder to safely handle multi-byte UTF-8 characters
+			// that may be split across data events
+			const decoded =
+				typeof chunk === 'string' ? chunk : this._decoder.write(chunk);
+			this._onData(decoded);
 		});
 
 		this._stream.on('close', () => {
@@ -93,9 +110,7 @@ export class SocketConnection {
 	 */
 	send(message: ProtocolMessage): void {
 		if (this._isClosed) {
-			throw new ConnectionError(
-				'Cannot send message: connection is closed.',
-			);
+			throw new ConnectionError('Cannot send message: connection is closed.');
 		}
 		const serialized = serializeMessage(message);
 		this._stream.write(serialized);
@@ -121,9 +136,20 @@ export class SocketConnection {
 	/**
 	 * Handles raw data from the stream, buffering and extracting
 	 * complete newline-delimited JSON messages.
+	 * Enforces a maximum buffer size to prevent unbounded memory growth.
 	 */
 	private _onData(data: string): void {
 		this._buffer += data;
+
+		// Guard against unbounded memory growth from a peer that never sends newlines
+		if (this._buffer.length > MAX_BUFFER_SIZE) {
+			const err = new ConnectionError(
+				`Buffer exceeded maximum size of ${MAX_BUFFER_SIZE} bytes. Closing connection.`,
+			);
+			this._onError?.(err);
+			this.close();
+			return;
+		}
 
 		let newlineIndex: number;
 		while ((newlineIndex = this._buffer.indexOf('\n')) !== -1) {
@@ -138,11 +164,7 @@ export class SocketConnection {
 				const message = deserializeMessage(line);
 				this._onMessage?.(message);
 			} catch (err) {
-				this._onError?.(
-					err instanceof Error
-						? err
-						: new Error(String(err)),
-				);
+				this._onError?.(err instanceof Error ? err : new Error(String(err)));
 			}
 		}
 	}
