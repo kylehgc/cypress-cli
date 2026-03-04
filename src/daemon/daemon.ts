@@ -97,8 +97,9 @@ export class Daemon {
 	 * @returns A Promise that resolves when the server is listening
 	 */
 	async start(): Promise<void> {
-		// Ensure the socket directory exists
-		await fs.mkdir(this._socketDir, { recursive: true });
+		// Ensure the socket directory exists with restrictive permissions
+		// so only the current user can access the socket
+		await fs.mkdir(this._socketDir, { recursive: true, mode: 0o700 });
 
 		// Clean up stale socket file if present
 		await this._cleanStaleSocket();
@@ -198,6 +199,10 @@ export class Daemon {
 
 		// Start idle timer if no sessions remain
 		if (this._sessions.size === 0 && this._idleTimeout > 0) {
+			if (this._idleTimer) {
+				clearTimeout(this._idleTimer);
+				this._idleTimer = null;
+			}
 			this._startIdleTimer();
 		}
 	}
@@ -337,22 +342,32 @@ export class Daemon {
 					session.recordHistory(command, result);
 
 					// Send result back to client
-					const response: ResponseMessage = {
-						id: message.id,
-						result: {
-							success: result.success,
-							...(result.snapshot !== undefined && {
-								snapshot: result.snapshot,
-							}),
-							...(result.selector !== undefined && {
-								selector: result.selector,
-							}),
-							...(result.cypressCommand !== undefined && {
-								cypressCommand: result.cypressCommand,
-							}),
-						},
-					};
-					conn.send(response);
+					if (!result.success && result.error) {
+						// Map failed commands to ErrorMessage so the CLI gets
+						// an actionable failure reason
+						const errorMsg: ErrorMessage = {
+							id: message.id,
+							error: result.error,
+						};
+						conn.send(errorMsg);
+					} else {
+						const response: ResponseMessage = {
+							id: message.id,
+							result: {
+								success: result.success,
+								...(result.snapshot !== undefined && {
+									snapshot: result.snapshot,
+								}),
+								...(result.selector !== undefined && {
+									selector: result.selector,
+								}),
+								...(result.cypressCommand !== undefined && {
+									cypressCommand: result.cypressCommand,
+								}),
+							},
+						};
+						conn.send(response);
+					}
 				})
 				.catch((err: Error) => {
 					// Client may have disconnected while the command was running

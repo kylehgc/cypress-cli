@@ -96,6 +96,7 @@ export class CommandQueue {
 				// Cypress plugin is already waiting for a command — deliver immediately
 				const deliver = this._waiter;
 				this._waiter = null;
+				this._waiterReject = null;
 				this._inflight = entry;
 				deliver(entry);
 			} else {

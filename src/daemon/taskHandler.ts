@@ -80,9 +80,14 @@ export function createGetCommandHandler(
 			}
 
 			return { type: 'poll' };
-		} catch {
-			// Queue disposed or error — tell driver to stop
-			return { type: 'stop' } as StopSentinel;
+		} catch (error) {
+			// If the queue was disposed while waiting, treat this as a stop signal.
+			// Otherwise, rethrow so unexpected errors fail loudly instead of silently
+			// stopping the polling loop.
+			if (queue.isDisposed) {
+				return { type: 'stop' } as StopSentinel;
+			}
+			throw error;
 		}
 	};
 }
