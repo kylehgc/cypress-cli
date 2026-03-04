@@ -18,6 +18,7 @@ export default defineConfig({
 			['tests/unit/cypress/**', 'node'],
 			['tests/unit/codegen/**', 'node'],
 			['tests/unit/protocol/**', 'node'],
+			['tests/unit/shared/**', 'node'],
 			['tests/integration/**', 'node'],
 			['tests/e2e/**', 'node'],
 		],
