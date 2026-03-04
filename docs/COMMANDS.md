@@ -1,0 +1,305 @@
+# Commands
+
+> Every command the CLI supports, its schema, how it maps to Cypress APIs, and
+> what it returns.
+
+## Protocol
+
+Commands flow over the Unix socket as newline-delimited JSON:
+
+```
+Client → Daemon:  { "id": 1, "method": "run", "params": { "args": { "_": ["click", "e5"] } } }
+Daemon → Client:  { "id": 1, "result": { "snapshot": "...", "success": true } }
+```
+
+Error responses:
+
+```
+Daemon → Client:  { "id": 1, "error": "Element ref e5 not found in current snapshot" }
+```
+
+The `method` is always `"run"` for command execution or `"stop"` for shutdown.
+The `args._` array contains the command name followed by positional arguments,
+matching minimist's parsing convention.
+
+## Command Categories
+
+### Core
+
+| Command    | Syntax                             | Description                                      |
+| ---------- | ---------------------------------- | ------------------------------------------------ |
+| `open`     | `cypress-cli open [url] [options]` | Start a session: launch Cypress, navigate to URL |
+| `stop`     | `cypress-cli stop`                 | Stop the current session                         |
+| `status`   | `cypress-cli status`               | Check if a session is running                    |
+| `snapshot` | `cypress-cli snapshot [--diff]`    | Get current aria snapshot                        |
+
+### Navigation
+
+| Command    | Syntax                       | Description                      |
+| ---------- | ---------------------------- | -------------------------------- |
+| `navigate` | `cypress-cli navigate <url>` | Navigate to a URL (`cy.visit()`) |
+| `back`     | `cypress-cli back`           | Go back (`cy.go('back')`)        |
+| `forward`  | `cypress-cli forward`        | Go forward (`cy.go('forward')`)  |
+| `reload`   | `cypress-cli reload`         | Reload page (`cy.reload()`)      |
+
+### Interaction
+
+| Command      | Syntax                                 | Description                                                |
+| ------------ | -------------------------------------- | ---------------------------------------------------------- |
+| `click`      | `cypress-cli click <ref>`              | Click element (`cy.get(sel).click()`)                      |
+| `dblclick`   | `cypress-cli dblclick <ref>`           | Double-click (`cy.get(sel).dblclick()`)                    |
+| `rightclick` | `cypress-cli rightclick <ref>`         | Right-click (`cy.get(sel).rightclick()`)                   |
+| `type`       | `cypress-cli type <ref> <text>`        | Type text (`cy.get(sel).type(text)`)                       |
+| `clear`      | `cypress-cli clear <ref>`              | Clear input (`cy.get(sel).clear()`)                        |
+| `check`      | `cypress-cli check <ref>`              | Check checkbox/radio (`cy.get(sel).check()`)               |
+| `uncheck`    | `cypress-cli uncheck <ref>`            | Uncheck checkbox (`cy.get(sel).uncheck()`)                 |
+| `select`     | `cypress-cli select <ref> <value>`     | Select option (`cy.get(sel).select(value)`)                |
+| `focus`      | `cypress-cli focus <ref>`              | Focus element (`cy.get(sel).focus()`)                      |
+| `blur`       | `cypress-cli blur <ref>`               | Blur element (`cy.get(sel).blur()`)                        |
+| `scrollto`   | `cypress-cli scrollto <ref\|position>` | Scroll (`cy.get(sel).scrollIntoView()` or `cy.scrollTo()`) |
+| `hover`      | `cypress-cli hover <ref>`              | Trigger hover (`cy.get(sel).trigger('mouseover')`)         |
+
+### Keyboard
+
+| Command | Syntax                    | Description                                |
+| ------- | ------------------------- | ------------------------------------------ |
+| `press` | `cypress-cli press <key>` | Press key (`cy.get('body').type('{key}')`) |
+
+### Assertion
+
+| Command       | Syntax                                       | Description                                        |
+| ------------- | -------------------------------------------- | -------------------------------------------------- |
+| `assert`      | `cypress-cli assert <ref> <chainer> [value]` | Assert (`cy.get(sel).should(chainer, value)`)      |
+| `asserturl`   | `cypress-cli asserturl <chainer> <value>`    | Assert URL (`cy.url().should(chainer, value)`)     |
+| `asserttitle` | `cypress-cli asserttitle <chainer> <value>`  | Assert title (`cy.title().should(chainer, value)`) |
+
+### Export
+
+| Command   | Syntax                             | Description                                |
+| --------- | ---------------------------------- | ------------------------------------------ |
+| `export`  | `cypress-cli export [--file path]` | Export commands as a `.cy.ts` test file    |
+| `history` | `cypress-cli history`              | List all commands executed in this session |
+| `undo`    | `cypress-cli undo`                 | Remove last command from export history    |
+
+### Wait
+
+| Command   | Syntax                                     | Description               |
+| --------- | ------------------------------------------ | ------------------------- |
+| `wait`    | `cypress-cli wait <ms>`                    | Wait (`cy.wait(ms)`)      |
+| `waitfor` | `cypress-cli waitfor <ref> [--timeout ms]` | Wait for element to exist |
+
+## Command Schemas (zod)
+
+Each command is defined with a zod schema for validation. Example:
+
+```typescript
+import { z } from 'zod';
+import { declareCommand } from './command.js';
+
+export const click = declareCommand({
+	name: 'click',
+	category: 'interaction',
+	description: 'Click an element by ref',
+	args: z.object({
+		ref: z.string().describe('Element ref from aria snapshot (e.g., "e5")'),
+	}),
+	options: z.object({
+		force: z
+			.boolean()
+			.optional()
+			.describe('Force click, disabling actionability checks'),
+		multiple: z.boolean().optional().describe('Click multiple elements'),
+	}),
+});
+
+export const type_ = declareCommand({
+	name: 'type',
+	category: 'interaction',
+	description: 'Type text into an element',
+	args: z.object({
+		ref: z.string().describe('Element ref from aria snapshot'),
+		text: z.string().describe('Text to type'),
+	}),
+	options: z.object({
+		delay: z.number().optional().describe('Delay between keystrokes in ms'),
+		force: z
+			.boolean()
+			.optional()
+			.describe('Force type, disabling actionability checks'),
+	}),
+});
+
+export const navigate = declareCommand({
+	name: 'navigate',
+	category: 'navigation',
+	description: 'Navigate to a URL',
+	args: z.object({
+		url: z.string().describe('URL to navigate to'),
+	}),
+	options: z.object({
+		timeout: z.number().optional().describe('Navigation timeout in ms'),
+	}),
+});
+
+export const assert_ = declareCommand({
+	name: 'assert',
+	category: 'assertion',
+	description: 'Assert on an element',
+	args: z.object({
+		ref: z.string().describe('Element ref from aria snapshot'),
+		chainer: z
+			.string()
+			.describe('Chai chainer (e.g., "be.visible", "have.text", "contain")'),
+		value: z.string().optional().describe('Expected value'),
+	}),
+	options: z.object({}),
+});
+
+export const snapshot = declareCommand({
+	name: 'snapshot',
+	category: 'core',
+	description: 'Get current aria snapshot of the page',
+	args: z.object({}),
+	options: z.object({
+		diff: z
+			.boolean()
+			.optional()
+			.describe('Return incremental diff from last snapshot'),
+	}),
+});
+```
+
+## Command ↔ Cypress API Mapping
+
+When the driver spec receives a command, it resolves the ref to a DOM element
+and executes the corresponding Cypress command.
+
+### Ref Resolution
+
+The injected aria snapshot produces a `Map<string, Element>` mapping ref strings
+(`"e5"`) to DOM elements. The driver spec maintains this map.
+
+To convert a ref to a Cypress-compatible selector for the command:
+
+1. Look up the DOM element from the ref map
+2. Use `Cypress.ElementSelector` to generate a selector from the element
+3. Execute `cy.get(selector).action()`
+
+```typescript
+function resolveRef(ref: string): Cypress.Chainable {
+	const element = currentSnapshot.elements.get(ref);
+	if (!element) throw new Error(`Ref "${ref}" not found in current snapshot`);
+
+	// Wrap the raw DOM element for Cypress
+	return cy.wrap(element);
+}
+```
+
+Alternatively, for codegen purposes, we also compute a stable selector:
+
+```typescript
+function refToSelector(ref: string): string {
+	const element = currentSnapshot.elements.get(ref);
+	// Use Cypress.ElementSelector or our own priority-based selector generator
+	return generateSelector(element);
+}
+```
+
+### Selector Priority
+
+Following `Cypress.ElementSelector` defaults:
+
+1. `[data-cy="value"]`
+2. `[data-test="value"]`
+3. `[data-testid="value"]`
+4. `[data-qa="value"]`
+5. `#id`
+6. `.className`
+7. `tag[attr="value"]`
+8. `tag:nth-child(n)`
+
+The selector is used for two purposes:
+
+- **Execution**: `cy.wrap(element)` for immediate execution (uses the live DOM ref)
+- **Codegen**: `cy.get('[data-cy="login"]')` for the exported test file (uses a
+  stable selector string)
+
+## Response Format
+
+Every command response includes:
+
+```typescript
+type CommandResponse = {
+	success: boolean;
+	snapshot?: string; // YAML aria snapshot (always included unless error)
+	error?: string; // Error message if command failed
+	selector?: string; // Resolved selector (for codegen tracking)
+	cypressCommand?: string; // The Cypress command that was executed (for codegen)
+};
+```
+
+Example success response:
+
+```json
+{
+	"success": true,
+	"snapshot": "- main:\n  - heading \"Dashboard\" [level=1]\n  - text: Welcome back",
+	"selector": "[data-cy=\"submit-btn\"]",
+	"cypressCommand": "cy.get('[data-cy=\"submit-btn\"]').click()"
+}
+```
+
+Example error response:
+
+```json
+{
+	"success": false,
+	"error": "cy.get() could not find element: [data-cy=\"nonexistent\"]",
+	"snapshot": "- main:\n  - heading \"Login\" [level=1]"
+}
+```
+
+Note: snapshot is included even on error, because the LLM needs to see the
+current page state to decide what to do next.
+
+## Open Design Questions
+
+### 1. Should `assert` commands appear in the REPL loop?
+
+Assertions don't change page state, but they produce pass/fail results. Two
+options:
+
+- **Yes**: treat them like any other command. The LLM issues `assert e5 have.text "Hello"`,
+  it runs as `cy.get(sel).should('have.text', 'Hello')`, and the result comes
+  back with success/error. This is simpler and consistent.
+- **No**: assertions are codegen-only. The LLM says "assert the heading says
+  Hello" and we just record it for export without executing it in the browser.
+
+**Current decision**: Yes, execute assertions. The LLM benefits from immediate
+feedback about whether the assertion passes.
+
+### 2. Should `wait` be explicit or implicit?
+
+Cypress has built-in retry/wait logic. An explicit `wait 2000` is usually an
+anti-pattern. But LLMs may want to wait for async operations.
+
+**Current decision**: Support `wait` for explicit waits and `waitfor` for
+element-based waits. Document that `waitfor` is preferred. The codegen system
+can flag `wait` commands as code smells.
+
+### 3. How to handle iframes?
+
+Playwright's aria snapshot includes `[iframe]` markers with separate ref
+prefixes. Cypress handles iframes via `cy.iframe()` (with `cypress-iframe`
+plugin) or manual `cy.get('iframe').its('0.contentDocument')`.
+
+**Current decision**: Phase 1 ignores iframes. Phase 2 can add iframe support
+by extending the snapshot injection to traverse into iframe documents.
+
+### 4. How to handle file uploads?
+
+`cy.get('input[type=file]').selectFile(path)` is the Cypress way. But the LLM
+would need to specify a file path on disk.
+
+**Current decision**: Defer to Phase 2. A `selectfile <ref> <path>` command
+would work but needs file path validation and security considerations.
