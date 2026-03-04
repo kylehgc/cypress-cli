@@ -19,6 +19,8 @@
 	"exclude": [
 		"src/injected/**",
 		"src/cypress/driver.cy.ts",
+		"src/cypress/driverSpec.ts",
+		"src/cypress/support.ts",
 		"node_modules",
 		"dist",
 		"tests"
