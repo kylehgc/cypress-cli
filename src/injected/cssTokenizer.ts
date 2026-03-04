@@ -8,7 +8,7 @@
 
 /**
  * Ported from Playwright (https://github.com/microsoft/playwright)
- * Modified for cypress-cli by [contributors].
+ * Modified for cypress-cli. See git history for contributors.
  */
 
 // Original at https://github.com/tabatkins/parse-css
