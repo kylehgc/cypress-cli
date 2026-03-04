@@ -10,22 +10,24 @@ The daemon is a long-lived Node.js process. One daemon per session. It:
 2. Starts Cypress via the Module API (`cypress.run()`) with the driver spec
 3. Maintains a command queue (FIFO, one-at-a-time)
 4. On each CLI command: enqueue → wait for driver spec to pick it up via
-   `cy.task('getCommand')` → wait for result via `cy.task('reportResult')` →
+   `cy.task('getCommand')` → wait for result via `cy.task('commandResult')` →
    send result back to client
 5. Manages session lifecycle (start, status, shutdown)
 
 The daemon does **not** interpret commands or interact with the browser. It's a
 pass-through between the CLI client and the Cypress test runner.
 
-## Key Files (planned)
+## Files
 
 ```
 daemon/
-├── index.ts          ← startDaemon(): creates socket server, starts Cypress
+├── index.ts          ← Re-exports public API
+├── daemon.ts         ← Daemon class: UDS server, session map, idle timeout, shutdown
 ├── commandQueue.ts   ← FIFO queue with Promise-based blocking dequeue
-├── session.ts        ← Session config management (create, read, delete)
-├── cypress.ts        ← Cypress Module API wrapper (cypress.run with driver spec)
-└── protocol.ts       ← Message types shared between daemon and client
+├── session.ts        ← Session state machine (waiting→running⇄paused→stopped)
+├── connection.ts     ← SocketConnection: newline-delimited JSON framing over net.Socket
+├── protocol.ts       ← Message types: CommandMessage, ResponseMessage, ErrorMessage
+└── taskHandler.ts    ← getCommand/commandResult task handlers with 110s long-poll
 ```
 
 ## Modeled After

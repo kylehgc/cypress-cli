@@ -10,19 +10,25 @@ This directory contains two things that work together:
 1. **Plugin** (`plugin.ts`): Node.js code that runs in Cypress's Node process.
    Registers `cy.task()` handlers that connect to the daemon's command queue.
 
-2. **Driver spec** (`driver.cy.ts`): A Cypress test file that runs in the
+2. **Driver spec** (`driverSpec.ts`): A Cypress test file that runs in the
    browser. Implements the REPL loop: poll for commands → execute → snapshot →
    report.
 
-## Key Files (planned)
+3. **Support** (`support.ts`): Browser-side helpers for IIFE injection and
+   snapshot taking, imported by the driver spec.
+
+4. **Launcher** (`launcher.ts`): Generates temporary Cypress config, wires
+   plugin + support + spec, and runs Cypress via Module API.
+
+## Files
 
 ```
 cypress/
-├── plugin.ts         ← setupNodeEvents: registers getCommand, reportResult tasks
-├── driver.cy.ts      ← The REPL loop test file
-├── executor.ts       ← Maps command objects to Cypress API calls
-├── snapshot.ts       ← Injects IIFE, calls generateAriaTree, returns YAML
-└── refs.ts           ← Manages ref → Element map, ref → selector resolution
+├── index.ts          ← Re-exports public API
+├── plugin.ts         ← setupNodeEvents: registers getCommand, commandResult tasks
+├── driverSpec.ts     ← The REPL loop test file (25+ commands implemented)
+├── support.ts        ← IIFE injection, snapshot taking, element map management
+└── launcher.ts       ← Generates temp config, launches cypress.run()/cypress.open()
 ```
 
 ## Plugin (plugin.ts)
@@ -45,7 +51,7 @@ export function registerTasks(
 			]);
 		},
 
-		reportResult(result: CommandResult): true {
+		commandResult(result: CommandResult): true {
 			queue.reportResult(result);
 			return true; // cy.task must return a non-undefined value
 		},
@@ -62,7 +68,7 @@ The driver spec sees this and re-polls.
 
 This creates an indefinite wait without ever hitting Cypress's hard timeout.
 
-## Driver Spec (driver.cy.ts)
+## Driver Spec (driverSpec.ts)
 
 This is the heart of the system. It's a Cypress test that:
 
@@ -112,85 +118,75 @@ function pollForCommands(): void {
 }
 ```
 
-### Command Execution (executor.ts)
+### Command Execution (in driverSpec.ts)
 
-Maps command objects to Cypress API calls:
+Maps command objects to Cypress API calls. The actual implementation handles
+25+ commands including click, dblclick, rightclick, type, clear, check, uncheck,
+select, focus, blur, scrollto, hover, navigate, back, forward, reload, press,
+assert, asserturl, asserttitle, wait, waitfor, and snapshot.
 
 ```typescript
-function executeCommand(cmd: Command): void {
+function executeCommand(cmd: DriverCommand): void {
 	switch (cmd.action) {
 		case 'click':
-			resolveRef(cmd.ref).click(cmd.options);
+			resolveRef(cmd.ref!).click(options);
 			break;
 		case 'type':
-			resolveRef(cmd.ref).type(cmd.text, cmd.options);
+			resolveRef(cmd.ref!).type(cmd.text!, options);
 			break;
 		case 'navigate':
-			cy.visit(cmd.url, cmd.options);
+			cy.visit(cmd.text!, options);
 			break;
-		case 'select':
-			resolveRef(cmd.ref).select(cmd.value);
+		case 'back':
+			cy.go('back');
 			break;
-		case 'assert':
-			resolveRef(cmd.ref).should(cmd.chainer, cmd.value);
-			break;
-		// ... etc
+		// ... 20+ more commands
 	}
 }
 ```
 
-### Ref Resolution (refs.ts)
+### Ref Resolution (in driverSpec.ts)
 
 After each snapshot, we have a `Map<string, Element>` mapping ref strings to
-DOM elements. For Cypress commands, we use `cy.wrap(element)` to get a
-Cypress chainable from a raw DOM element.
-
-For codegen, we also compute a stable CSS selector using the element's
-attributes, following Cypress.ElementSelector priority.
+DOM elements stored on `window.__cypressCliElementMap`. For Cypress commands,
+we use `cy.wrap(element)` to get a Cypress chainable from a raw DOM element.
 
 ```typescript
 function resolveRef(ref: string): Cypress.Chainable {
-	return cy.window().then((win) => {
-		const element = currentElements.get(ref);
-		if (!element) throw new Error(`Ref "${ref}" not found`);
-		return cy.wrap(element);
+	return cy.window({ log: false }).then((win) => {
+		const elementMap = win.__cypressCliElementMap as Map<string, Element>;
+		const element = elementMap?.get(ref);
+		if (!element) throw new Error(`Ref "${ref}" not found in current snapshot`);
+		return cy.wrap(element, { log: false });
 	});
 }
 ```
 
-### Snapshot Injection (snapshot.ts)
+### Snapshot Injection (in support.ts)
 
 The aria snapshot IIFE must be injected into the page context. It needs
 re-injection after full-page navigation (`cy.visit()`) since that creates a
-new window context.
+new window context. The IIFE is loaded from `Cypress.env('CYPRESS_CLI_IIFE')`.
 
 ```typescript
-let injected = false;
-
 function injectSnapshotLib(): void {
-	cy.window().then((win) => {
+	cy.window({ log: false }).then((win) => {
 		if (!win.__cypressCliAriaSnapshot) {
-			win.eval(IIFE_STRING);
-			injected = true;
+			const iife = Cypress.env('CYPRESS_CLI_IIFE');
+			if (iife) win.eval(iife);
 		}
 	});
 }
 
 function takeSnapshot(): Cypress.Chainable<string> {
-	return cy.window().then((win) => {
+	return cy.window({ log: false }).then((win) => {
 		const api = win.__cypressCliAriaSnapshot;
 		const snapshot = api.generateAriaTree(win.document.documentElement, {
 			mode: 'ai',
 		});
-		const yaml = api.renderAriaTree(snapshot, { mode: 'ai' }, previousSnapshot);
-
-		// Store for next diff
-		previousSnapshot = snapshot;
-
-		// Store element map for ref resolution
-		currentElements = snapshot.elements;
-
-		return yaml;
+		// Store element map on window for ref resolution
+		win.__cypressCliElementMap = snapshot.elements;
+		return api.renderAriaTree(snapshot, { mode: 'ai' });
 	});
 }
 ```
@@ -202,7 +198,7 @@ Promise that resolves to a value. Returning `undefined` causes Cypress to
 fail the task.
 
 - `getCommand` → returns the command object or `{ type: 'poll' }`
-- `reportResult` → returns `true` (acknowledgment)
+- `commandResult` → returns `true` (acknowledgment)
 
 All values must be JSON-serializable (no DOM elements, no class instances,
 no circular references). The aria snapshot YAML string and command objects
@@ -213,7 +209,9 @@ are plain JSON.
 This directory is **not** a Cypress project itself. The files here are:
 
 - `plugin.ts` — imported by the daemon when constructing the Cypress config
-- `driver.cy.ts` — passed as the `spec` to `cypress.run()`
+- `driverSpec.ts` — passed as the `spec` to `cypress.run()`
+- `support.ts` — browser-side helpers imported by the driver spec
+- `launcher.ts` — generates temporary Cypress config, launches via Module API
 
 The consumer's project has its own `cypress.config.ts`. We augment it (or
 create a temporary one) to add our plugin and spec.
