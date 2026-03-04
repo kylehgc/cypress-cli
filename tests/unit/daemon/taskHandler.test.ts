@@ -8,9 +8,6 @@ import {
 	createGetCommandHandler,
 	createCommandResultHandler,
 	createTaskHandlers,
-	type GetCommandResult,
-	type PollSentinel,
-	type StopSentinel,
 } from '../../../src/daemon/taskHandler.js';
 
 describe('createGetCommandHandler', () => {
