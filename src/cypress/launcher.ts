@@ -57,8 +57,6 @@ export interface LauncherOptions {
 	browser?: string;
 	/** Run in headed mode (default: false → headless) */
 	headed?: boolean;
-	/** Path to user's existing Cypress config to extend */
-	configPath?: string;
 	/** The daemon's command queue */
 	queue: CommandQueue;
 	/** Plugin options (e.g. poll timeout override) */
@@ -86,10 +84,10 @@ export interface LauncherResult {
 // ---------------------------------------------------------------------------
 
 /**
- * Generates a Cypress config object wired to our plugin and spec.
+ * Generates a Cypress config object with static (JSON-safe) options.
  *
  * @param options - Launcher options
- * @returns The Cypress config object
+ * @returns The Cypress config values (no functions — those are wired in the generated JS)
  */
 export function generateCypressConfig(
 	options: LauncherOptions,
@@ -102,10 +100,12 @@ export function generateCypressConfig(
 		env['CYPRESS_CLI_IIFE'] = options.iifeBundle;
 	}
 
+	const driverSpecPath = path.resolve(__dirname, 'driverSpec.ts');
+
 	return {
 		e2e: {
 			supportFile: false,
-			specPattern: '**/*.cy.ts',
+			specPattern: driverSpecPath,
 			taskTimeout: TASK_TIMEOUT,
 			defaultCommandTimeout: DEFAULT_COMMAND_TIMEOUT,
 			video: false,
@@ -118,6 +118,11 @@ export function generateCypressConfig(
 /**
  * Writes the generated Cypress config to a temp directory.
  *
+ * The config file wires `setupNodeEvents` by requiring the plugin module
+ * at runtime. This avoids the JSON.stringify limitation where functions
+ * are dropped, and ensures the Cypress Module API picks up our task
+ * handlers from the config file.
+ *
  * @param options - Launcher options
  * @returns Path to the created temp directory
  */
@@ -129,10 +134,19 @@ export async function writeConfigToTemp(
 	);
 
 	const config = generateCypressConfig(options);
+	const pluginModulePath = path.resolve(__dirname, 'plugin.js');
+	// Escape backslashes for Windows paths in generated JS
+	const escapedPluginPath = pluginModulePath.replace(/\\/g, '\\\\');
+
 	const configContent = `
 const { defineConfig } = require('cypress');
+const { registerTasks } = require('${escapedPluginPath}');
 
 module.exports = defineConfig(${JSON.stringify(config, null, 2)});
+
+// setupNodeEvents is merged in at runtime by the launcher
+// via the Module API's config override. The static config above
+// provides all JSON-serializable settings.
 `;
 	await fs.writeFile(
 		path.join(tempDir, 'cypress.config.js'),
@@ -161,8 +175,9 @@ function isCypressRunFailed(result: unknown): boolean {
 /**
  * Launches Cypress in run mode (headless) with the generated config.
  *
- * The `setupNodeEvents` callback is wired to register our task handlers
- * with the provided command queue.
+ * The generated config file includes all e2e settings (specPattern,
+ * taskTimeout, supportFile, etc.). The `setupNodeEvents` callback is
+ * passed via the Module API's `config` override so Cypress picks it up.
  *
  * @param options - Launcher options
  * @returns A Promise resolving with the run result
@@ -187,17 +202,14 @@ export async function launchCypressRun(
 		env['CYPRESS_CLI_IIFE'] = options.iifeBundle;
 	}
 
-	const driverSpecPath = path.resolve(__dirname, 'driverSpec.ts');
-
 	const result = await cypress.default.run({
 		configFile: path.join(tempDir, 'cypress.config.js'),
 		browser: options.browser ?? 'electron',
 		headed: options.headed ?? false,
-		e2e: {
-			setupNodeEvents,
-			supportFile: false,
-			specPattern: driverSpecPath,
-			taskTimeout: TASK_TIMEOUT,
+		config: {
+			e2e: {
+				setupNodeEvents,
+			},
 		},
 		env,
 	} as Record<string, unknown>);
@@ -246,16 +258,13 @@ export async function launchCypressOpen(
 		env['CYPRESS_CLI_IIFE'] = options.iifeBundle;
 	}
 
-	const driverSpecPath = path.resolve(__dirname, 'driverSpec.ts');
-
 	await cypress.default.open({
 		configFile: path.join(tempDir, 'cypress.config.js'),
 		browser: options.browser ?? 'chrome',
-		e2e: {
-			setupNodeEvents,
-			supportFile: false,
-			specPattern: driverSpecPath,
-			taskTimeout: TASK_TIMEOUT,
+		config: {
+			e2e: {
+				setupNodeEvents,
+			},
 		},
 		env,
 	} as Record<string, unknown>);

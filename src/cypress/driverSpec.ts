@@ -51,8 +51,8 @@ const GET_COMMAND_TIMEOUT = 120_000;
  * Resolves a ref string (e.g. "e5") to a Cypress chainable wrapping the
  * corresponding DOM element.
  *
- * The ref is stored as a `data-cy-ref` attribute by the aria snapshot IIFE
- * or looked up from the window-level element map.
+ * Looks up the element from the window-level element map that is populated
+ * by `takeSnapshot()` after each snapshot.
  */
 function resolveRef(ref: string): Cypress.Chainable {
 	return cy.window({ log: false }).then((win: Window) => {
@@ -67,8 +67,10 @@ function resolveRef(ref: string): Cypress.Chainable {
 			}
 		}
 
-		// Fallback: try a data attribute selector
-		return cy.get(`[data-cy-ref="${ref}"]`, { log: false });
+		throw new Error(
+			`Ref "${ref}" not found in current snapshot. ` +
+			'Run `snapshot` to refresh the element map.',
+		);
 	});
 }
 
@@ -76,9 +78,6 @@ function resolveRef(ref: string): Cypress.Chainable {
 // Command execution
 // ---------------------------------------------------------------------------
 
-/**
- * Executes a single command received from the daemon.
- *
 /**
  * Commands that require a ref field to be present.
  */
@@ -153,8 +152,10 @@ function executeCommand(cmd: DriverCommand): void {
 		case 'scrollto':
 			if (cmd.ref) {
 				resolveRef(cmd.ref).scrollIntoView(options);
-			} else {
+			} else if (cmd.text) {
 				cy.scrollTo(cmd.text as Cypress.PositionType, options);
+			} else {
+				throw new Error('`scrollto` command requires either `ref` (for scrollIntoView) or `text` (for position/coords).');
 			}
 			break;
 		case 'hover':

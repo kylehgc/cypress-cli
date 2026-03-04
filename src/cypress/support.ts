@@ -8,7 +8,7 @@
  *
  * Responsibilities:
  * - Inject the aria snapshot IIFE into the page context
- * - Register and/or wrap helpers such as `cy.takeAriaSnapshot()`
+ * - Take aria snapshots and persist the ref→Element map on window
  */
 
 /**
@@ -41,7 +41,9 @@ export function injectSnapshotLib(): void {
  * Takes an aria snapshot of the current page and returns the YAML string.
  *
  * Wraps the injected aria snapshot API. Must be called after
- * `injectSnapshotLib()`.
+ * `injectSnapshotLib()`. Stores the snapshot's element map on
+ * `window.__cypressCliElementMap` so that `resolveRef()` in the driver
+ * spec can look up DOM elements by ref.
  *
  * @returns A Cypress chainable that yields the YAML snapshot string
  */
@@ -54,9 +56,9 @@ export function takeSnapshot(): Cypress.Chainable<string> {
 					generateAriaTree: (
 						root: Element,
 						options: { mode: string },
-					) => { yaml: string };
+					) => { root: unknown; elements: Map<string, Element> };
 					renderAriaTree: (
-						tree: unknown,
+						snapshot: unknown,
 						options: { mode: string },
 					) => string;
 			  }
@@ -66,9 +68,14 @@ export function takeSnapshot(): Cypress.Chainable<string> {
 			return '- [aria snapshot not available]';
 		}
 
-		const tree = api.generateAriaTree(win.document.documentElement, {
+		const snapshot = api.generateAriaTree(win.document.documentElement, {
 			mode: 'ai',
 		});
-		return api.renderAriaTree(tree, { mode: 'ai' });
+
+		// Store element map on window so resolveRef() can look up elements
+		(win as Record<string, unknown>)['__cypressCliElementMap'] =
+			snapshot.elements;
+
+		return api.renderAriaTree(snapshot, { mode: 'ai' });
 	});
 }
