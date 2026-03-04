@@ -189,6 +189,28 @@ describe('sendAndReceive', () => {
 		).rejects.toThrow(/Timed out waiting for daemon response/);
 	});
 
+	it('does not retry on response timeout (only connection errors are retried)', async () => {
+		// Server accepts connection but never responds — this is a response-level
+		// error, not a connection error, so it should NOT be retried.
+		await startEchoServer((_line, _socket) => {
+			// intentionally do nothing
+		});
+
+		const start = Date.now();
+		await expect(
+			sendAndReceive(sampleCommand(), {
+				socketPath,
+				maxRetries: 3,
+				responseTimeout: 200,
+			}),
+		).rejects.toThrow(/Timed out waiting for daemon response/);
+		const elapsed = Date.now() - start;
+
+		// If it retried 3 times at 200ms + 500ms delays, it would take >2s.
+		// Without retries, it should finish in roughly 200ms + overhead.
+		expect(elapsed).toBeLessThan(1000);
+	});
+
 	it('throws when daemon closes connection before responding', async () => {
 		await startEchoServer((_line, socket) => {
 			// Close immediately without sending a response

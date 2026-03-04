@@ -13,7 +13,7 @@ export {
 } from './socketConnection.js';
 export type { ClientSocketOptions } from './socketConnection.js';
 
-export { startRepl } from './repl.js';
+export { startRepl, splitArgv } from './repl.js';
 export type { ReplOptions } from './repl.js';
 
 export {

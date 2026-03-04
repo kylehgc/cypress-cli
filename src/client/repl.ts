@@ -77,8 +77,8 @@ export async function startRepl(options: ReplOptions = {}): Promise<void> {
 			return;
 		}
 
-		// Parse the line as if it were CLI arguments
-		const argv = trimmed.split(/\s+/);
+		// Parse the line as if it were CLI arguments, respecting shell-style quoting
+		const argv = splitArgv(trimmed);
 		const parsed = minimist(argv, {
 			boolean: ['force', 'multiple', 'headed', 'diff'],
 			string: ['browser', 'config', 'file'],
@@ -104,4 +104,58 @@ export async function startRepl(options: ReplOptions = {}): Promise<void> {
 
 		rl.prompt();
 	}
+}
+
+/**
+ * Splits a REPL input line into an argv-style array, respecting
+ * double-quoted and single-quoted strings so that e.g.
+ * `type e3 "hello world"` → `['type', 'e3', 'hello world']`.
+ */
+export function splitArgv(line: string): string[] {
+	const args: string[] = [];
+	let current = '';
+	let inDouble = false;
+	let inSingle = false;
+	let escaped = false;
+
+	for (let i = 0; i < line.length; i++) {
+		const ch = line[i];
+
+		if (escaped) {
+			current += ch;
+			escaped = false;
+			continue;
+		}
+
+		if (ch === '\\' && !inSingle) {
+			escaped = true;
+			continue;
+		}
+
+		if (ch === '"' && !inSingle) {
+			inDouble = !inDouble;
+			continue;
+		}
+
+		if (ch === "'" && !inDouble) {
+			inSingle = !inSingle;
+			continue;
+		}
+
+		if (/\s/.test(ch) && !inDouble && !inSingle) {
+			if (current.length > 0) {
+				args.push(current);
+				current = '';
+			}
+			continue;
+		}
+
+		current += ch;
+	}
+
+	if (current.length > 0) {
+		args.push(current);
+	}
+
+	return args;
 }

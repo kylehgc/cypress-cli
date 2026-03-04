@@ -232,12 +232,15 @@ function exchangeMessage(
 }
 
 /**
- * Determines if an error is retryable (connection-level errors).
+ * Determines if an error is retryable (connection-level errors only).
+ * Response-level errors (response timeout, protocol errors) are NOT retried
+ * since the connection was established successfully.
  */
 function isRetryableError(error: Error): boolean {
 	if (error instanceof ClientConnectionError) {
+		// Only retry connection-phase errors, not response-phase errors
 		return error.message.includes('Cannot connect') ||
-			error.message.includes('timed out') ||
+			error.message.includes('Connection to daemon timed out') ||
 			error.message.includes('ECONNREFUSED') ||
 			error.message.includes('ENOENT');
 	}

@@ -189,10 +189,16 @@ describe('run', () => {
 	});
 
 	it('returns version when --version flag is passed', async () => {
-		// --version requires at least one positional arg to avoid the help branch
-		const result: CliResult = await run(['--version', 'snapshot']);
+		const result: CliResult = await run(['--version']);
 		expect(result.exitCode).toBe(EXIT_SUCCESS);
 		expect(result.output).toContain('cypress-cli');
+		expect(result.output).toContain('0.1.0');
+	});
+
+	it('returns version even without positional args (--version takes precedence over help)', async () => {
+		const result: CliResult = await run(['--version']);
+		expect(result.exitCode).toBe(EXIT_SUCCESS);
+		expect(result.output).not.toContain('Usage:');
 	});
 
 	it('returns exit code 3 for unknown commands', async () => {

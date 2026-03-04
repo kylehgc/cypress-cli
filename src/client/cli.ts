@@ -8,12 +8,28 @@
  *   3 — validation error (unknown command, missing args, bad flags)
  */
 
+import { createRequire } from 'node:module';
+
 import minimist from 'minimist';
 
 import { parseCommand, CommandValidationError } from './command.js';
 import { commandRegistry, allCommands } from './commands.js';
 import { ClientSession, type ClientResult } from './session.js';
 import { ClientConnectionError } from './socketConnection.js';
+
+/**
+ * Reads the package version from package.json at runtime.
+ * Uses createRequire because ESM cannot import JSON directly from outside rootDir.
+ */
+function getPackageVersion(): string {
+	try {
+		const require = createRequire(import.meta.url);
+		const pkg = require('../../package.json') as { version: string };
+		return pkg.version;
+	} catch {
+		return '0.0.0';
+	}
+}
 
 /** Exit code for success. */
 export const EXIT_SUCCESS = 0;
@@ -173,14 +189,14 @@ export function formatError(error: unknown, asJson: boolean): string {
 export async function run(argv: string[]): Promise<CliResult> {
 	const { flags, parsed } = parseGlobalFlags(argv);
 
-	// Help
-	if (flags.help || parsed._.length === 0) {
-		return { exitCode: EXIT_SUCCESS, output: generateHelpText() };
+	// Version (check before help so `--version` alone works)
+	if (flags.version) {
+		return { exitCode: EXIT_SUCCESS, output: `cypress-cli ${getPackageVersion()}` };
 	}
 
-	// Version
-	if (flags.version) {
-		return { exitCode: EXIT_SUCCESS, output: 'cypress-cli 0.1.0' };
+	// Help (explicit flag or no positional arguments)
+	if (flags.help || parsed._.length === 0) {
+		return { exitCode: EXIT_SUCCESS, output: generateHelpText() };
 	}
 
 	// Parse and validate the command
