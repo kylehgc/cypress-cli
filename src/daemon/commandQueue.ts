@@ -258,7 +258,14 @@ export class CommandQueue {
 	}
 
 	/**
-	 * Dispose the queue, rejecting any pending waiters.
+	 * Dispose the queue, settling all outstanding Promises.
+	 *
+	 * - Pending `enqueue()` Promises are rejected with a QueueError.
+	 * - In-flight `enqueue()` Promise is rejected with a QueueError.
+	 * - Pending `dequeue()` waiter is rejected with a QueueError.
+	 * - Pending `dequeueWithTimeout()` waiter resolves with null
+	 *   (so the caller can check `isDisposed` and return a stop sentinel).
+	 *
 	 * Called during daemon shutdown.
 	 */
 	dispose(): void {

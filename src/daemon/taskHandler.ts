@@ -10,6 +10,7 @@
 
 import {
 	CommandQueue,
+	QueueError,
 	type QueuedCommand,
 	type CommandResult,
 } from './commandQueue.js';
@@ -109,12 +110,13 @@ export function createCommandResultHandler(
 		try {
 			queue.reportResult(result);
 		} catch (error) {
-			// If the queue was disposed or there is no in-flight command (e.g. during
-			// shutdown), treat this as a no-op so Cypress teardown does not fail.
-			// For any other unexpected error, rethrow so it is surfaced.
-			if (!queue.isDisposed) {
-				throw error;
+			// During shutdown or with duplicate/late results, the queue may be
+			// disposed or there may be no in-flight command. Suppress known
+			// QueueError cases so Cypress teardown does not fail.
+			if (error instanceof QueueError) {
+				return true;
 			}
+			throw error;
 		}
 		// Cypress tasks must return non-undefined, so we return true as acknowledgment
 		return true;

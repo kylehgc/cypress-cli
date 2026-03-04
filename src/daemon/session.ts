@@ -213,7 +213,7 @@ export class Session {
 		command: QueuedCommand;
 		result: CommandResult;
 	}> {
-		return this._commandHistory;
+		return this._commandHistory.slice();
 	}
 
 	/**
