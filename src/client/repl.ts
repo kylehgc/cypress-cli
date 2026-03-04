@@ -9,11 +9,10 @@ import readline from 'node:readline';
 
 import minimist from 'minimist';
 
-import { parseCommand, CommandValidationError } from './command.js';
+import { parseCommand } from './command.js';
 import { commandRegistry } from './commands.js';
 import { ClientSession, type ClientSessionOptions } from './session.js';
 import { formatResult, formatError } from './cli.js';
-import { ClientConnectionError } from './socketConnection.js';
 
 /**
  * Options for the REPL session.
@@ -100,13 +99,7 @@ export async function startRepl(options: ReplOptions = {}): Promise<void> {
 			const result = await session.sendCommand(parsedCommand);
 			write(formatResult(result, asJson));
 		} catch (err) {
-			if (err instanceof CommandValidationError) {
-				write(formatError(err, asJson));
-			} else if (err instanceof ClientConnectionError) {
-				write(formatError(err, asJson));
-			} else {
-				write(formatError(err, asJson));
-			}
+			write(formatError(err, asJson));
 		}
 
 		rl.prompt();

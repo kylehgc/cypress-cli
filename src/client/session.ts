@@ -174,15 +174,18 @@ function toClientResult(response: DaemonMessage): ClientResult {
 
 	const result = response.result as unknown as Record<string, unknown>;
 
-	return {
+	const clientResult: ClientResult = {
 		success: response.result.success,
 		result,
-		...(!response.result.success &&
-			'error' in response.result &&
-			typeof (response.result as Record<string, unknown>).error ===
-				'string' && {
-				error: (response.result as Record<string, unknown>)
-					.error as string,
-			}),
 	};
+
+	if (
+		!response.result.success &&
+		'error' in response.result &&
+		typeof (response.result as Record<string, unknown>).error === 'string'
+	) {
+		clientResult.error = (response.result as Record<string, unknown>).error as string;
+	}
+
+	return clientResult;
 }
