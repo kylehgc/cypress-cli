@@ -285,16 +285,17 @@ describe('cypress-cli', () => {
 		// Inject aria snapshot IIFE
 		injectSnapshotLib();
 
-		// Take initial snapshot and report it
+		// Take initial snapshot and report it, then enter REPL loop
 		takeSnapshot().then((snapshotYaml: string) => {
 			const initialResult: DriverResult = {
 				success: true,
 				snapshot: snapshotYaml,
 			};
-			cy.task('commandResult', initialResult, { log: false });
+			return cy
+				.task('commandResult', initialResult, { log: false })
+				.then(() => {
+					pollForCommands();
+				});
 		});
-
-		// Enter REPL loop
-		pollForCommands();
 	});
 });
