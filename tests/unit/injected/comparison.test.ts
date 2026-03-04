@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ariaNodesEqual, hasPointerCursor, findNewNode } from '../../../src/injected/comparison.js';
+import { generateAriaTree, renderAriaTree } from '../../../src/injected/ariaSnapshot.js';
+import { patchDom, restoreDom } from './domPatch.js';
 import type { AriaNode } from '../../../src/injected/types.js';
 
 function makeNode(overrides: Partial<AriaNode> = {}): AriaNode {
@@ -191,5 +193,73 @@ describe('findNewNode', () => {
     const newNode = findNewNode(from, to);
     expect(newNode).toBeDefined();
     expect(newNode!.role).toBe('navigation');
+  });
+});
+
+describe('incremental diff via renderAriaTree', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    patchDom();
+  });
+
+  afterEach(() => {
+    restoreDom();
+  });
+
+  it('identical snapshots produce empty diff', () => {
+    document.body.innerHTML = '<h1>Title</h1><button>Click</button>';
+    const snap1 = generateAriaTree(document.body, { mode: 'ai' });
+    const snap2 = generateAriaTree(document.body, { mode: 'ai' });
+    const yaml = renderAriaTree(snap2, { mode: 'ai' }, snap1);
+    expect(yaml.trim()).toBe('');
+  });
+
+  it('added node appears as changed', () => {
+    document.body.innerHTML = '<h1>Title</h1>';
+    const prev = generateAriaTree(document.body, { mode: 'ai' });
+
+    document.body.innerHTML = '<h1>Title</h1><button>New</button>';
+    const curr = generateAriaTree(document.body, { mode: 'ai' });
+
+    const yaml = renderAriaTree(curr, { mode: 'ai' }, prev);
+    expect(yaml).toContain('button "New"');
+  });
+
+  it('modified text triggers changed marker', () => {
+    document.body.innerHTML = '<h1>Hello</h1>';
+    const prev = generateAriaTree(document.body, { mode: 'ai' });
+
+    // Modify the existing heading in-place so DOM elements (and their cached refs) persist
+    const heading = document.querySelector('h1')!;
+    heading.textContent = 'Goodbye';
+    const curr = generateAriaTree(document.body, { mode: 'ai' });
+
+    const yaml = renderAriaTree(curr, { mode: 'ai' }, prev);
+    expect(yaml).toContain('Goodbye');
+    expect(yaml).toContain('<changed>');
+  });
+
+  it('unchanged subtrees with refs collapse to [unchanged]', () => {
+    document.body.innerHTML = '<button>Stable</button><button>Will change</button>';
+    const prev = generateAriaTree(document.body, { mode: 'ai' });
+
+    // Modify in-place so DOM elements (and their cached refs) persist
+    document.querySelectorAll('button')[1].textContent = 'Changed now';
+    const curr = generateAriaTree(document.body, { mode: 'ai' });
+
+    const yaml = renderAriaTree(curr, { mode: 'ai' }, prev);
+    expect(yaml).toContain('[unchanged]');
+  });
+
+  it('reordered children trigger diff', () => {
+    document.body.innerHTML = '<div role="list"><div role="listitem">A</div><div role="listitem">B</div><div role="listitem">C</div></div>';
+    const prev = generateAriaTree(document.body, { mode: 'ai' });
+
+    document.body.innerHTML = '<div role="list"><div role="listitem">C</div><div role="listitem">A</div><div role="listitem">B</div></div>';
+    const curr = generateAriaTree(document.body, { mode: 'ai' });
+
+    const yaml = renderAriaTree(curr, { mode: 'ai' }, prev);
+    // Reordering triggers a change, so the diff should not be empty
+    expect(yaml.trim()).not.toBe('');
   });
 });
