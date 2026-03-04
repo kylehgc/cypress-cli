@@ -160,4 +160,81 @@ describe('generateAriaTree + renderAriaTree', () => {
     expect(yaml).toContain('textbox "Name"');
     expect(yaml).toContain('Alice');
   });
+
+  it('includes generic roles in AI mode', () => {
+    document.body.innerHTML = '<div><button>A</button><button>B</button></div>';
+    const snapshot = generateAriaTree(document.body, { mode: 'ai' });
+    const yaml = renderAriaTree(snapshot, { mode: 'ai' });
+    expect(yaml).toContain('generic');
+  });
+
+  it('escapes YAML special characters in names', () => {
+    document.body.innerHTML = '<button>Say "hello": world</button>';
+    const snapshot = generateAriaTree(document.body, { mode: 'ai' });
+    const yaml = renderAriaTree(snapshot, { mode: 'ai' });
+    // The name should be in the output (possibly JSON-escaped)
+    expect(yaml).toContain('button "Say \\"hello\\": world"');
+  });
+
+  it('computes accessible name from aria-labelledby', () => {
+    document.body.innerHTML = '<div id="lbl">Email</div><input aria-labelledby="lbl" type="email">';
+    const snapshot = generateAriaTree(document.body, { mode: 'ai' });
+    const yaml = renderAriaTree(snapshot, { mode: 'ai' });
+    expect(yaml).toContain('textbox "Email"');
+  });
+
+  it('handles form elements with label', () => {
+    document.body.innerHTML = '<label for="pw">Password</label><input id="pw" type="password">';
+    const snapshot = generateAriaTree(document.body, { mode: 'ai' });
+    const yaml = renderAriaTree(snapshot, { mode: 'ai' });
+    expect(yaml).toContain('textbox "Password"');
+  });
+
+  it('handles select elements', () => {
+    document.body.innerHTML = '<select aria-label="Color"><option>Red</option><option selected>Blue</option></select>';
+    const snapshot = generateAriaTree(document.body, { mode: 'ai' });
+    const yaml = renderAriaTree(snapshot, { mode: 'ai' });
+    expect(yaml).toContain('combobox "Color"');
+  });
+
+  it('renders active state for focused elements', () => {
+    document.body.innerHTML = '<button>Focus me</button>';
+    const btn = document.querySelector('button')!;
+    btn.focus();
+    const snapshot = generateAriaTree(document.body, { mode: 'ai' });
+    const yaml = renderAriaTree(snapshot, { mode: 'ai' });
+    expect(yaml).toContain('button "Focus me"');
+    // Active attribute rendered when the element is the active/focused element
+    expect(yaml).toContain('[active]');
+  });
+
+  it('renders selected state for tabs', () => {
+    document.body.innerHTML = '<div role="tab" aria-selected="true">Tab 1</div>';
+    const snapshot = generateAriaTree(document.body, { mode: 'ai' });
+    const yaml = renderAriaTree(snapshot, { mode: 'ai' });
+    expect(yaml).toContain('[selected]');
+  });
+
+  it('renders incremental diff with changed marker', () => {
+    document.body.innerHTML = '<h1>Hello</h1><button>Click</button>';
+    const prev = generateAriaTree(document.body, { mode: 'ai' });
+
+    document.body.innerHTML = '<h1>Goodbye</h1><button>Click</button>';
+    const curr = generateAriaTree(document.body, { mode: 'ai' });
+
+    const yaml = renderAriaTree(curr, { mode: 'ai' }, prev);
+    expect(yaml).toContain('Goodbye');
+  });
+
+  it('renders unchanged ref nodes as [unchanged] in diff', () => {
+    document.body.innerHTML = '<button>Stay</button><button>Change</button>';
+    const prev = generateAriaTree(document.body, { mode: 'ai' });
+
+    // Modify in-place so DOM elements (and their cached refs) persist
+    document.querySelectorAll('button')[1].textContent = 'Changed';
+    const curr = generateAriaTree(document.body, { mode: 'ai' });
+
+    const yaml = renderAriaTree(curr, { mode: 'ai' }, prev);
+    expect(yaml).toContain('[unchanged]');
+  });
 });
