@@ -165,10 +165,17 @@ describe('command schemas', () => {
 		});
 
 		it('assert requires ref and chainer, value is optional', () => {
-			const withValue = assert_.args.safeParse({ ref: 'e5', chainer: 'have.text', value: 'Hello' });
+			const withValue = assert_.args.safeParse({
+				ref: 'e5',
+				chainer: 'have.text',
+				value: 'Hello',
+			});
 			expect(withValue.success).toBe(true);
 
-			const withoutValue = assert_.args.safeParse({ ref: 'e5', chainer: 'be.visible' });
+			const withoutValue = assert_.args.safeParse({
+				ref: 'e5',
+				chainer: 'be.visible',
+			});
 			expect(withoutValue.success).toBe(true);
 
 			const missingChainer = assert_.args.safeParse({ ref: 'e5' });
@@ -226,10 +233,7 @@ describe('command schemas', () => {
 
 describe('parseCommand', () => {
 	it("parses 'click e5' correctly", () => {
-		const result = parseCommand(
-			{ _: ['click', 'e5'] },
-			commandRegistry,
-		);
+		const result = parseCommand({ _: ['click', 'e5'] }, commandRegistry);
 		expect(result).toEqual({
 			command: 'click',
 			args: { ref: 'e5' },
@@ -329,7 +333,11 @@ describe('parseCommand', () => {
 		expect(backResult).toEqual({ command: 'back', args: {}, options: {} });
 
 		const forwardResult = parseCommand({ _: ['forward'] }, commandRegistry);
-		expect(forwardResult).toEqual({ command: 'forward', args: {}, options: {} });
+		expect(forwardResult).toEqual({
+			command: 'forward',
+			args: {},
+			options: {},
+		});
 
 		const reloadResult = parseCommand({ _: ['reload'] }, commandRegistry);
 		expect(reloadResult).toEqual({ command: 'reload', args: {}, options: {} });
@@ -348,10 +356,7 @@ describe('parseCommand', () => {
 	});
 
 	it("parses 'press Enter' correctly", () => {
-		const result = parseCommand(
-			{ _: ['press', 'Enter'] },
-			commandRegistry,
-		);
+		const result = parseCommand({ _: ['press', 'Enter'] }, commandRegistry);
 		expect(result).toEqual({
 			command: 'press',
 			args: { key: 'Enter' },
@@ -360,10 +365,7 @@ describe('parseCommand', () => {
 	});
 
 	it("parses 'wait 2000' correctly", () => {
-		const result = parseCommand(
-			{ _: ['wait', '2000'] },
-			commandRegistry,
-		);
+		const result = parseCommand({ _: ['wait', '2000'] }, commandRegistry);
 		expect(result).toEqual({
 			command: 'wait',
 			args: { ms: 2000 },
@@ -432,10 +434,7 @@ describe('parseCommand', () => {
 	});
 
 	it("parses 'hover e3' correctly", () => {
-		const result = parseCommand(
-			{ _: ['hover', 'e3'] },
-			commandRegistry,
-		);
+		const result = parseCommand({ _: ['hover', 'e3'] }, commandRegistry);
 		expect(result).toEqual({
 			command: 'hover',
 			args: { ref: 'e3' },

@@ -1,9 +1,6 @@
 import { z } from 'zod';
 
-import {
-	declareCommand,
-	type CommandRegistryEntry,
-} from './command.js';
+import { declareCommand, type CommandRegistryEntry } from './command.js';
 
 // ---------------------------------------------------------------------------
 // Core commands
@@ -17,7 +14,10 @@ export const open = declareCommand({
 		url: z.string().optional().describe('URL to open'),
 	}),
 	options: z.object({
-		browser: z.string().optional().describe('Browser to use (e.g., "chrome", "electron")'),
+		browser: z
+			.string()
+			.optional()
+			.describe('Browser to use (e.g., "chrome", "electron")'),
 		headed: z.boolean().optional().describe('Run in headed mode'),
 		config: z.string().optional().describe('Path to Cypress config file'),
 	}),
@@ -45,7 +45,10 @@ export const snapshot = declareCommand({
 	description: 'Get current aria snapshot of the page',
 	args: z.object({}),
 	options: z.object({
-		diff: z.boolean().optional().describe('Return incremental diff from last snapshot'),
+		diff: z
+			.boolean()
+			.optional()
+			.describe('Return incremental diff from last snapshot'),
 	}),
 });
 
@@ -101,7 +104,10 @@ export const click = declareCommand({
 		ref: z.string().describe('Element ref from aria snapshot (e.g., "e5")'),
 	}),
 	options: z.object({
-		force: z.boolean().optional().describe('Force click, disabling actionability checks'),
+		force: z
+			.boolean()
+			.optional()
+			.describe('Force click, disabling actionability checks'),
 		multiple: z.boolean().optional().describe('Click multiple elements'),
 	}),
 });
@@ -114,7 +120,10 @@ export const dblclick = declareCommand({
 		ref: z.string().describe('Element ref from aria snapshot (e.g., "e5")'),
 	}),
 	options: z.object({
-		force: z.boolean().optional().describe('Force double-click, disabling actionability checks'),
+		force: z
+			.boolean()
+			.optional()
+			.describe('Force double-click, disabling actionability checks'),
 	}),
 });
 
@@ -126,7 +135,10 @@ export const rightclick = declareCommand({
 		ref: z.string().describe('Element ref from aria snapshot (e.g., "e5")'),
 	}),
 	options: z.object({
-		force: z.boolean().optional().describe('Force right-click, disabling actionability checks'),
+		force: z
+			.boolean()
+			.optional()
+			.describe('Force right-click, disabling actionability checks'),
 	}),
 });
 
@@ -140,7 +152,10 @@ export const type_ = declareCommand({
 	}),
 	options: z.object({
 		delay: z.number().optional().describe('Delay between keystrokes in ms'),
-		force: z.boolean().optional().describe('Force type, disabling actionability checks'),
+		force: z
+			.boolean()
+			.optional()
+			.describe('Force type, disabling actionability checks'),
 	}),
 });
 
@@ -152,7 +167,10 @@ export const clear = declareCommand({
 		ref: z.string().describe('Element ref from aria snapshot'),
 	}),
 	options: z.object({
-		force: z.boolean().optional().describe('Force clear, disabling actionability checks'),
+		force: z
+			.boolean()
+			.optional()
+			.describe('Force clear, disabling actionability checks'),
 	}),
 });
 
@@ -164,7 +182,10 @@ export const check = declareCommand({
 		ref: z.string().describe('Element ref from aria snapshot'),
 	}),
 	options: z.object({
-		force: z.boolean().optional().describe('Force check, disabling actionability checks'),
+		force: z
+			.boolean()
+			.optional()
+			.describe('Force check, disabling actionability checks'),
 	}),
 });
 
@@ -176,7 +197,10 @@ export const uncheck = declareCommand({
 		ref: z.string().describe('Element ref from aria snapshot'),
 	}),
 	options: z.object({
-		force: z.boolean().optional().describe('Force uncheck, disabling actionability checks'),
+		force: z
+			.boolean()
+			.optional()
+			.describe('Force uncheck, disabling actionability checks'),
 	}),
 });
 
@@ -189,7 +213,10 @@ export const select = declareCommand({
 		value: z.string().describe('Option value or visible text to select'),
 	}),
 	options: z.object({
-		force: z.boolean().optional().describe('Force select, disabling actionability checks'),
+		force: z
+			.boolean()
+			.optional()
+			.describe('Force select, disabling actionability checks'),
 	}),
 });
 
@@ -218,7 +245,9 @@ export const scrollto = declareCommand({
 	category: 'interaction',
 	description: 'Scroll to element or position',
 	args: z.object({
-		target: z.string().describe('Element ref or scroll position (e.g., "top", "bottom")'),
+		target: z
+			.string()
+			.describe('Element ref or scroll position (e.g., "top", "bottom")'),
 	}),
 	options: z.object({
 		duration: z.number().optional().describe('Scroll animation duration in ms'),
@@ -233,7 +262,10 @@ export const hover = declareCommand({
 		ref: z.string().describe('Element ref from aria snapshot'),
 	}),
 	options: z.object({
-		force: z.boolean().optional().describe('Force hover, disabling actionability checks'),
+		force: z
+			.boolean()
+			.optional()
+			.describe('Force hover, disabling actionability checks'),
 	}),
 });
 
@@ -261,7 +293,9 @@ export const assert_ = declareCommand({
 	description: 'Assert on an element',
 	args: z.object({
 		ref: z.string().describe('Element ref from aria snapshot'),
-		chainer: z.string().describe('Chai chainer (e.g., "be.visible", "have.text", "contain")'),
+		chainer: z
+			.string()
+			.describe('Chai chainer (e.g., "be.visible", "have.text", "contain")'),
 		value: z.string().optional().describe('Expected value'),
 	}),
 	options: z.object({}),
@@ -424,9 +458,18 @@ export function buildRegistry(): ReadonlyMap<string, CommandRegistryEntry> {
 	registry.set('press', { schema: press, positionals: ['key'] });
 
 	// Assertion
-	registry.set('assert', { schema: assert_, positionals: ['ref', 'chainer', 'value'] });
-	registry.set('asserturl', { schema: asserturl, positionals: ['chainer', 'value'] });
-	registry.set('asserttitle', { schema: asserttitle, positionals: ['chainer', 'value'] });
+	registry.set('assert', {
+		schema: assert_,
+		positionals: ['ref', 'chainer', 'value'],
+	});
+	registry.set('asserturl', {
+		schema: asserturl,
+		positionals: ['chainer', 'value'],
+	});
+	registry.set('asserttitle', {
+		schema: asserttitle,
+		positionals: ['chainer', 'value'],
+	});
 
 	// Export
 	registry.set('export', { schema: export_, positionals: [] });

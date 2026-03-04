@@ -15,8 +15,4 @@ export {
 	type CommandRegistryEntry,
 } from './command.js';
 
-export {
-	allCommands,
-	buildRegistry,
-	commandRegistry,
-} from './commands.js';
+export { allCommands, buildRegistry, commandRegistry } from './commands.js';

@@ -61,7 +61,9 @@ export interface ParsedCommand<
 export function declareCommand<
 	TArgs extends z.ZodTypeAny,
 	TOptions extends z.ZodTypeAny,
->(definition: CommandDefinition<TArgs, TOptions>): CommandSchema<TArgs, TOptions> {
+>(
+	definition: CommandDefinition<TArgs, TOptions>,
+): CommandSchema<TArgs, TOptions> {
 	return Object.freeze({
 		name: definition.name,
 		category: definition.category,
@@ -128,9 +130,14 @@ export function parseCommand(
 
 	// For 'type' command, join remaining positionals as text
 	// (e.g., 'type e3 hello world' → { ref: 'e3', text: 'hello world' })
-	if (entry.positionals.length >= 2 && positionals.length > entry.positionals.length) {
+	if (
+		entry.positionals.length >= 2 &&
+		positionals.length > entry.positionals.length
+	) {
 		const lastPositionalName = entry.positionals[entry.positionals.length - 1];
-		const joinedRemaining = positionals.slice(entry.positionals.length - 1).join(' ');
+		const joinedRemaining = positionals
+			.slice(entry.positionals.length - 1)
+			.join(' ');
 		argsObj[lastPositionalName] = joinedRemaining;
 	}
 
