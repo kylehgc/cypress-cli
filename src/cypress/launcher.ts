@@ -148,6 +148,17 @@ module.exports = defineConfig(${JSON.stringify(config, null, 2)});
 // ---------------------------------------------------------------------------
 
 /**
+ * Checks whether a Cypress run result indicates failure.
+ * Cypress returns either a CypressRunResult (success) or
+ * CypressFailedRunResult (with status: 'failed') on error.
+ */
+function isCypressRunFailed(result: unknown): boolean {
+	if (!result) return true;
+	if (typeof result !== 'object') return true;
+	return 'status' in result && (result as { status: string }).status === 'failed';
+}
+
+/**
  * Launches Cypress in run mode (headless) with the generated config.
  *
  * The `setupNodeEvents` callback is wired to register our task handlers
@@ -191,12 +202,7 @@ export async function launchCypressRun(
 		env,
 	} as Record<string, unknown>);
 
-	if (
-		!result ||
-		(typeof result === 'object' &&
-			'status' in result &&
-			(result as unknown as Record<string, unknown>).status === 'failed')
-	) {
+	if (isCypressRunFailed(result)) {
 		return {
 			success: false,
 			tempDir,

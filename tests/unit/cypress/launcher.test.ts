@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 
 import { CommandQueue } from '../../../src/daemon/commandQueue.js';
@@ -143,6 +144,7 @@ describe('cleanupTempDir', () => {
 	});
 
 	it('does not throw when directory does not exist', async () => {
-		await expect(cleanupTempDir('/tmp/nonexistent-dir-12345')).resolves.not.toThrow();
+		const nonexistent = path.join(os.tmpdir(), 'nonexistent-dir-12345');
+		await expect(cleanupTempDir(nonexistent)).resolves.not.toThrow();
 	});
 });

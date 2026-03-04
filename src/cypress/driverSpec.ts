@@ -79,10 +79,44 @@ function resolveRef(ref: string): Cypress.Chainable {
 /**
  * Executes a single command received from the daemon.
  *
+/**
+ * Commands that require a ref field to be present.
+ */
+const COMMANDS_REQUIRING_REF = new Set([
+	'click', 'dblclick', 'rightclick', 'type', 'clear', 'check',
+	'uncheck', 'select', 'focus', 'blur', 'hover', 'assert', 'waitfor',
+]);
+
+/**
+ * Commands that require a text field to be present.
+ */
+const COMMANDS_REQUIRING_TEXT = new Set([
+	'type', 'select', 'navigate', 'press',
+]);
+
+/**
+ * Executes a single command received from the daemon.
+ *
  * Maps command action strings to real Cypress API calls. Each command
  * resolves element refs to live DOM elements via `resolveRef()`.
+ *
+ * Note: Cypress commands are asynchronous chainables, not Promises.
+ * If a Cypress command fails (e.g., element not found), the error
+ * propagates through Cypress's own error handling rather than being
+ * caught by a try-catch block. The test framework reports these errors.
  */
 function executeCommand(cmd: DriverCommand): void {
+	if (COMMANDS_REQUIRING_REF.has(cmd.action!) && !cmd.ref) {
+		throw new Error(
+			`Command "${cmd.action}" requires a ref. Provide an element ref from the aria snapshot (e.g., "e5").`,
+		);
+	}
+	if (COMMANDS_REQUIRING_TEXT.has(cmd.action!) && !cmd.text) {
+		throw new Error(
+			`Command "${cmd.action}" requires a text argument.`,
+		);
+	}
+
 	const options = cmd.options ?? {};
 
 	switch (cmd.action) {
