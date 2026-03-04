@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ariaNodesEqual, hasPointerCursor, findNewNode } from '../../../src/injected/comparison.js';
 import { generateAriaTree, renderAriaTree } from '../../../src/injected/ariaSnapshot.js';
+import { patchDom, restoreDom } from './domPatch.js';
 import type { AriaNode } from '../../../src/injected/types.js';
 
 function makeNode(overrides: Partial<AriaNode> = {}): AriaNode {
@@ -196,31 +197,6 @@ describe('findNewNode', () => {
 });
 
 describe('incremental diff via renderAriaTree', () => {
-  const origGetComputedStyle = window.getComputedStyle;
-  const origGetBoundingClientRect = Element.prototype.getBoundingClientRect;
-
-  function patchDom() {
-    vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => {
-      const style = origGetComputedStyle(element, pseudo);
-      return new Proxy(style, {
-        get(target, prop) {
-          if (prop === 'visibility') return target.visibility || 'visible';
-          if (prop === 'display') return target.display || 'block';
-          const val = (target as any)[prop];
-          return typeof val === 'function' ? val.bind(target) : val;
-        },
-      });
-    });
-    Element.prototype.getBoundingClientRect = function () {
-      return { x: 0, y: 0, width: 100, height: 20, top: 0, right: 100, bottom: 20, left: 0, toJSON: () => ({}) } as DOMRect;
-    };
-  }
-
-  function restoreDom() {
-    vi.restoreAllMocks();
-    Element.prototype.getBoundingClientRect = origGetBoundingClientRect;
-  }
-
   beforeEach(() => {
     document.body.innerHTML = '';
     patchDom();
@@ -253,7 +229,9 @@ describe('incremental diff via renderAriaTree', () => {
     document.body.innerHTML = '<h1>Hello</h1>';
     const prev = generateAriaTree(document.body, { mode: 'ai' });
 
-    document.body.innerHTML = '<h1>Goodbye</h1>';
+    // Modify the existing heading in-place so DOM elements (and their cached refs) persist
+    const heading = document.querySelector('h1')!;
+    heading.textContent = 'Goodbye';
     const curr = generateAriaTree(document.body, { mode: 'ai' });
 
     const yaml = renderAriaTree(curr, { mode: 'ai' }, prev);

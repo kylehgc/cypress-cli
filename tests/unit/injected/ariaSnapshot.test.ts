@@ -1,36 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { generateAriaTree, renderAriaTree } from '../../../src/injected/ariaSnapshot.js';
-
-/**
- * happy-dom does not implement getComputedStyle or getBoundingClientRect
- * accurately enough for the aria snapshot code. We patch them so elements
- * are treated as visible and sized, which is the precondition for the
- * snapshot logic to produce meaningful output.
- */
-const origGetComputedStyle = window.getComputedStyle;
-const origGetBoundingClientRect = Element.prototype.getBoundingClientRect;
-
-function patchDom() {
-  vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => {
-    const style = origGetComputedStyle(element, pseudo);
-    return new Proxy(style, {
-      get(target, prop) {
-        if (prop === 'visibility') return target.visibility || 'visible';
-        if (prop === 'display') return target.display || 'block';
-        const val = (target as any)[prop];
-        return typeof val === 'function' ? val.bind(target) : val;
-      },
-    });
-  });
-  Element.prototype.getBoundingClientRect = function () {
-    return { x: 0, y: 0, width: 100, height: 20, top: 0, right: 100, bottom: 20, left: 0, toJSON: () => ({}) } as DOMRect;
-  };
-}
-
-function restoreDom() {
-  vi.restoreAllMocks();
-  Element.prototype.getBoundingClientRect = origGetBoundingClientRect;
-}
+import { patchDom, restoreDom } from './domPatch.js';
 
 describe('generateAriaTree + renderAriaTree', () => {
   beforeEach(() => {
@@ -219,11 +189,14 @@ describe('generateAriaTree + renderAriaTree', () => {
     document.body.innerHTML = '<h1>Hello</h1><button>Click</button>';
     const prev = generateAriaTree(document.body, { mode: 'ai' });
 
-    document.body.innerHTML = '<h1>Goodbye</h1><button>Click</button>';
+    // Modify the existing heading in-place so DOM elements (and their cached refs) persist
+    const heading = document.querySelector('h1')!;
+    heading.textContent = 'Goodbye';
     const curr = generateAriaTree(document.body, { mode: 'ai' });
 
     const yaml = renderAriaTree(curr, { mode: 'ai' }, prev);
     expect(yaml).toContain('Goodbye');
+    expect(yaml).toContain('<changed>');
   });
 
   it('renders unchanged ref nodes as [unchanged] in diff', () => {

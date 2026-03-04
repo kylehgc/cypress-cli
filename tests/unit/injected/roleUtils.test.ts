@@ -1,35 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   getAriaRole,
   getElementAccessibleName,
   beginAriaCaches,
   endAriaCaches,
 } from '../../../src/injected/roleUtils.js';
-
-const origGetComputedStyle = window.getComputedStyle;
-const origGetBoundingClientRect = Element.prototype.getBoundingClientRect;
-
-function patchDom() {
-  vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => {
-    const style = origGetComputedStyle(element, pseudo);
-    return new Proxy(style, {
-      get(target, prop) {
-        if (prop === 'visibility') return target.visibility || 'visible';
-        if (prop === 'display') return target.display || 'block';
-        const val = (target as any)[prop];
-        return typeof val === 'function' ? val.bind(target) : val;
-      },
-    });
-  });
-  Element.prototype.getBoundingClientRect = function () {
-    return { x: 0, y: 0, width: 100, height: 20, top: 0, right: 100, bottom: 20, left: 0, toJSON: () => ({}) } as DOMRect;
-  };
-}
-
-function restoreDom() {
-  vi.restoreAllMocks();
-  Element.prototype.getBoundingClientRect = origGetBoundingClientRect;
-}
+import { patchDom, restoreDom } from './domPatch.js';
 
 describe('getAriaRole', () => {
   beforeEach(() => {

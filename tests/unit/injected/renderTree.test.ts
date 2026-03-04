@@ -1,30 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { generateAriaTree, renderAriaTree } from '../../../src/injected/ariaSnapshot.js';
-
-const origGetComputedStyle = window.getComputedStyle;
-const origGetBoundingClientRect = Element.prototype.getBoundingClientRect;
-
-function patchDom() {
-  vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => {
-    const style = origGetComputedStyle(element, pseudo);
-    return new Proxy(style, {
-      get(target, prop) {
-        if (prop === 'visibility') return target.visibility || 'visible';
-        if (prop === 'display') return target.display || 'block';
-        const val = (target as any)[prop];
-        return typeof val === 'function' ? val.bind(target) : val;
-      },
-    });
-  });
-  Element.prototype.getBoundingClientRect = function () {
-    return { x: 0, y: 0, width: 100, height: 20, top: 0, right: 100, bottom: 20, left: 0, toJSON: () => ({}) } as DOMRect;
-  };
-}
-
-function restoreDom() {
-  vi.restoreAllMocks();
-  Element.prototype.getBoundingClientRect = origGetBoundingClientRect;
-}
+import { patchDom, restoreDom } from './domPatch.js';
 
 describe('renderAriaTree - YAML rendering', () => {
   beforeEach(() => {
@@ -62,7 +38,7 @@ describe('renderAriaTree - YAML rendering', () => {
     document.body.innerHTML = '<div role="alert"></div>';
     const snapshot = generateAriaTree(document.body, { mode: 'ai' });
     const yaml = renderAriaTree(snapshot, { mode: 'ai' });
-    expect(yaml).toMatch(/- alert(?!:)/);
+    expect(yaml).toMatch(/^- alert(?: \[ref=e\d+\])?$/m);
   });
 
   it('refs appear in key brackets', () => {
