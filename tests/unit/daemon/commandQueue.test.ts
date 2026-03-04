@@ -123,6 +123,16 @@ describe('CommandQueue', () => {
 				'another dequeue is already pending',
 			);
 		});
+
+		it('throws error when dequeuing while a command is in-flight', async () => {
+			const command: QueuedCommand = { id: 1, action: 'click', ref: 'e1' };
+			queue.enqueue(command);
+			await queue.dequeue();
+
+			// Command is now in-flight — should not allow another dequeue
+			expect(() => queue.dequeue()).toThrow(QueueError);
+			expect(() => queue.dequeue()).toThrow('already in-flight');
+		});
 	});
 
 	// -----------------------------------------------------------------------
@@ -162,6 +172,61 @@ describe('CommandQueue', () => {
 	});
 
 	// -----------------------------------------------------------------------
+	// dequeueWithTimeout
+	// -----------------------------------------------------------------------
+
+	describe('dequeueWithTimeout', () => {
+		it('returns command immediately when one is queued', async () => {
+			const command: QueuedCommand = { id: 1, action: 'click', ref: 'e5' };
+			queue.enqueue(command);
+
+			const result = await queue.dequeueWithTimeout(5000);
+			expect(result).toEqual(command);
+		});
+
+		it('returns null when timeout elapses with no command', async () => {
+			const result = await queue.dequeueWithTimeout(50);
+			expect(result).toBeNull();
+		});
+
+		it('clears waiter after timeout', async () => {
+			await queue.dequeueWithTimeout(50);
+			expect(queue.hasWaiter).toBe(false);
+		});
+
+		it('delivers command that arrives before timeout', async () => {
+			const promise = queue.dequeueWithTimeout(5000);
+			const command: QueuedCommand = { id: 1, action: 'snapshot' };
+			queue.enqueue(command);
+			const result = await promise;
+			expect(result).toEqual(command);
+		});
+
+		it('returns null when disposed during wait', async () => {
+			const promise = queue.dequeueWithTimeout(5000);
+			queue.dispose();
+			const result = await promise;
+			expect(result).toBeNull();
+		});
+
+		it('throws when queue is disposed', () => {
+			queue.dispose();
+			expect(() => queue.dequeueWithTimeout(1000)).toThrow(QueueError);
+		});
+
+		it('throws when another dequeue is pending', () => {
+			queue.dequeue(); // blocking dequeue
+			expect(() => queue.dequeueWithTimeout(1000)).toThrow(QueueError);
+		});
+
+		it('throws when a command is in-flight', async () => {
+			queue.enqueue({ id: 1, action: 'click', ref: 'e1' });
+			await queue.dequeue();
+			expect(() => queue.dequeueWithTimeout(1000)).toThrow(QueueError);
+		});
+	});
+
+	// -----------------------------------------------------------------------
 	// disposal
 	// -----------------------------------------------------------------------
 
@@ -188,13 +253,52 @@ describe('CommandQueue', () => {
 			expect(queue.isDisposed).toBe(true);
 		});
 
-		it('clears pending commands on disposal', () => {
-			queue.enqueue({ id: 1, action: 'click', ref: 'e1' });
-			queue.enqueue({ id: 2, action: 'click', ref: 'e2' });
+		it('clears pending commands on disposal', async () => {
+			const p1 = queue.enqueue({ id: 1, action: 'click', ref: 'e1' });
+			const p2 = queue.enqueue({ id: 2, action: 'click', ref: 'e2' });
 			expect(queue.size).toBe(2);
 
 			queue.dispose();
 			expect(queue.size).toBe(0);
+
+			// Catch the rejections to avoid unhandled rejection errors
+			await expect(p1).rejects.toThrow(QueueError);
+			await expect(p2).rejects.toThrow(QueueError);
+		});
+
+		it('rejects pending enqueue Promises on disposal', async () => {
+			const resultPromise = queue.enqueue({
+				id: 1,
+				action: 'click',
+				ref: 'e1',
+			});
+
+			queue.dispose();
+
+			await expect(resultPromise).rejects.toThrow(QueueError);
+			await expect(resultPromise).rejects.toThrow('disposed');
+		});
+
+		it('rejects in-flight enqueue Promise on disposal', async () => {
+			const resultPromise = queue.enqueue({
+				id: 1,
+				action: 'click',
+				ref: 'e1',
+			});
+			await queue.dequeue();
+
+			queue.dispose();
+
+			await expect(resultPromise).rejects.toThrow(QueueError);
+			await expect(resultPromise).rejects.toThrow('disposed');
+		});
+
+		it('rejects pending waiter dequeue on disposal', async () => {
+			const dequeuePromise = queue.dequeue();
+
+			queue.dispose();
+
+			await expect(dequeuePromise).rejects.toThrow(QueueError);
 		});
 	});
 

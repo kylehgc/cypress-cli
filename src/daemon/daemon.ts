@@ -254,6 +254,7 @@ export class Daemon {
 		});
 
 		conn.onError(() => {
+			conn.close();
 			this._connections.delete(conn);
 		});
 	}
@@ -329,6 +330,9 @@ export class Daemon {
 			session
 				.enqueueCommand(command)
 				.then((result: CommandResult) => {
+					// Client may have disconnected while the command was running
+					if (conn.isClosed) return;
+
 					// Record in history
 					session.recordHistory(command, result);
 
@@ -351,6 +355,9 @@ export class Daemon {
 					conn.send(response);
 				})
 				.catch((err: Error) => {
+					// Client may have disconnected while the command was running
+					if (conn.isClosed) return;
+
 					const errorMsg: ErrorMessage = {
 						id: message.id,
 						error: err.message,
@@ -438,7 +445,12 @@ export class Daemon {
 			if (err instanceof DaemonError) {
 				throw err;
 			}
-			// File doesn't exist — nothing to clean
+			// Only ignore "file not found" — rethrow permission/filesystem errors
+			const nodeErr = err as NodeJS.ErrnoException;
+			if (nodeErr.code === 'ENOENT') {
+				return;
+			}
+			throw err;
 		}
 	}
 

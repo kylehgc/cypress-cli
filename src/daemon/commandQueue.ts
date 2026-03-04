@@ -50,6 +50,7 @@ export interface CommandResult {
 interface PendingEntry {
 	command: QueuedCommand;
 	resolve: (result: CommandResult) => void;
+	reject: (error: Error) => void;
 }
 
 /**
@@ -70,6 +71,7 @@ interface PendingEntry {
 export class CommandQueue {
 	private _pending: PendingEntry[] = [];
 	private _waiter: ((entry: PendingEntry) => void) | null = null;
+	private _waiterReject: ((error: Error) => void) | null = null;
 	private _inflight: PendingEntry | null = null;
 	private _isDisposed = false;
 
@@ -87,8 +89,8 @@ export class CommandQueue {
 			);
 		}
 
-		return new Promise<CommandResult>((resolve) => {
-			const entry: PendingEntry = { command, resolve };
+		return new Promise<CommandResult>((resolve, reject) => {
+			const entry: PendingEntry = { command, resolve, reject };
 
 			if (this._waiter) {
 				// Cypress plugin is already waiting for a command — deliver immediately
@@ -125,6 +127,12 @@ export class CommandQueue {
 			);
 		}
 
+		if (this._inflight !== null) {
+			throw new QueueError(
+				'Cannot dequeue: a command is already in-flight. Call reportResult() first.',
+			);
+		}
+
 		const next = this._pending.shift();
 		if (next) {
 			this._inflight = next;
@@ -132,9 +140,71 @@ export class CommandQueue {
 		}
 
 		// No command available — wait for one
-		return new Promise<QueuedCommand>((resolve) => {
+		return new Promise<QueuedCommand>((resolve, reject) => {
 			this._waiter = (entry: PendingEntry) => {
 				resolve(entry.command);
+			};
+			this._waiterReject = reject;
+		});
+	}
+
+	/**
+	 * Dequeue the next command with a timeout.
+	 * If no command arrives within the timeout, returns null and cleans up
+	 * the pending waiter so no orphaned dequeue remains.
+	 *
+	 * @param timeoutMs - Maximum time to wait for a command
+	 * @returns The next command, or null if the timeout elapsed
+	 * @throws {QueueError} If another dequeue is already pending, or queue is disposed
+	 */
+	dequeueWithTimeout(timeoutMs: number): Promise<QueuedCommand | null> {
+		if (this._isDisposed) {
+			throw new QueueError(
+				'Cannot dequeue: queue has been disposed. Start a new session.',
+			);
+		}
+
+		if (this._waiter !== null) {
+			throw new QueueError(
+				'Cannot dequeue: another dequeue is already pending. Only one consumer at a time.',
+			);
+		}
+
+		if (this._inflight !== null) {
+			throw new QueueError(
+				'Cannot dequeue: a command is already in-flight. Call reportResult() first.',
+			);
+		}
+
+		// Immediate return if a command is already queued
+		const next = this._pending.shift();
+		if (next) {
+			this._inflight = next;
+			return Promise.resolve(next.command);
+		}
+
+		// Wait for a command or timeout
+		return new Promise<QueuedCommand | null>((resolve) => {
+			const timer = setTimeout(() => {
+				// Timeout fired — clear the waiter so no orphaned dequeue remains
+				this._waiter = null;
+				this._waiterReject = null;
+				resolve(null);
+			}, timeoutMs);
+
+			this._waiter = (entry: PendingEntry) => {
+				clearTimeout(timer);
+				this._waiterReject = null;
+				resolve(entry.command);
+			};
+			this._waiterReject = (error: Error) => {
+				clearTimeout(timer);
+				this._waiter = null;
+				this._waiterReject = null;
+				resolve(null);
+				// We resolve null instead of rejecting so dequeueWithTimeout users
+				// can check isDisposed and return a stop sentinel cleanly.
+				void error; // suppress unused warning
 			};
 		});
 	}
@@ -192,9 +262,29 @@ export class CommandQueue {
 	 */
 	dispose(): void {
 		this._isDisposed = true;
+
+		const disposalError = new QueueError(
+			'Queue has been disposed. Command was not completed.',
+		);
+
+		// Reject the pending waiter (dequeue/dequeueWithTimeout Promise)
+		if (this._waiterReject) {
+			this._waiterReject(disposalError);
+			this._waiterReject = null;
+		}
 		this._waiter = null;
-		this._inflight = null;
+
+		// Reject all pending enqueue Promises (commands not yet picked up)
+		for (const entry of this._pending) {
+			entry.reject(disposalError);
+		}
 		this._pending = [];
+
+		// Reject the in-flight command's enqueue Promise
+		if (this._inflight) {
+			this._inflight.reject(disposalError);
+			this._inflight = null;
+		}
 	}
 }
 

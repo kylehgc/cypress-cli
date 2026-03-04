@@ -59,41 +59,31 @@ export function createGetCommandHandler(
 	queue: CommandQueue,
 	pollTimeout: number = DEFAULT_POLL_TIMEOUT,
 ): () => Promise<GetCommandResult> {
-	return (): Promise<GetCommandResult> => {
+	return async (): Promise<GetCommandResult> => {
 		if (queue.isDisposed) {
-			return Promise.resolve({ type: 'stop' } as StopSentinel);
+			return { type: 'stop' } as StopSentinel;
 		}
 
-		// Race: command arrival vs timeout
-		return new Promise<GetCommandResult>((resolve) => {
-			let isResolved = false;
+		try {
+			const command = await queue.dequeueWithTimeout(pollTimeout);
 
-			const timer = setTimeout(() => {
-				if (!isResolved) {
-					isResolved = true;
-					// No command arrived in time — return poll sentinel
-					resolve({ type: 'poll' });
-				}
-			}, pollTimeout);
+			// If a command arrived before the timeout, deliver it to the driver.
+			if (command) {
+				return command;
+			}
 
-			queue
-				.dequeue()
-				.then((command) => {
-					if (!isResolved) {
-						isResolved = true;
-						clearTimeout(timer);
-						resolve(command);
-					}
-				})
-				.catch(() => {
-					// Queue disposed or error — tell driver to stop
-					if (!isResolved) {
-						isResolved = true;
-						clearTimeout(timer);
-						resolve({ type: 'stop' });
-					}
-				});
-		});
+			// Timeout elapsed without a command.
+			// If the queue was disposed in the meantime, tell the driver to stop;
+			// otherwise, return the poll sentinel so the driver can re-poll.
+			if (queue.isDisposed) {
+				return { type: 'stop' } as StopSentinel;
+			}
+
+			return { type: 'poll' };
+		} catch {
+			// Queue disposed or error — tell driver to stop
+			return { type: 'stop' } as StopSentinel;
+		}
 	};
 }
 

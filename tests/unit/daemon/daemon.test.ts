@@ -1,0 +1,411 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import net from 'node:net';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+
+import {
+	Daemon,
+	DaemonError,
+	resolveSocketDir,
+} from '../../../src/daemon/daemon.js';
+import { SocketConnection } from '../../../src/daemon/connection.js';
+import {
+	serializeMessage,
+	type CommandMessage,
+	type ResponseMessage,
+} from '../../../src/daemon/protocol.js';
+
+/**
+ * Helper: create a temp dir for socket files.
+ */
+async function makeTempSocketDir(): Promise<string> {
+	return await fs.mkdtemp(path.join(os.tmpdir(), 'cypress-cli-test-'));
+}
+
+/**
+ * Helper: connect a client to the daemon's socket.
+ */
+function connectClient(socketPath: string): Promise<SocketConnection> {
+	return new Promise<SocketConnection>((resolve, reject) => {
+		const socket = net.createConnection(socketPath);
+		socket.on('connect', () => {
+			resolve(new SocketConnection(socket));
+		});
+		socket.on('error', reject);
+	});
+}
+
+describe('Daemon', () => {
+	let socketDir: string;
+	let daemon: Daemon;
+
+	beforeEach(async () => {
+		socketDir = await makeTempSocketDir();
+	});
+
+	afterEach(async () => {
+		// Ensure daemon is stopped
+		if (daemon && !daemon.isShuttingDown) {
+			await daemon.stop();
+		}
+		// Clean up temp dir
+		await fs.rm(socketDir, { recursive: true, force: true }).catch(() => {});
+	});
+
+	// -----------------------------------------------------------------------
+	// start / stop lifecycle
+	// -----------------------------------------------------------------------
+
+	describe('start and stop', () => {
+		it('creates socket file on start and removes it on stop', async () => {
+			daemon = new Daemon({
+				sessionId: 'test-lifecycle',
+				socketDir,
+				idleTimeout: 0,
+			});
+
+			await daemon.start();
+			const socketPath = daemon.socketPath;
+
+			// Socket file should exist
+			await expect(fs.access(socketPath)).resolves.toBeUndefined();
+
+			await daemon.stop();
+
+			// Socket file should be removed
+			await expect(fs.access(socketPath)).rejects.toThrow();
+		});
+
+		it('accepts client connections', async () => {
+			daemon = new Daemon({
+				sessionId: 'test-conn',
+				socketDir,
+				idleTimeout: 0,
+			});
+
+			await daemon.start();
+			expect(daemon.connectionCount).toBe(0);
+
+			const client = await connectClient(daemon.socketPath);
+			// Give event loop a tick for the connection to be registered
+			await new Promise((r) => setTimeout(r, 50));
+			expect(daemon.connectionCount).toBe(1);
+
+			client.close();
+			await new Promise((r) => setTimeout(r, 50));
+			expect(daemon.connectionCount).toBe(0);
+
+			await daemon.stop();
+		});
+
+		it('stop is idempotent', async () => {
+			daemon = new Daemon({
+				sessionId: 'test-idempotent',
+				socketDir,
+				idleTimeout: 0,
+			});
+
+			await daemon.start();
+			await daemon.stop();
+			// Second stop should not throw
+			await daemon.stop();
+		});
+	});
+
+	// -----------------------------------------------------------------------
+	// stale socket cleanup
+	// -----------------------------------------------------------------------
+
+	describe('stale socket cleanup', () => {
+		it('removes stale socket file from previous instance', async () => {
+			const sessionId = 'test-stale';
+			const socketPath = path.join(socketDir, `${sessionId}.sock`);
+
+			// Create a stale socket file (just a regular file, no listener)
+			await fs.writeFile(socketPath, '');
+
+			daemon = new Daemon({ sessionId, socketDir, idleTimeout: 0 });
+			await daemon.start();
+
+			// Should have started successfully despite the stale file
+			const client = await connectClient(daemon.socketPath);
+			client.close();
+
+			await daemon.stop();
+		});
+
+		it('throws when another daemon is already listening', async () => {
+			const sessionId = 'test-conflict';
+
+			// Start a real daemon first
+			daemon = new Daemon({ sessionId, socketDir, idleTimeout: 0 });
+			await daemon.start();
+
+			// Try to start a second daemon on the same socket
+			const daemon2 = new Daemon({ sessionId, socketDir, idleTimeout: 0 });
+			await expect(daemon2.start()).rejects.toThrow(DaemonError);
+			await expect(daemon2.start()).rejects.toThrow('Another daemon');
+
+			await daemon.stop();
+		});
+	});
+
+	// -----------------------------------------------------------------------
+	// idle timeout
+	// -----------------------------------------------------------------------
+
+	describe('idle timeout', () => {
+		it('shuts down after idle timeout with no sessions', async () => {
+			daemon = new Daemon({
+				sessionId: 'test-idle',
+				socketDir,
+				idleTimeout: 100, // 100ms idle timeout for testing
+			});
+
+			await daemon.start();
+
+			// Create and immediately stop a session to trigger idle timer
+			const session = daemon.createSession({ id: 'temp-session' });
+			session.transition('running');
+			daemon.stopSession('temp-session');
+
+			// Wait for idle timeout to fire
+			await new Promise((r) => setTimeout(r, 200));
+			expect(daemon.isShuttingDown).toBe(true);
+		});
+
+		it('cancels idle timer when a new session is created', async () => {
+			daemon = new Daemon({
+				sessionId: 'test-idle-cancel',
+				socketDir,
+				idleTimeout: 100,
+			});
+
+			await daemon.start();
+
+			// Create and stop a session to start idle timer
+			const s1 = daemon.createSession({ id: 'session-1' });
+			s1.transition('running');
+			daemon.stopSession('session-1');
+
+			// Create a new session before idle fires
+			await new Promise((r) => setTimeout(r, 50));
+			daemon.createSession({ id: 'session-2' });
+
+			// Wait past the original idle timeout
+			await new Promise((r) => setTimeout(r, 100));
+
+			// Should NOT have shut down
+			expect(daemon.isShuttingDown).toBe(false);
+
+			await daemon.stop();
+		});
+
+		it('does not set idle timer when idleTimeout is 0', async () => {
+			daemon = new Daemon({
+				sessionId: 'test-no-idle',
+				socketDir,
+				idleTimeout: 0,
+			});
+
+			await daemon.start();
+
+			const session = daemon.createSession({ id: 'temp' });
+			session.transition('running');
+			daemon.stopSession('temp');
+
+			await new Promise((r) => setTimeout(r, 100));
+			expect(daemon.isShuttingDown).toBe(false);
+
+			await daemon.stop();
+		});
+	});
+
+	// -----------------------------------------------------------------------
+	// session management
+	// -----------------------------------------------------------------------
+
+	describe('session management', () => {
+		it('creates and retrieves sessions', async () => {
+			daemon = new Daemon({
+				sessionId: 'test-sessions',
+				socketDir,
+				idleTimeout: 0,
+			});
+
+			await daemon.start();
+
+			const session = daemon.createSession({
+				id: 'my-session',
+				url: 'http://localhost:3000',
+			});
+			expect(session.id).toBe('my-session');
+			expect(daemon.getSession('my-session')).toBe(session);
+
+			await daemon.stop();
+		});
+
+		it('stops and removes sessions', async () => {
+			daemon = new Daemon({
+				sessionId: 'test-stop-session',
+				socketDir,
+				idleTimeout: 0,
+			});
+
+			await daemon.start();
+
+			const session = daemon.createSession({ id: 's1' });
+			session.transition('running');
+
+			daemon.stopSession('s1');
+			expect(session.state).toBe('stopped');
+			expect(daemon.getSession('s1')).toBeUndefined();
+
+			await daemon.stop();
+		});
+	});
+
+	// -----------------------------------------------------------------------
+	// message handling
+	// -----------------------------------------------------------------------
+
+	describe('message handling', () => {
+		it('responds to stop command', async () => {
+			daemon = new Daemon({
+				sessionId: 'test-stop-cmd',
+				socketDir,
+				idleTimeout: 0,
+			});
+
+			await daemon.start();
+
+			const client = await connectClient(daemon.socketPath);
+
+			const responsePromise = new Promise<ResponseMessage>((resolve) => {
+				client.onMessage((msg) => {
+					resolve(msg as ResponseMessage);
+				});
+			});
+
+			const stopCmd: CommandMessage = {
+				id: 1,
+				method: 'stop',
+				params: { args: { _: [] } },
+			};
+			client.send(stopCmd);
+
+			const response = await responsePromise;
+			expect(response.id).toBe(1);
+			expect(response.result).toEqual({ success: true });
+
+			// Wait for daemon to shut down
+			await new Promise((r) => setTimeout(r, 100));
+			expect(daemon.isShuttingDown).toBe(true);
+		});
+
+		it('responds with error when no session is running for run command', async () => {
+			daemon = new Daemon({
+				sessionId: 'test-no-session',
+				socketDir,
+				idleTimeout: 0,
+			});
+
+			await daemon.start();
+
+			const client = await connectClient(daemon.socketPath);
+
+			const responsePromise = new Promise<Record<string, unknown>>(
+				(resolve) => {
+					client.onMessage((msg) => {
+						resolve(msg as Record<string, unknown>);
+					});
+				},
+			);
+
+			const runCmd: CommandMessage = {
+				id: 2,
+				method: 'run',
+				params: { args: { _: ['click', 'e5'] } },
+			};
+			client.send(runCmd);
+
+			const response = await responsePromise;
+			expect(response.id).toBe(2);
+			expect(response.error).toContain('No session running');
+
+			await daemon.stop();
+		});
+
+		it('responds with error when run command has no args', async () => {
+			daemon = new Daemon({
+				sessionId: 'test-no-args',
+				socketDir,
+				idleTimeout: 0,
+			});
+
+			await daemon.start();
+
+			const client = await connectClient(daemon.socketPath);
+
+			const responsePromise = new Promise<Record<string, unknown>>(
+				(resolve) => {
+					client.onMessage((msg) => {
+						resolve(msg as Record<string, unknown>);
+					});
+				},
+			);
+
+			const runCmd: CommandMessage = {
+				id: 3,
+				method: 'run',
+				params: { args: { _: [] } },
+			};
+			client.send(runCmd);
+
+			const response = await responsePromise;
+			expect(response.id).toBe(3);
+			expect(response.error).toContain('No command specified');
+
+			await daemon.stop();
+		});
+	});
+});
+
+// ---------------------------------------------------------------------------
+// resolveSocketDir
+// ---------------------------------------------------------------------------
+
+describe('resolveSocketDir', () => {
+	it('uses XDG_RUNTIME_DIR when set', () => {
+		const original = process.env['XDG_RUNTIME_DIR'];
+		try {
+			process.env['XDG_RUNTIME_DIR'] = '/run/user/1000';
+			const dir = resolveSocketDir();
+			expect(dir).toBe('/run/user/1000/cypress-cli');
+		} finally {
+			if (original !== undefined) {
+				process.env['XDG_RUNTIME_DIR'] = original;
+			} else {
+				delete process.env['XDG_RUNTIME_DIR'];
+			}
+		}
+	});
+
+	it('falls back to TMPDIR when XDG_RUNTIME_DIR is unset', () => {
+		const originalXdg = process.env['XDG_RUNTIME_DIR'];
+		const originalTmp = process.env['TMPDIR'];
+		try {
+			delete process.env['XDG_RUNTIME_DIR'];
+			process.env['TMPDIR'] = '/tmp/test';
+			const dir = resolveSocketDir();
+			expect(dir).toBe('/tmp/test/cypress-cli');
+		} finally {
+			if (originalXdg !== undefined)
+				process.env['XDG_RUNTIME_DIR'] = originalXdg;
+			else delete process.env['XDG_RUNTIME_DIR'];
+			if (originalTmp !== undefined) process.env['TMPDIR'] = originalTmp;
+			else delete process.env['TMPDIR'];
+		}
+	});
+});
