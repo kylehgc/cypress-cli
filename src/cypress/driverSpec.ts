@@ -258,7 +258,8 @@ function pollForCommands(): void {
 						try {
 							const element = resolveRefFromMap(win, cmd.ref);
 							selector = generateSelector(element);
-							cypressCommand = buildCypressCommand(selector, cmd.action, cmd.text);
+							const chainer = cmd.options?.['chainer'] as string | undefined;
+							cypressCommand = buildCypressCommand(selector, cmd.action, cmd.text, chainer);
 						} catch {
 							// Ref may no longer exist after command; ignore
 						}

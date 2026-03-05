@@ -50,12 +50,14 @@ export function generateSelector(element: Element): string {
  * @param selector - CSS selector string
  * @param action - The Cypress action (e.g. 'click', 'type')
  * @param text - Optional text argument for commands like type/select
+ * @param chainer - Optional Chai chainer for assert commands (e.g. 'have.text')
  * @returns A Cypress command string for codegen
  */
 export function buildCypressCommand(
 	selector: string,
 	action: string,
 	text?: string,
+	chainer?: string,
 ): string {
 	const escapedSelector = selector.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 	const getExpr = `cy.get('${escapedSelector}')`;
@@ -82,8 +84,17 @@ export function buildCypressCommand(
 			return `${getExpr}.trigger('mouseover')`;
 		case 'scrollto':
 			return `${getExpr}.scrollIntoView()`;
-		case 'assert':
+		case 'assert': {
+			if (chainer) {
+				const escapedChainer = chainer.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+				if (text) {
+					const escapedText = text.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+					return `${getExpr}.should('${escapedChainer}', '${escapedText}')`;
+				}
+				return `${getExpr}.should('${escapedChainer}')`;
+			}
 			return `${getExpr}.should(...)`;
+		}
 		case 'waitfor':
 			return `${getExpr}.should('exist')`;
 		default:

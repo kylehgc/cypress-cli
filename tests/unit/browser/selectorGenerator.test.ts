@@ -149,7 +149,17 @@ describe('selectorGenerator', () => {
 			expect(result).toBe("cy.get('#section').scrollIntoView()");
 		});
 
-		it('builds assert command', () => {
+		it('builds assert command with chainer and value', () => {
+			const result = buildCypressCommand('#el', 'assert', 'Hello', 'have.text');
+			expect(result).toBe("cy.get('#el').should('have.text', 'Hello')");
+		});
+
+		it('builds assert command with chainer only', () => {
+			const result = buildCypressCommand('#el', 'assert', undefined, 'be.visible');
+			expect(result).toBe("cy.get('#el').should('be.visible')");
+		});
+
+		it('builds assert command with placeholder when no chainer provided', () => {
 			const result = buildCypressCommand('#el', 'assert');
 			expect(result).toBe("cy.get('#el').should(...)");
 		});
