@@ -12,6 +12,8 @@
  */
 
 import { injectSnapshotLib, takeSnapshot } from './support.js';
+import { resolveRefFromMap } from '../browser/refMap.js';
+import { generateSelector, buildCypressCommand } from '../browser/selectorGenerator.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -56,21 +58,8 @@ const GET_COMMAND_TIMEOUT = 120_000;
  */
 function resolveRef(ref: string): Cypress.Chainable {
 	return cy.window({ log: false }).then((win: Window) => {
-		const elementMap = (win as Record<string, unknown>)[
-			'__cypressCliElementMap'
-		] as Map<string, Element> | undefined;
-
-		if (elementMap) {
-			const element = elementMap.get(ref);
-			if (element) {
-				return cy.wrap(element, { log: false });
-			}
-		}
-
-		throw new Error(
-			`Ref "${ref}" not found in current snapshot. ` +
-			'Run `snapshot` to refresh the element map.',
-		);
+		const element = resolveRefFromMap(win, ref);
+		return cy.wrap(element, { log: false });
 	});
 }
 
@@ -254,20 +243,63 @@ function pollForCommands(): void {
 
 			// Take post-command snapshot and report result
 			takeSnapshot().then((snapshotYaml: string) => {
-				const result: DriverResult = commandError
-					? {
-							success: false,
-							error: commandError,
-							snapshot: snapshotYaml,
-						}
-					: {
-							success: true,
-							snapshot: snapshotYaml,
-						};
+				// Build selector and cypressCommand for codegen
+				let selector: string | undefined;
+				let cypressCommand: string | undefined;
 
-				cy.task('commandResult', result, { log: false }).then(() => {
-					pollForCommands();
-				});
+				if (cmd.ref && cmd.action) {
+					try {
+						cy.window({ log: false }).then((win: Window) => {
+							try {
+								const element = resolveRefFromMap(win, cmd.ref!);
+								selector = generateSelector(element);
+								cypressCommand = buildCypressCommand(selector, cmd.action!, cmd.text);
+							} catch {
+								// Ref may no longer exist after command; ignore
+							}
+
+							const result: DriverResult = commandError
+								? {
+										success: false,
+										error: commandError,
+										snapshot: snapshotYaml,
+									}
+								: {
+										success: true,
+										snapshot: snapshotYaml,
+										selector,
+										cypressCommand,
+									};
+
+							cy.task('commandResult', result, { log: false }).then(() => {
+								pollForCommands();
+							});
+						});
+					} catch {
+						// Fallback without selector info
+						const result: DriverResult = commandError
+							? { success: false, error: commandError, snapshot: snapshotYaml }
+							: { success: true, snapshot: snapshotYaml };
+						cy.task('commandResult', result, { log: false }).then(() => {
+							pollForCommands();
+						});
+					}
+				} else {
+					const result: DriverResult = commandError
+						? {
+								success: false,
+								error: commandError,
+								snapshot: snapshotYaml,
+							}
+						: {
+								success: true,
+								snapshot: snapshotYaml,
+							};
+
+					cy.task('commandResult', result, { log: false }).then(() => {
+						pollForCommands();
+					});
+				}
 			});
 		},
 	);
