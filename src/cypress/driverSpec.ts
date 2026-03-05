@@ -243,48 +243,27 @@ function pollForCommands(): void {
 
 			// Take post-command snapshot and report result
 			takeSnapshot().then((snapshotYaml: string) => {
-				// Build selector and cypressCommand for codegen
-				let selector: string | undefined;
-				let cypressCommand: string | undefined;
+				/**
+				 * Build the result and optionally resolve selector info.
+				 * For commands with a ref, we attempt to generate a CSS
+				 * selector and Cypress command string for codegen.
+				 * This always goes through cy.window() to stay in the
+				 * Cypress command chain.
+				 */
+				cy.window({ log: false }).then((win: Window) => {
+					let selector: string | undefined;
+					let cypressCommand: string | undefined;
 
-				if (cmd.ref && cmd.action) {
-					try {
-						cy.window({ log: false }).then((win: Window) => {
-							try {
-								const element = resolveRefFromMap(win, cmd.ref!);
-								selector = generateSelector(element);
-								cypressCommand = buildCypressCommand(selector, cmd.action!, cmd.text);
-							} catch {
-								// Ref may no longer exist after command; ignore
-							}
-
-							const result: DriverResult = commandError
-								? {
-										success: false,
-										error: commandError,
-										snapshot: snapshotYaml,
-									}
-								: {
-										success: true,
-										snapshot: snapshotYaml,
-										selector,
-										cypressCommand,
-									};
-
-							cy.task('commandResult', result, { log: false }).then(() => {
-								pollForCommands();
-							});
-						});
-					} catch {
-						// Fallback without selector info
-						const result: DriverResult = commandError
-							? { success: false, error: commandError, snapshot: snapshotYaml }
-							: { success: true, snapshot: snapshotYaml };
-						cy.task('commandResult', result, { log: false }).then(() => {
-							pollForCommands();
-						});
+					if (cmd.ref && cmd.action) {
+						try {
+							const element = resolveRefFromMap(win, cmd.ref);
+							selector = generateSelector(element);
+							cypressCommand = buildCypressCommand(selector, cmd.action, cmd.text);
+						} catch {
+							// Ref may no longer exist after command; ignore
+						}
 					}
-				} else {
+
 					const result: DriverResult = commandError
 						? {
 								success: false,
@@ -294,12 +273,14 @@ function pollForCommands(): void {
 						: {
 								success: true,
 								snapshot: snapshotYaml,
+								selector,
+								cypressCommand,
 							};
 
 					cy.task('commandResult', result, { log: false }).then(() => {
 						pollForCommands();
 					});
-				}
+				});
 			});
 		},
 	);
