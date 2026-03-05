@@ -132,6 +132,7 @@ describe('driver spec polling loop', () => {
 		const executeCommand = vi.fn((cmd: QueuedCommand): CommandResult => ({
 			success: true,
 			snapshot: `- button "OK" [ref=${cmd.ref}]`,
+			selector: '[data-cy="btn"]',
 			cypressCommand: `cy.get('[data-cy="btn"]').click()`,
 		}));
 
@@ -326,5 +327,115 @@ describe('driver spec command dispatch', () => {
 		expect(cmd.action).toBe('select');
 		expect(cmd.ref).toBe('e7');
 		expect(cmd.text).toBe('admin');
+	});
+});
+
+describe('driver spec result shape with selector/cypressCommand', () => {
+	let queue: CommandQueue;
+	let getCommand: () => Promise<GetCommandResult>;
+	let reportResult: (result: CommandResult) => boolean;
+
+	beforeEach(() => {
+		queue = new CommandQueue();
+		getCommand = createGetCommandHandler(queue, 50);
+		reportResult = createCommandResultHandler(queue);
+	});
+
+	it('propagates selector and cypressCommand for ref-based commands', async () => {
+		const command: QueuedCommand = { id: 1, action: 'click', ref: 'e5' };
+		const resultPromise = queue.enqueue(command);
+		setTimeout(() => queue.dispose(), 200);
+
+		const executeCommand = vi.fn((): CommandResult => ({
+			success: true,
+			snapshot: '- button "OK"',
+			selector: '[data-cy="btn"]',
+			cypressCommand: "cy.get('[data-cy=\"btn\"]').click()",
+		}));
+
+		await simulatePollingLoop(getCommand, reportResult, executeCommand);
+
+		const cmdResult = await resultPromise;
+		expect(cmdResult.success).toBe(true);
+		expect(cmdResult.selector).toBe('[data-cy="btn"]');
+		expect(cmdResult.cypressCommand).toBe("cy.get('[data-cy=\"btn\"]').click()");
+		expect(cmdResult.snapshot).toBe('- button "OK"');
+	});
+
+	it('propagates cypressCommand for non-ref commands (navigate)', async () => {
+		const command: QueuedCommand = { id: 1, action: 'navigate', text: 'https://example.com' };
+		const resultPromise = queue.enqueue(command);
+		setTimeout(() => queue.dispose(), 200);
+
+		const executeCommand = vi.fn((): CommandResult => ({
+			success: true,
+			snapshot: '- heading "Example"',
+			cypressCommand: "cy.visit('https://example.com')",
+		}));
+
+		await simulatePollingLoop(getCommand, reportResult, executeCommand);
+
+		const cmdResult = await resultPromise;
+		expect(cmdResult.success).toBe(true);
+		expect(cmdResult.cypressCommand).toBe("cy.visit('https://example.com')");
+		expect(cmdResult.selector).toBeUndefined();
+	});
+
+	it('propagates cypressCommand for non-ref commands (back)', async () => {
+		const command: QueuedCommand = { id: 1, action: 'back' };
+		const resultPromise = queue.enqueue(command);
+		setTimeout(() => queue.dispose(), 200);
+
+		const executeCommand = vi.fn((): CommandResult => ({
+			success: true,
+			snapshot: '- heading "Previous"',
+			cypressCommand: "cy.go('back')",
+		}));
+
+		await simulatePollingLoop(getCommand, reportResult, executeCommand);
+
+		const cmdResult = await resultPromise;
+		expect(cmdResult.success).toBe(true);
+		expect(cmdResult.cypressCommand).toBe("cy.go('back')");
+	});
+
+	it('does not include selector/cypressCommand on error results', async () => {
+		const command: QueuedCommand = { id: 1, action: 'click', ref: 'e99' };
+		const resultPromise = queue.enqueue(command);
+		setTimeout(() => queue.dispose(), 200);
+
+		const executeCommand = vi.fn((): CommandResult => ({
+			success: false,
+			error: 'Ref "e99" not found in current snapshot',
+			snapshot: '- main: current state',
+		}));
+
+		await simulatePollingLoop(getCommand, reportResult, executeCommand);
+
+		const cmdResult = await resultPromise;
+		expect(cmdResult.success).toBe(false);
+		expect(cmdResult.error).toBe('Ref "e99" not found in current snapshot');
+		expect(cmdResult.selector).toBeUndefined();
+		expect(cmdResult.cypressCommand).toBeUndefined();
+	});
+
+	it('includes both selector and cypressCommand for type command', async () => {
+		const command: QueuedCommand = { id: 1, action: 'type', ref: 'e3', text: 'hello' };
+		const resultPromise = queue.enqueue(command);
+		setTimeout(() => queue.dispose(), 200);
+
+		const executeCommand = vi.fn((): CommandResult => ({
+			success: true,
+			snapshot: '- textbox: hello',
+			selector: '#email',
+			cypressCommand: "cy.get('#email').type('hello')",
+		}));
+
+		await simulatePollingLoop(getCommand, reportResult, executeCommand);
+
+		const cmdResult = await resultPromise;
+		expect(cmdResult.success).toBe(true);
+		expect(cmdResult.selector).toBe('#email');
+		expect(cmdResult.cypressCommand).toBe("cy.get('#email').type('hello')");
 	});
 });

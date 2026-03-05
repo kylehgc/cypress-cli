@@ -44,21 +44,27 @@ export function generateSelector(element: Element): string {
 /**
  * Builds the Cypress command string for codegen purposes.
  *
- * Produces a string like `cy.get('[data-cy="submit"]').click()` that
- * can be used in exported test files.
+ * When a selector is provided, produces element commands like
+ * `cy.get('[data-cy="submit"]').click()`. When selector is undefined,
+ * produces non-element commands like `cy.visit('https://example.com')`.
  *
- * @param selector - CSS selector string
- * @param action - The Cypress action (e.g. 'click', 'type')
- * @param text - Optional text argument for commands like type/select
+ * @param selector - CSS selector string, or undefined for non-ref commands
+ * @param action - The Cypress action (e.g. 'click', 'type', 'navigate')
+ * @param text - Optional text argument for commands like type/select/navigate
  * @param chainer - Optional Chai chainer for assert commands (e.g. 'have.text')
  * @returns A Cypress command string for codegen
  */
 export function buildCypressCommand(
-	selector: string,
+	selector: string | undefined,
 	action: string,
 	text?: string,
 	chainer?: string,
 ): string {
+	// Non-ref commands: no selector needed
+	if (selector === undefined) {
+		return _buildNonRefCommand(action, text, chainer);
+	}
+
 	const escapedSelector = selector.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 	const getExpr = `cy.get('${escapedSelector}')`;
 
@@ -99,5 +105,64 @@ export function buildCypressCommand(
 			return `${getExpr}.should('exist')`;
 		default:
 			return `${getExpr}.${action}()`;
+	}
+}
+
+/**
+ * Builds a Cypress command string for commands that don't target
+ * a specific element (no ref/selector).
+ */
+function _buildNonRefCommand(
+	action: string,
+	text?: string,
+	chainer?: string,
+): string {
+	switch (action) {
+		case 'navigate': {
+			const escapedUrl = (text ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+			return `cy.visit('${escapedUrl}')`;
+		}
+		case 'back':
+			return "cy.go('back')";
+		case 'forward':
+			return "cy.go('forward')";
+		case 'reload':
+			return 'cy.reload()';
+		case 'press': {
+			const escapedKey = (text ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+			return `cy.get('body').type('{${escapedKey}}')`;
+		}
+		case 'asserturl': {
+			if (chainer) {
+				const escapedChainer = chainer.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+				if (text) {
+					const escapedText = text.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+					return `cy.url().should('${escapedChainer}', '${escapedText}')`;
+				}
+				return `cy.url().should('${escapedChainer}')`;
+			}
+			return 'cy.url().should(...)';
+		}
+		case 'asserttitle': {
+			if (chainer) {
+				const escapedChainer = chainer.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+				if (text) {
+					const escapedText = text.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+					return `cy.title().should('${escapedChainer}', '${escapedText}')`;
+				}
+				return `cy.title().should('${escapedChainer}')`;
+			}
+			return 'cy.title().should(...)';
+		}
+		case 'wait':
+			return `cy.wait(${Number(text) || 0})`;
+		case 'scrollto': {
+			const escapedPos = (text ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+			return `cy.scrollTo('${escapedPos}')`;
+		}
+		case 'snapshot':
+			return '// snapshot (read-only)';
+		default:
+			return `cy.${action}()`;
 	}
 }
