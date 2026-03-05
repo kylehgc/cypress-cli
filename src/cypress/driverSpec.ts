@@ -12,6 +12,8 @@
  */
 
 import { injectSnapshotLib, takeSnapshot } from './support.js';
+import { resolveRefFromMap } from '../browser/refMap.js';
+import { generateSelector, buildCypressCommand } from '../browser/selectorGenerator.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -56,21 +58,8 @@ const GET_COMMAND_TIMEOUT = 120_000;
  */
 function resolveRef(ref: string): Cypress.Chainable {
 	return cy.window({ log: false }).then((win: Window) => {
-		const elementMap = (win as Record<string, unknown>)[
-			'__cypressCliElementMap'
-		] as Map<string, Element> | undefined;
-
-		if (elementMap) {
-			const element = elementMap.get(ref);
-			if (element) {
-				return cy.wrap(element, { log: false });
-			}
-		}
-
-		throw new Error(
-			`Ref "${ref}" not found in current snapshot. ` +
-			'Run `snapshot` to refresh the element map.',
-		);
+		const element = resolveRefFromMap(win, ref);
+		return cy.wrap(element, { log: false });
 	});
 }
 
@@ -254,19 +243,44 @@ function pollForCommands(): void {
 
 			// Take post-command snapshot and report result
 			takeSnapshot().then((snapshotYaml: string) => {
-				const result: DriverResult = commandError
-					? {
-							success: false,
-							error: commandError,
-							snapshot: snapshotYaml,
-						}
-					: {
-							success: true,
-							snapshot: snapshotYaml,
-						};
+				/**
+				 * Build the result and optionally resolve selector info.
+				 * For commands with a ref, we attempt to generate a CSS
+				 * selector and Cypress command string for codegen.
+				 * This always goes through cy.window() to stay in the
+				 * Cypress command chain.
+				 */
+				cy.window({ log: false }).then((win: Window) => {
+					let selector: string | undefined;
+					let cypressCommand: string | undefined;
 
-				cy.task('commandResult', result, { log: false }).then(() => {
-					pollForCommands();
+					if (cmd.ref && cmd.action) {
+						try {
+							const element = resolveRefFromMap(win, cmd.ref);
+							selector = generateSelector(element);
+							const chainer = cmd.options?.['chainer'] as string | undefined;
+							cypressCommand = buildCypressCommand(selector, cmd.action, cmd.text, chainer);
+						} catch {
+							// Ref may no longer exist after command; ignore
+						}
+					}
+
+					const result: DriverResult = commandError
+						? {
+								success: false,
+								error: commandError,
+								snapshot: snapshotYaml,
+							}
+						: {
+								success: true,
+								snapshot: snapshotYaml,
+								selector,
+								cypressCommand,
+							};
+
+					cy.task('commandResult', result, { log: false }).then(() => {
+						pollForCommands();
+					});
 				});
 			});
 		},
