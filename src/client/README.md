@@ -17,16 +17,18 @@ The client is a short-lived process. It:
 The client has **no state**. It doesn't know about browsers, Cypress, or
 snapshots. It's a thin transport layer.
 
-## Key Files (planned)
+## Files
 
 ```
 client/
-├── index.ts          ← Entry point: parse args, find socket, send, print
-├── connection.ts     ← Unix socket client (connect, send, receive, close)
-├── commands.ts       ← Command schema registry (all commands + zod schemas)
-├── command.ts        ← declareCommand helper + parseCommand
-├── format.ts         ← Response formatting for terminal output
-└── registry.ts       ← Session/socket discovery (~/.cypress-cli/<hash>/)
+├── index.ts              ← Re-exports public API
+├── main.ts               ← Entry point: parse args, dispatch, handle exit codes
+├── cli.ts                ← Global flags, run(), formatResult/formatError, help text
+├── command.ts            ← declareCommand helper + parseCommand + CommandSchema
+├── commands.ts           ← All 28 command schemas (open, stop, click, type, etc.)
+├── session.ts            ← ClientSession: socket-based command sending, session discovery
+├── socketConnection.ts   ← sendAndReceive: Unix socket client with retry logic
+└── repl.ts               ← Interactive REPL mode (readline-based, shell-style quoting)
 ```
 
 ## Modeled After
@@ -35,7 +37,6 @@ Playwright's `packages/playwright-core/src/cli/client/`:
 
 - `session.ts` → `Session.run()` connects to daemon, sends command, returns result
 - `socketConnection.ts` → `SocketConnection` handles newline-delimited JSON over TCP
-- `registry.ts` → discovers daemon sockets by workspace hash
 
 ## Communication Protocol
 

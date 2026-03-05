@@ -11,7 +11,7 @@
 	"description": "CLI tool for REPL-like LLM interactions with Cypress tests via Playwright's aria snapshot",
 	"type": "module",
 	"bin": {
-		"cypress-cli": "./dist/client/index.js",
+		"cypress-cli": "./dist/client/main.js",
 	},
 	"scripts": {
 		"build": "npm run build:iife && npm run build:ts",
@@ -44,6 +44,7 @@
 		"eslint": "9.21.0",
 		"happy-dom": "17.4.4",
 		"typescript": "5.7.3",
+		"typescript-eslint": "8.25.0",
 		"vitest": "3.0.7",
 	},
 	"files": ["dist/", "README.md", "LICENSE"],
@@ -65,15 +66,16 @@
 
 ### Dev Dependency Rationale
 
-| Dependency        | Why                                                      |
-| ----------------- | -------------------------------------------------------- |
-| `esbuild`         | Bundles injected/ into IIFE. Fast, no native binaries.   |
-| `typescript`      | Type checking and ESM compilation.                       |
-| `vitest`          | Test runner. ESM-native, fast.                           |
-| `happy-dom`       | Lightweight DOM implementation for injected/ unit tests. |
-| `eslint`          | Linting.                                                 |
-| `@types/node`     | Node.js type definitions.                                |
-| `@types/minimist` | minimist type definitions.                               |
+| Dependency        | Why                                                        |
+| ----------------- | ---------------------------------------------------------- |
+| `esbuild`         | Bundles injected/ into IIFE. Fast, no native binaries.     |
+| `typescript`      | Type checking and ESM compilation.                         |
+| `vitest`          | Test runner. ESM-native, fast.                             |
+| `happy-dom`       | Lightweight DOM implementation for injected/ unit tests.   |
+| `eslint`          | Linting.                                                   |
+| `typescript-eslint` | TypeScript support for ESLint 9 flat config.             |
+| `@types/node`     | Node.js type definitions.                                  |
+| `@types/minimist` | minimist type definitions.                                 |
 
 ## tsconfig.json
 
@@ -99,6 +101,8 @@
 	"exclude": [
 		"src/injected/**", // Built separately by esbuild
 		"src/cypress/driver.cy.ts", // Cypress test file, not compiled by tsc
+		"src/cypress/driverSpec.ts", // Driver spec runs in Cypress context
+		"src/cypress/support.ts", // Support file runs in Cypress context
 		"node_modules",
 		"dist",
 		"tests",
@@ -182,12 +186,22 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
 	test: {
 		include: ['tests/**/*.test.ts'],
+		exclude: [
+			'**/node_modules/**',
+			'**/dist/**',
+			'**/.{idea,git,cache,output,temp}/**',
+			'**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,tsup,build,eslint,prettier}.config.*',
+		],
+		passWithNoTests: true,
+		environment: 'happy-dom',
 		environmentMatchGlobs: [
 			['tests/unit/injected/**', 'happy-dom'],
 			['tests/unit/daemon/**', 'node'],
 			['tests/unit/client/**', 'node'],
+			['tests/unit/cypress/**', 'node'],
 			['tests/unit/codegen/**', 'node'],
 			['tests/unit/protocol/**', 'node'],
+			['tests/unit/shared/**', 'node'],
 			['tests/integration/**', 'node'],
 			['tests/e2e/**', 'node'],
 		],
@@ -195,6 +209,51 @@ export default defineConfig({
 		hookTimeout: 10_000,
 	},
 });
+```
+
+## ESLint Configuration
+
+ESLint 9 with flat config (`eslint.config.js`):
+
+```javascript
+import js from '@eslint/js';
+import tseslint from 'typescript-eslint';
+
+export default tseslint.config(
+	{ ignores: ['dist/**', 'node_modules/**'] },
+	js.configs.recommended,
+	...tseslint.configs.recommended,
+	{
+		files: ['**/*.ts'],
+		rules: {
+			'@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+			'@typescript-eslint/no-explicit-any': 'warn',
+		},
+	},
+	// Ported Playwright code — relaxed rules to preserve diff-ability
+	{
+		files: ['src/injected/**/*.ts'],
+		linterOptions: {
+			reportUnusedDisableDirectives: 'off',
+		},
+		plugins: {
+			// Stub the notice plugin so eslint-disable notice/notice doesn't error
+			notice: {
+				rules: {
+					notice: { create: () => ({}) },
+				},
+			},
+		},
+		rules: {
+			'@typescript-eslint/no-explicit-any': 'off',
+			'@typescript-eslint/ban-ts-comment': 'off',
+			'@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_|^e$' }],
+			'no-empty': 'off',
+			'no-control-regex': 'off',
+			'no-case-declarations': 'off',
+		},
+	},
+);
 ```
 
 ## Build Pipeline
@@ -219,21 +278,39 @@ dist/
 ├── injected.iife.js          ← IIFE bundle for browser eval()
 ├── injected.string.js        ← IIFE as exportable string constant
 ├── client/
-│   ├── index.js              ← CLI entry point (bin)
-│   ├── connection.js
+│   ├── main.js               ← CLI entry point (bin)
+│   ├── cli.js
+│   ├── command.js
 │   ├── commands.js
+│   ├── session.js
+│   ├── socketConnection.js
+│   ├── repl.js
+│   ├── index.js
 │   └── ...
 ├── daemon/
-│   ├── index.js
+│   ├── daemon.js
 │   ├── commandQueue.js
+│   ├── connection.js
+│   ├── protocol.js
+│   ├── session.js
+│   ├── taskHandler.js
+│   ├── index.js
+│   └── ...
+├── cypress/
+│   ├── plugin.js
+│   ├── launcher.js
+│   ├── index.js
+│   └── ...
+├── shared/
+│   ├── errors.js
+│   ├── logger.js
+│   ├── index.js
 │   └── ...
 ├── codegen/
-│   ├── index.js
-│   ├── selector.js
+│   ├── index.js              ← Stub (Phase 2)
 │   └── ...
 └── browser/
-    ├── index.js
-    ├── refMap.js
+    ├── index.js              ← Stub (Phase 2)
     └── ...
 ```
 

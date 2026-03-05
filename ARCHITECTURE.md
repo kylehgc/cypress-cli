@@ -56,7 +56,7 @@ command that would appear in a real test file.
 5. Driver spec resolves ref "e5" to a Cypress selector via the element map
 6. Driver spec executes: cy.get('[data-cy="login"]').click()
 7. Driver spec takes a new aria snapshot via cy.window().then(win => ...)
-8. Driver spec calls cy.task('reportResult', { snapshot, success: true })
+8. Driver spec calls cy.task('commandResult', { snapshot, success: true })
 9. Plugin handler forwards result to daemon
 10. Daemon sends response over socket: { id: 1, result: { snapshot: "...", success: true } }
 11. Client prints result and disconnects
@@ -101,12 +101,12 @@ the `cy.task()` bridge.
 
 Responsibilities:
 
-- Register task handlers: `getCommand`, `reportResult`, `getSnapshot`
+- Register task handlers: `getCommand`, `commandResult`
 - `getCommand`: returns a Promise that resolves when the daemon enqueues a command.
   This is the **long-poll** mechanism. Cypress tasks must complete (default 60s
   timeout), so on timeout we return a `{ type: 'poll' }` sentinel and the driver
   spec re-polls.
-- `reportResult`: receives execution result from the driver spec, resolves the
+- `commandResult`: receives execution result from the driver spec, resolves the
   daemon's pending response Promise.
 - Manage the element map: `ref → Element` (lives in browser, but the plugin
   tracks ref → selector mappings for codegen).
@@ -144,7 +144,7 @@ function pollForCommands() {
     takeSnapshot();
 
     // Report result and loop
-    cy.task('reportResult', { /* ... */ }).then(() => {
+    cy.task('commandResult', { /* ... */ }).then(() => {
       pollForCommands();
     });
   });
@@ -286,29 +286,36 @@ cypress-cli/
 ├── package.json
 ├── tsconfig.json
 ├── vitest.config.ts
-├── esbuild.config.ts        ← Builds the injected IIFE bundle
+├── esbuild.config.js        ← Builds the injected IIFE bundle
+├── eslint.config.js         ← ESLint 9 flat config with TypeScript support
+├── bin/
+│   └── cypress-cli          ← CLI entry point shim
 ├── docs/
-│   ├── ARIA_SNAPSHOT_PORT.md ← Line-by-line port plan from Playwright
-│   ├── COMMANDS.md           ← Command definitions and schemas
-│   ├── TEST_PLAN.md          ← Test strategy and specific test cases
-│   └── TIME_TRAVEL.md        ← Future feature: snapshot-based debugging
+│   ├── ARIA_SNAPSHOT_PORT.md  ← Line-by-line port plan from Playwright
+│   ├── COMMANDS.md            ← Command definitions and schemas
+│   ├── PACKAGE_SPEC.md        ← package.json, tsconfig.json, build pipeline
+│   ├── PHASE1_REVIEW.md       ← Phase 1 implementation review
+│   ├── TEST_PLAN.md           ← Test strategy and specific test cases
+│   └── TIME_TRAVEL.md         ← Future feature: snapshot-based debugging
 ├── src/
 │   ├── client/               ← CLI client (one-shot commands)
 │   │   └── README.md
 │   ├── daemon/               ← Persistent daemon server
 │   │   └── README.md
-│   ├── cypress/              ← Cypress plugin + driver spec
+│   ├── cypress/              ← Cypress plugin + driver spec + launcher
 │   │   └── README.md
 │   ├── injected/             ← Aria snapshot IIFE (ported from Playwright)
 │   │   └── README.md
-│   ├── codegen/              ← Test file generation
+│   ├── shared/               ← Error handling + logging infrastructure
 │   │   └── README.md
-│   └── browser/              ← Browser-side utilities (ref resolution, etc.)
+│   ├── codegen/              ← Test file generation (Phase 2 stub)
+│   │   └── README.md
+│   └── browser/              ← Browser-side utilities (Phase 2 stub)
 │       └── README.md
 └── tests/
-    ├── unit/                 ← Pure function tests (snapshot rendering, codegen, etc.)
-    ├── integration/          ← Daemon ↔ plugin ↔ driver tests
-    └── e2e/                  ← Full CLI → browser → result round-trips
+    ├── unit/                 ← Pure function tests (snapshot, codegen, etc.)
+    ├── integration/          ← Component interaction tests (Phase 2)
+    └── e2e/                  ← Full stack tests with real Cypress (Phase 3)
 ```
 
 ## Build Pipeline
@@ -324,24 +331,45 @@ by `tsc` for Node.js.
 
 ## Phases
 
-### Phase 1: Proof of Concept
+### Phase 1: Proof of Concept ✅ Complete
 
-- Daemon starts Cypress, driver spec runs, initial snapshot returned
-- `snapshot` command works (round-trip through cy.task)
-- `click` and `type` commands work
-- Manual testing with a simple page
+All acceptance criteria met. The following are implemented and tested (416 unit tests):
+
+- **Aria snapshot port**: Complete port from Playwright (tree generation, YAML rendering,
+  incremental diffs, role/accessible name computation). 111 unit tests.
+- **Daemon**: Socket server, session management, command queue with Promise-based
+  blocking, graceful shutdown, idle timeout. 82 unit tests.
+- **CLI client**: Argument parsing (minimist + zod), 28 command schemas, socket
+  connection with retry logic, REPL mode, help text, JSON output. 86 unit tests.
+- **Cypress layer**: Plugin with getCommand/commandResult task handlers, driver spec
+  with full REPL loop (25+ commands), support file for IIFE injection and snapshot
+  taking, launcher for generating temp configs. 38 unit tests.
+- **Socket protocol**: Newline-delimited JSON messages, serialization/deserialization,
+  split buffer handling. 31 unit tests.
+- **Error handling**: Typed error hierarchy (CypressCliError, ConnectionError,
+  TimeoutError, ValidationError, CommandError, SessionError), structured logging
+  with JSON and human-readable modes. 68 unit tests.
+- **Build pipeline**: esbuild IIFE bundling, TypeScript compilation, ESLint with
+  TypeScript support.
+
+Remaining stubs (deferred to later phases):
+- `src/browser/` — ref→element mapping utilities (functionality exists inline in driverSpec.ts)
+- `src/codegen/` — test file generation from command history
 
 ### Phase 2: Full Command Set
 
-- All navigation, keyboard, mouse commands
-- Proper error handling and timeouts
-- Session management (multiple sessions, named sessions)
+- All navigation, keyboard, mouse commands (schemas declared, execution implemented in driver spec)
+- Integration tests (daemon↔plugin↔driver tests with real sockets)
+- Session management enhancements (multiple sessions, named sessions, persistence)
+- Codegen module implementation
 
-### Phase 3: Codegen
+### Phase 3: Codegen + E2E
 
 - Export accumulated commands as a `.cy.ts` file
 - Selector resolution via `Cypress.ElementSelector`
 - Assertion generation
+- End-to-end tests with real Cypress against fixture HTML pages
+- CI/CD pipeline
 
 ### Phase 4: Polish
 

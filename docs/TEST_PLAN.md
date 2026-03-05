@@ -17,23 +17,36 @@ tests/
 │   │   ├── ariaSnapshot.test.ts
 │   │   ├── roleUtils.test.ts
 │   │   ├── renderTree.test.ts
-│   │   └── comparison.test.ts
+│   │   ├── comparison.test.ts
+│   │   ├── stringUtils.test.ts
+│   │   ├── yaml.test.ts
+│   │   └── domPatch.ts          ← DOM test helper
 │   ├── daemon/             ← Command queue, session management
 │   │   ├── commandQueue.test.ts
-│   │   └── session.test.ts
+│   │   ├── session.test.ts
+│   │   ├── daemon.test.ts
+│   │   └── taskHandler.test.ts
 │   ├── client/             ← Argument parsing, command validation
-│   │   ├── parseArgs.test.ts
-│   │   └── commands.test.ts
-│   ├── codegen/            ← Test file generation, selector resolution
-│   │   ├── selectorGen.test.ts
-│   │   └── exportTest.test.ts
+│   │   ├── cli.test.ts
+│   │   ├── commands.test.ts
+│   │   └── socketConnection.test.ts
+│   ├── cypress/            ← Plugin, driver spec, launcher
+│   │   ├── plugin.test.ts
+│   │   ├── driverSpec.test.ts
+│   │   └── launcher.test.ts
+│   ├── shared/             ← Error handling, logging
+│   │   ├── errors.test.ts
+│   │   └── logger.test.ts
+│   ├── codegen/            ← Test file generation, selector resolution (Phase 2)
+│   │   ├── selectorGen.test.ts   (planned)
+│   │   └── exportTest.test.ts    (planned)
 │   └── protocol/           ← Socket message format, serialization
 │       └── protocol.test.ts
-├── integration/
+├── integration/                  (Phase 2)
 │   ├── daemon-plugin.test.ts     ← Daemon ↔ cy.task bridge
 │   ├── polling-loop.test.ts      ← Long-poll timeout + re-poll behavior
 │   └── snapshot-inject.test.ts   ← IIFE injection + snapshot generation
-└── e2e/
+└── e2e/                          (Phase 3)
     ├── fixtures/
     │   ├── simple.html      ← Basic page with buttons, inputs, links
     │   ├── dynamic.html     ← Page with async-loaded content
@@ -43,6 +56,31 @@ tests/
     ├── commands.test.ts          ← Each command type against fixtures
     └── codegen-export.test.ts    ← Execute commands → export → verify output
 ```
+
+### Current Test Count (Phase 1 Complete)
+
+| Test File | Tests | Status |
+|-----------|-------|--------|
+| unit/injected/ariaSnapshot.test.ts | 28 | ✅ |
+| unit/injected/comparison.test.ts | 27 | ✅ |
+| unit/injected/roleUtils.test.ts | 16 | ✅ |
+| unit/injected/renderTree.test.ts | 10 | ✅ |
+| unit/injected/yaml.test.ts | 20 | ✅ |
+| unit/injected/stringUtils.test.ts | 10 | ✅ |
+| unit/client/commands.test.ts | 47 | ✅ |
+| unit/client/cli.test.ts | 28 | ✅ |
+| unit/client/socketConnection.test.ts | 11 | ✅ |
+| unit/daemon/commandQueue.test.ts | 26 | ✅ |
+| unit/daemon/session.test.ts | 31 | ✅ |
+| unit/daemon/daemon.test.ts | 15 | ✅ |
+| unit/daemon/taskHandler.test.ts | 10 | ✅ |
+| unit/cypress/plugin.test.ts | 11 | ✅ |
+| unit/cypress/driverSpec.test.ts | 14 | ✅ |
+| unit/cypress/launcher.test.ts | 13 | ✅ |
+| unit/shared/errors.test.ts | 31 | ✅ |
+| unit/shared/logger.test.ts | 37 | ✅ |
+| unit/protocol/protocol.test.ts | 31 | ✅ |
+| **Total** | **416** | **All passing** |
 
 ## Unit Tests
 
@@ -573,14 +611,24 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
 	test: {
 		include: ['tests/**/*.test.ts'],
-		environment: 'happy-dom', // For injected/ tests that need DOM
+		exclude: [
+			'**/node_modules/**',
+			'**/dist/**',
+			'**/.{idea,git,cache,output,temp}/**',
+			'**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,tsup,build,eslint,prettier}.config.*',
+		],
+		passWithNoTests: true,
+		environment: 'happy-dom', // Default for DOM tests
 		environmentMatchGlobs: [
 			['tests/unit/injected/**', 'happy-dom'],
 			['tests/unit/daemon/**', 'node'],
 			['tests/unit/client/**', 'node'],
+			['tests/unit/cypress/**', 'node'],
 			['tests/unit/codegen/**', 'node'],
 			['tests/unit/protocol/**', 'node'],
+			['tests/unit/shared/**', 'node'],
 			['tests/integration/**', 'node'],
+			['tests/e2e/**', 'node'],
 		],
 		testTimeout: 10000,
 		hookTimeout: 10000,
