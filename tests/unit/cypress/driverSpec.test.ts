@@ -132,7 +132,6 @@ describe('driver spec polling loop', () => {
 		const executeCommand = vi.fn((cmd: QueuedCommand): CommandResult => ({
 			success: true,
 			snapshot: `- button "OK" [ref=${cmd.ref}]`,
-			selector: '[data-cy="btn"]',
 			cypressCommand: `cy.get('[data-cy="btn"]').click()`,
 		}));
 

@@ -255,18 +255,18 @@ function pollForCommands(): void {
 					let selector: string | undefined;
 					let cypressCommand: string | undefined;
 
-					const chainer = cmd.options?.['chainer'] as string | undefined;
-
 					if (cmd.ref && cmd.action) {
 						try {
 							const element = resolveRefFromMap(win, cmd.ref);
 							selector = generateSelector(element);
+							const chainer = cmd.options?.['chainer'] as string | undefined;
 							cypressCommand = buildCypressCommand(selector, cmd.action, cmd.text, chainer);
 						} catch {
 							// Ref may no longer exist after command; ignore
 						}
 					} else if (cmd.action) {
 						// Non-ref commands: still generate cypressCommand for codegen
+						const chainer = cmd.options?.['chainer'] as string | undefined;
 						cypressCommand = buildCypressCommand(undefined, cmd.action, cmd.text, chainer);
 					}
 
