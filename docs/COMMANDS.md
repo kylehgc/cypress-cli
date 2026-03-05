@@ -200,23 +200,26 @@ Alternatively, for codegen purposes, we also compute a stable selector:
 ```typescript
 function refToSelector(ref: string): string {
 	const element = currentSnapshot.elements.get(ref);
-	// Use Cypress.ElementSelector or our own priority-based selector generator
+	// Use @cypress/unique-selector with Cypress's default priority order
 	return generateSelector(element);
 }
 ```
 
 ### Selector Priority
 
-Following `Cypress.ElementSelector` defaults:
+Uses [`@cypress/unique-selector`](https://github.com/cypress-io/unique-selector)
+(the same library that powers Cypress's Selector Playground) with the default
+priority from [`element_selector.ts`](https://github.com/cypress-io/cypress/blob/develop/packages/driver/src/cypress/element_selector.ts):
 
 1. `[data-cy="value"]`
 2. `[data-test="value"]`
 3. `[data-testid="value"]`
 4. `[data-qa="value"]`
-5. `#id`
-6. `.className`
-7. `tag[attr="value"]`
-8. `tag:nth-child(n)`
+5. `[name="value"]`
+6. `#id`
+7. `.className`
+8. `tag[attr="value"]`
+9. `tag:nth-child(n)`
 
 The selector is used for two purposes:
 

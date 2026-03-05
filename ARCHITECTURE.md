@@ -110,6 +110,9 @@ Responsibilities:
   daemon's pending response Promise.
 - Manage the element map: `ref → Element` (lives in browser, but the plugin
   tracks ref → selector mappings for codegen).
+- Selector generation uses
+  [`@cypress/unique-selector`](https://github.com/cypress-io/unique-selector)
+  — the same library that powers Cypress's Selector Playground.
 
 ### 4. Driver Spec (`src/cypress/driver.cy.ts`)
 
@@ -183,11 +186,35 @@ Responsibilities:
 
 - Maintain ordered list of commands and their resolved selectors
 - Convert ref-based commands to selector-based Cypress code
-- Use `Cypress.ElementSelector` priority for selector strategy:
-  `data-cy > data-test > data-testid > data-qa > id > class > tag > nth-child`
+- Consume `selector` and `cypressCommand` fields from command results
+  (generated in `src/browser/` via `@cypress/unique-selector`)
 - Export as `.cy.ts` file with proper `describe`/`it` structure
 - Handle assertions (the LLM can issue `assert` commands that become
   `cy.get(selector).should(...)`)
+
+#### Selector Generation Strategy
+
+Selector generation reuses the same approach as Cypress's built-in Selector
+Playground. The upstream implementation lives in two places:
+
+- **[`@cypress/unique-selector`](https://github.com/cypress-io/unique-selector)**
+  (npm package, v2.1.3) — the core engine. Given a DOM element, returns a
+  unique CSS selector. Supports priority ordering via `selectorTypes`, `data-*`
+  attribute selectors, shadow DOM, and caching.
+- **[`packages/driver/src/cypress/element_selector.ts`](https://github.com/cypress-io/cypress/blob/develop/packages/driver/src/cypress/element_selector.ts)**
+  in the cypress-io/cypress repo — Cypress's orchestrator (~95 lines) that
+  wraps `@cypress/unique-selector` with the default priority list and config
+  validation.
+
+We use `@cypress/unique-selector` directly as a dependency. It runs in
+**browser context** (needs `document`), so it is called from within the driver
+spec / support file (or bundled into the IIFE), not from Node.
+
+Default priority order (matching Cypress's `ElementSelector` defaults):
+
+```
+data-cy > data-test > data-testid > data-qa > name > id > class > tag > attributes > nth-child
+```
 
 ## The cy.task() Polling Loop — Why and How
 
@@ -353,6 +380,7 @@ All acceptance criteria met. The following are implemented and tested (416 unit 
   TypeScript support.
 
 Remaining stubs (deferred to later phases):
+
 - `src/browser/` — ref→element mapping utilities (functionality exists inline in driverSpec.ts)
 - `src/codegen/` — test file generation from command history
 
