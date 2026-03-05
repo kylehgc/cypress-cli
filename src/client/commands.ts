@@ -20,6 +20,10 @@ export const open = declareCommand({
 			.describe('Browser to use (e.g., "chrome", "electron")'),
 		headed: z.boolean().optional().describe('Run in headed mode'),
 		config: z.string().optional().describe('Path to Cypress config file'),
+		resume: z
+			.string()
+			.optional()
+			.describe('Resume a persisted session by ID'),
 	}),
 });
 
