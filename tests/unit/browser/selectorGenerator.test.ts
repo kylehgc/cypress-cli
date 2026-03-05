@@ -194,4 +194,91 @@ describe('selectorGenerator', () => {
 			expect(result).toBe("cy.get('#el').customAction()");
 		});
 	});
+
+	describe('buildCypressCommand (non-ref commands)', () => {
+		it('builds navigate command', () => {
+			const result = buildCypressCommand(undefined, 'navigate', 'https://example.com');
+			expect(result).toBe("cy.visit('https://example.com')");
+		});
+
+		it('builds navigate command escaping quotes in URL', () => {
+			const result = buildCypressCommand(undefined, 'navigate', "https://example.com/path?q='test'");
+			expect(result).toBe("cy.visit('https://example.com/path?q=\\'test\\'')");
+		});
+
+		it('builds back command', () => {
+			const result = buildCypressCommand(undefined, 'back');
+			expect(result).toBe("cy.go('back')");
+		});
+
+		it('builds forward command', () => {
+			const result = buildCypressCommand(undefined, 'forward');
+			expect(result).toBe("cy.go('forward')");
+		});
+
+		it('builds reload command', () => {
+			const result = buildCypressCommand(undefined, 'reload');
+			expect(result).toBe('cy.reload()');
+		});
+
+		it('builds press command', () => {
+			const result = buildCypressCommand(undefined, 'press', 'Enter');
+			expect(result).toBe("cy.get('body').type('{Enter}')");
+		});
+
+		it('builds asserturl command with chainer and value', () => {
+			const result = buildCypressCommand(undefined, 'asserturl', '/dashboard', 'include');
+			expect(result).toBe("cy.url().should('include', '/dashboard')");
+		});
+
+		it('builds asserturl command with chainer only', () => {
+			const result = buildCypressCommand(undefined, 'asserturl', undefined, 'not.be.empty');
+			expect(result).toBe("cy.url().should('not.be.empty')");
+		});
+
+		it('builds asserturl command with placeholder when no chainer', () => {
+			const result = buildCypressCommand(undefined, 'asserturl');
+			expect(result).toBe('cy.url().should(...)');
+		});
+
+		it('builds asserttitle command with chainer and value', () => {
+			const result = buildCypressCommand(undefined, 'asserttitle', 'Dashboard', 'eq');
+			expect(result).toBe("cy.title().should('eq', 'Dashboard')");
+		});
+
+		it('builds asserttitle command with chainer only', () => {
+			const result = buildCypressCommand(undefined, 'asserttitle', undefined, 'not.be.empty');
+			expect(result).toBe("cy.title().should('not.be.empty')");
+		});
+
+		it('builds asserttitle command with placeholder when no chainer', () => {
+			const result = buildCypressCommand(undefined, 'asserttitle');
+			expect(result).toBe('cy.title().should(...)');
+		});
+
+		it('builds wait command with milliseconds', () => {
+			const result = buildCypressCommand(undefined, 'wait', '2000');
+			expect(result).toBe('cy.wait(2000)');
+		});
+
+		it('builds wait command defaulting to 0 for non-numeric text', () => {
+			const result = buildCypressCommand(undefined, 'wait');
+			expect(result).toBe('cy.wait(0)');
+		});
+
+		it('builds scrollto command with position', () => {
+			const result = buildCypressCommand(undefined, 'scrollto', 'bottom');
+			expect(result).toBe("cy.scrollTo('bottom')");
+		});
+
+		it('builds snapshot command as comment', () => {
+			const result = buildCypressCommand(undefined, 'snapshot');
+			expect(result).toBe('// snapshot (read-only)');
+		});
+
+		it('handles unknown non-ref actions with fallback', () => {
+			const result = buildCypressCommand(undefined, 'unknownAction');
+			expect(result).toBe('cy.unknownAction()');
+		});
+	});
 });

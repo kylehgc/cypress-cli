@@ -244,9 +244,10 @@ function pollForCommands(): void {
 			// Take post-command snapshot and report result
 			takeSnapshot().then((snapshotYaml: string) => {
 				/**
-				 * Build the result and optionally resolve selector info.
-				 * For commands with a ref, we attempt to generate a CSS
-				 * selector and Cypress command string for codegen.
+				 * Build the result and resolve selector/cypressCommand info.
+				 * For commands with a ref, we generate a CSS selector and
+				 * Cypress command string. For non-ref commands, we still
+				 * generate the cypressCommand string for codegen.
 				 * This always goes through cy.window() to stay in the
 				 * Cypress command chain.
 				 */
@@ -263,6 +264,10 @@ function pollForCommands(): void {
 						} catch {
 							// Ref may no longer exist after command; ignore
 						}
+					} else if (cmd.action) {
+						// Non-ref commands: still generate cypressCommand for codegen
+						const chainer = cmd.options?.['chainer'] as string | undefined;
+						cypressCommand = buildCypressCommand(undefined, cmd.action, cmd.text, chainer);
 					}
 
 					const result: DriverResult = commandError
