@@ -65,7 +65,7 @@ describe('Error propagation integration', () => {
 			queue = new CommandQueue();
 		});
 
-		it('command failure result propagates to enqueue caller', async () => {
+		it('propagates command failure result to enqueue caller', async () => {
 			const { getCommand, commandResult } = createTaskHandlers(queue, 5000);
 
 			const enqueuePromise = queue.enqueue({
@@ -303,8 +303,10 @@ describe('Error propagation integration', () => {
 			};
 			client.send(cmd);
 
-			// Wait for the command to be enqueued
-			await new Promise((r) => setTimeout(r, 50));
+			// Wait for the command to be enqueued in the session queue
+			while (session.queue.size === 0 && !session.queue.hasInflight) {
+				await new Promise((r) => setTimeout(r, 5));
+			}
 
 			// Stop the session while the command is pending in the queue
 			daemon.stopSession('stop-mid');

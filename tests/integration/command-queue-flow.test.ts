@@ -97,7 +97,7 @@ describe('Command queue flow integration', () => {
 			expect(r3.snapshot).toBe('snap-3');
 		});
 
-		it('results are returned to correct callers when commands interleave', async () => {
+		it('returns results to correct callers when commands interleave', async () => {
 			const { getCommand, commandResult } = createTaskHandlers(queue, 5000);
 
 			// Enqueue commands with distinct payloads
@@ -209,10 +209,11 @@ describe('Command queue flow integration', () => {
 				params: { args: { _: ['click', 'e2'] } },
 			};
 
-			// Send commands from both clients
+			// Send first command and wait for it to be enqueued deterministically
 			client1.send(cmd1);
-			// Small delay to ensure ordering
-			await new Promise((r) => setTimeout(r, 20));
+			while (session.queue.size === 0 && !session.queue.hasInflight) {
+				await new Promise((r) => setTimeout(r, 5));
+			}
 			client2.send(cmd2);
 
 			// Process first command

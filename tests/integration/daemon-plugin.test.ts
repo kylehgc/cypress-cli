@@ -55,11 +55,10 @@ describe('Daemon ↔ Plugin integration', () => {
 		it('waits for command and delivers when one arrives', async () => {
 			const getCommand = createGetCommandHandler(queue, 5000);
 
-			// Start getCommand before any command is queued
+			// Start getCommand before any command is queued —
+			// dequeueWithTimeout is called synchronously, so the waiter
+			// is established before the first await yields.
 			const commandPromise = getCommand();
-
-			// Give the handler a tick to set up the waiter
-			await new Promise((r) => setTimeout(r, 10));
 
 			// Now enqueue a command
 			const enqueuePromise = queue.enqueue(makeCommand(2, 'type', 'e3'));
@@ -91,11 +90,11 @@ describe('Daemon ↔ Plugin integration', () => {
 		it('returns stop sentinel when queue is disposed while waiting', async () => {
 			const getCommand = createGetCommandHandler(queue, 5000);
 
-			// Start long-polling
+			// Start long-polling — dequeueWithTimeout is called synchronously,
+			// so the waiter is established before the first await yields.
 			const commandPromise = getCommand();
 
-			// Give it a tick then dispose
-			await new Promise((r) => setTimeout(r, 10));
+			// Dispose immediately — the waiter is already set up
 			queue.dispose();
 
 			const result = await commandPromise;

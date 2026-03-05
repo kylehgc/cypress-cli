@@ -117,7 +117,7 @@ describe('Session lifecycle integration', () => {
 		expect(session.queue.isDisposed).toBe(true);
 	});
 
-	it('session cleanup disposes queue and rejects pending commands', async () => {
+	it('disposes the queue and rejects pending commands on session cleanup', async () => {
 		daemon = new Daemon({
 			sessionId: 'lifecycle-cleanup',
 			socketDir,

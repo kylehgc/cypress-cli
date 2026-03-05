@@ -66,7 +66,7 @@ describe('Client ↔ Daemon integration', () => {
 	// -----------------------------------------------------------------------
 
 	describe('basic connectivity', () => {
-		it('client connects and receives stop response', async () => {
+		it('connects and receives stop response', async () => {
 			daemon = new Daemon({
 				sessionId: 'client-stop',
 				socketDir,
@@ -85,7 +85,7 @@ describe('Client ↔ Daemon integration', () => {
 			expect(response).toEqual({ id: 1, result: { success: true } });
 		});
 
-		it('client receives error when no session is running', async () => {
+		it('receives error when no session is running', async () => {
 			daemon = new Daemon({
 				sessionId: 'client-no-session',
 				socketDir,
@@ -111,7 +111,7 @@ describe('Client ↔ Daemon integration', () => {
 			);
 		});
 
-		it('client receives error for empty command args', async () => {
+		it('receives error for empty command args', async () => {
 			daemon = new Daemon({
 				sessionId: 'client-empty-args',
 				socketDir,
@@ -140,7 +140,7 @@ describe('Client ↔ Daemon integration', () => {
 	// -----------------------------------------------------------------------
 
 	describe('command round-trip with session', () => {
-		it('client sends command and receives result via queue', async () => {
+		it('sends command and receives result via queue', async () => {
 			daemon = new Daemon({
 				sessionId: 'client-roundtrip',
 				socketDir,
