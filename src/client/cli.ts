@@ -80,7 +80,7 @@ export function parseGlobalFlags(argv: string[]): {
 } {
 	const parsed = minimist(argv, {
 		boolean: ['json', 'help', 'version', 'verbose', 'force', 'multiple', 'headed', 'diff'],
-		string: ['session', 'browser', 'config', 'file'],
+		string: ['session', 'browser', 'config', 'file', 'resume'],
 		alias: {
 			s: 'session',
 			h: 'help',
