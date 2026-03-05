@@ -57,7 +57,7 @@ export function buildCypressCommand(
 	action: string,
 	text?: string,
 ): string {
-	const escapedSelector = selector.replace(/'/g, "\\'");
+	const escapedSelector = selector.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 	const getExpr = `cy.get('${escapedSelector}')`;
 
 	switch (action) {
@@ -71,11 +71,11 @@ export function buildCypressCommand(
 		case 'blur':
 			return `${getExpr}.${action}()`;
 		case 'type': {
-			const escapedText = (text ?? '').replace(/'/g, "\\'");
+			const escapedText = (text ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 			return `${getExpr}.type('${escapedText}')`;
 		}
 		case 'select': {
-			const escapedText = (text ?? '').replace(/'/g, "\\'");
+			const escapedText = (text ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 			return `${getExpr}.select('${escapedText}')`;
 		}
 		case 'hover':

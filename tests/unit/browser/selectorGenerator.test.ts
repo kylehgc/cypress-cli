@@ -164,6 +164,21 @@ describe('selectorGenerator', () => {
 			expect(result).toBe("cy.get('[data-cy=\\'login\\']').click()");
 		});
 
+		it('escapes backslashes in selector', () => {
+			const result = buildCypressCommand('a\\b', 'click');
+			expect(result).toBe("cy.get('a\\\\b').click()");
+		});
+
+		it('escapes backslashes in type text', () => {
+			const result = buildCypressCommand('#input', 'type', 'path\\to\\file');
+			expect(result).toBe("cy.get('#input').type('path\\\\to\\\\file')");
+		});
+
+		it('escapes backslashes in select text', () => {
+			const result = buildCypressCommand('#dropdown', 'select', 'a\\b');
+			expect(result).toBe("cy.get('#dropdown').select('a\\\\b')");
+		});
+
 		it('handles unknown actions with fallback', () => {
 			const result = buildCypressCommand('#el', 'customAction');
 			expect(result).toBe("cy.get('#el').customAction()");
