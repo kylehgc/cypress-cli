@@ -28,6 +28,7 @@ import {
 	type SessionConfig,
 } from './session.js';
 import type { QueuedCommand, CommandResult } from './commandQueue.js';
+import { generateTestFile } from '../codegen/codegen.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -325,6 +326,11 @@ export class Daemon {
 			return;
 		}
 
+		if (action === 'export') {
+			this._handleExport(conn, message);
+			return;
+		}
+
 		const ref = args[1];
 		const text = args.length > 2 ? args.slice(2).join(' ') : undefined;
 
@@ -480,6 +486,51 @@ export class Daemon {
 			},
 		};
 		conn.send(response);
+	}
+
+	/**
+	 * Handle the "export" daemon-local command: generate a Cypress test file
+	 * from the session's command history without round-tripping through Cypress.
+	 */
+	private _handleExport(
+		conn: SocketConnection,
+		message: CommandMessage,
+	): void {
+		const session = this._findRunningSession();
+		if (!session) {
+			const errorMsg: ErrorMessage = {
+				id: message.id,
+				error: 'No session running. Run `cypress-cli open <url>` to start one.',
+			};
+			conn.send(errorMsg);
+			return;
+		}
+
+		const { _: _positional, ...options } = message.params.args;
+
+		try {
+			const testFile = generateTestFile(session.commandHistory, {
+				describeName: options.describe as string | undefined,
+				itName: options.it as string | undefined,
+				format: (options.format as 'js' | 'ts') ?? 'js',
+				baseUrl: options.baseUrl as string | undefined,
+			});
+
+			const response: ResponseMessage = {
+				id: message.id,
+				result: {
+					success: true,
+					testFile,
+				},
+			};
+			conn.send(response);
+		} catch (err) {
+			const errorMsg: ErrorMessage = {
+				id: message.id,
+				error: err instanceof Error ? err.message : String(err),
+			};
+			conn.send(errorMsg);
+		}
 	}
 
 	/**

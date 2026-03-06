@@ -37,6 +37,7 @@ const responseMessageSchema = z.object({
 		snapshot: z.string().optional(),
 		selector: z.string().optional(),
 		cypressCommand: z.string().optional(),
+		testFile: z.string().optional(),
 	}),
 });
 
