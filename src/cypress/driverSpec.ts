@@ -11,9 +11,11 @@
  * or copied as-is for Cypress to consume.
  */
 
-import { injectSnapshotLib, takeSnapshot } from './support.js';
-import { resolveRefFromMap } from '../browser/refMap.js';
-import { generateSelector, buildCypressCommand } from '../browser/selectorGenerator.js';
+// MODIFIED: Use extensionless imports for Cypress's webpack preprocessor
+// (these files are excluded from tsc and bundled by Cypress's webpack)
+import { injectSnapshotLib, takeSnapshot } from './support';
+import { resolveRefFromMap } from '../browser/refMap';
+import { generateSelector, buildCypressCommand } from '../browser/selectorGenerator';
 
 // ---------------------------------------------------------------------------
 // Types
