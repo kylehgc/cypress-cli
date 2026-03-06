@@ -115,8 +115,9 @@ export function generateCypressConfig(
 			defaultCommandTimeout: DEFAULT_COMMAND_TIMEOUT,
 			video: false,
 			screenshotOnRunFailure: false,
-			env,
 		},
+		// Cypress env must be at the root config level, not nested under e2e
+		env,
 	};
 }
 
@@ -231,20 +232,11 @@ export async function launchCypressRun(
 	// Write the config file with the bridge socket path embedded
 	const configDir = await writeConfigToTemp(options, bridgeSocketPath);
 
-	const env: Record<string, string> = {};
-	if (options.url) {
-		env['CYPRESS_CLI_URL'] = options.url;
-	}
-	if (options.iifeBundle) {
-		env['CYPRESS_CLI_IIFE'] = options.iifeBundle;
-	}
-
 	try {
 		const result = await cypress.default.run({
 			project: configDir,
 			browser: options.browser ?? 'electron',
 			headed: options.headed ?? false,
-			env,
 		} as Record<string, unknown>);
 
 		if (isCypressRunFailed(result)) {
@@ -292,19 +284,10 @@ export async function launchCypressOpen(
 
 	const configDir = await writeConfigToTemp(options, bridgeSocketPath);
 
-	const env: Record<string, string> = {};
-	if (options.url) {
-		env['CYPRESS_CLI_URL'] = options.url;
-	}
-	if (options.iifeBundle) {
-		env['CYPRESS_CLI_IIFE'] = options.iifeBundle;
-	}
-
 	try {
 		await cypress.default.open({
 			project: configDir,
 			browser: options.browser ?? 'chrome',
-			env,
 		} as Record<string, unknown>);
 
 		return {

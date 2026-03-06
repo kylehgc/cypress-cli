@@ -52,8 +52,7 @@ describe('generateCypressConfig', () => {
 			queue,
 			url: 'https://example.com',
 		});
-		const e2e = config.e2e as Record<string, unknown>;
-		const env = e2e.env as Record<string, unknown>;
+		const env = config.env as Record<string, unknown>;
 
 		expect(env['CYPRESS_CLI_URL']).toBe('https://example.com');
 	});
@@ -61,8 +60,7 @@ describe('generateCypressConfig', () => {
 	it('does not include CYPRESS_CLI_URL in env when url is not provided', () => {
 		const queue = new CommandQueue();
 		const config = generateCypressConfig({ queue });
-		const e2e = config.e2e as Record<string, unknown>;
-		const env = e2e.env as Record<string, unknown>;
+		const env = config.env as Record<string, unknown>;
 
 		expect(env['CYPRESS_CLI_URL']).toBeUndefined();
 	});
@@ -73,8 +71,7 @@ describe('generateCypressConfig', () => {
 			queue,
 			iifeBundle: '(function(){})();',
 		});
-		const e2e = config.e2e as Record<string, unknown>;
-		const env = e2e.env as Record<string, unknown>;
+		const env = config.env as Record<string, unknown>;
 
 		expect(env['CYPRESS_CLI_IIFE']).toBe('(function(){})();');
 	});
