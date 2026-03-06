@@ -88,7 +88,7 @@ describe('E2E: interaction', () => {
 
 		// Verify the checkbox is no longer checked
 		const afterSnap = getSnapshot(response);
-		const checkboxLine = afterSnap.split('\n').find((l: string) => l.includes('Remember me') && l.includes('checkbox'));
+		const checkboxLine = afterSnap.split('\n').find((line: string) => line.includes('Remember me') && line.includes('checkbox'));
 		expect(checkboxLine).toBeDefined();
 		expect(checkboxLine).not.toContain('[checked]');
 	}, 60_000);

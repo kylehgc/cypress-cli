@@ -29,12 +29,5 @@ export default defineConfig({
 		sequence: {
 			sequentialFiles: ['tests/e2e/**'],
 		},
-		poolOptions: {
-			threads: {
-				// Run E2E tests in a single thread to avoid resource conflicts
-				maxThreads: 1,
-				minThreads: 1,
-			},
-		},
 	},
 });

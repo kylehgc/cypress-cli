@@ -113,8 +113,14 @@ let _asyncCommandError: string | undefined;
 /**
  * Apply a chai-style chainer assertion manually.
  *
- * Instead of throwing (which would crash the Cypress chain), this stores
- * the error in `_asyncCommandError` so the polling loop can report it.
+ * Instead of using Cypress's `.should()` (which retries and eventually fails
+ * the entire test), this performs a one-shot comparison and stores any failure
+ * in `_asyncCommandError` so the polling loop can report it as a command
+ * error without crashing the Cypress runner.
+ *
+ * @param chainer - The chai assertion chainer (e.g. 'equal', 'include', 'have.text')
+ * @param actual - The actual value retrieved from the DOM/URL/title
+ * @param expected - The expected value to compare against
  */
 function applyChainer(chainer: string, actual: string, expected?: string): void {
 	let error: string | undefined;
