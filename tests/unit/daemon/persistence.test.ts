@@ -137,13 +137,57 @@ describe('persistence', () => {
 		});
 	});
 
+	describe('session ID validation', () => {
+		it('rejects session IDs with path separators', async () => {
+			await expect(
+				loadSession('../etc/passwd', tempDir),
+			).rejects.toThrow('Invalid session ID');
+		});
+
+		it('rejects session IDs with backslash separators', async () => {
+			await expect(
+				loadSession('..\\etc\\passwd', tempDir),
+			).rejects.toThrow('Invalid session ID');
+		});
+
+		it('rejects session IDs with dots only', async () => {
+			await expect(loadSession('..', tempDir)).rejects.toThrow(
+				'Invalid session ID',
+			);
+		});
+
+		it('rejects empty session IDs', async () => {
+			await expect(loadSession('', tempDir)).rejects.toThrow(
+				'Invalid session ID',
+			);
+		});
+
+		it('allows valid session IDs with hyphens and underscores', async () => {
+			const loaded = await loadSession('my-session_01', tempDir);
+			expect(loaded).toBeNull();
+		});
+
+		it('rejects path traversal in saveSession', async () => {
+			const session = new Session({ id: '../traversal' });
+			await expect(saveSession(session, tempDir)).rejects.toThrow(
+				'Invalid session ID',
+			);
+		});
+
+		it('rejects path traversal in deletePersistedSession', async () => {
+			await expect(
+				deletePersistedSession('../traversal', tempDir),
+			).rejects.toThrow('Invalid session ID');
+		});
+	});
+
 	describe('resolveSessionsDir', () => {
 		it('uses XDG_STATE_HOME when set', () => {
 			const original = process.env['XDG_STATE_HOME'];
 			try {
 				process.env['XDG_STATE_HOME'] = '/custom/state';
 				const dir = resolveSessionsDir();
-				expect(dir).toBe('/custom/state/cypress-cli/sessions');
+				expect(dir).toBe(path.join('/custom/state', 'cypress-cli', 'sessions'));
 			} finally {
 				if (original !== undefined) {
 					process.env['XDG_STATE_HOME'] = original;

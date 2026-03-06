@@ -29,6 +29,30 @@ const SESSIONS_DIR_NAME = 'sessions';
 const APP_DIR_NAME = 'cypress-cli';
 
 // ---------------------------------------------------------------------------
+// Validation
+// ---------------------------------------------------------------------------
+
+/**
+ * Pattern for valid session IDs: alphanumeric, hyphens, and underscores only.
+ * Prevents path traversal via `../` or other special characters.
+ */
+const SAFE_SESSION_ID = /^[a-zA-Z0-9_-]+$/;
+
+/**
+ * Validate that a session ID is safe for use in file paths.
+ *
+ * @param sessionId - The session ID to validate
+ * @throws {Error} If the session ID contains unsafe characters
+ */
+function validateSessionId(sessionId: string): void {
+	if (!SAFE_SESSION_ID.test(sessionId)) {
+		throw new Error(
+			`Invalid session ID "${sessionId}": must contain only alphanumeric characters, hyphens, and underscores.`,
+		);
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -57,6 +81,7 @@ export async function saveSession(
 	session: Session,
 	dir?: string,
 ): Promise<void> {
+	validateSessionId(session.id);
 	const sessionsDir = dir ?? resolveSessionsDir();
 	await fs.mkdir(sessionsDir, { recursive: true, mode: 0o700 });
 
@@ -76,6 +101,7 @@ export async function loadSession(
 	sessionId: string,
 	dir?: string,
 ): Promise<Session | null> {
+	validateSessionId(sessionId);
 	const sessionsDir = dir ?? resolveSessionsDir();
 	const filePath = path.join(sessionsDir, `${sessionId}.json`);
 
@@ -128,6 +154,7 @@ export async function deletePersistedSession(
 	sessionId: string,
 	dir?: string,
 ): Promise<boolean> {
+	validateSessionId(sessionId);
 	const sessionsDir = dir ?? resolveSessionsDir();
 	const filePath = path.join(sessionsDir, `${sessionId}.json`);
 
