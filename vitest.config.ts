@@ -24,5 +24,17 @@ export default defineConfig({
 		],
 		testTimeout: 10_000,
 		hookTimeout: 10_000,
+		// E2E tests launch real Cypress + Electron instances and must not run
+		// in parallel. Use `sequence.sequentialFiles` patterns to serialize them.
+		sequence: {
+			sequentialFiles: ['tests/e2e/**'],
+		},
+		poolOptions: {
+			threads: {
+				// Run E2E tests in a single thread to avoid resource conflicts
+				maxThreads: 1,
+				minThreads: 1,
+			},
+		},
 	},
 });

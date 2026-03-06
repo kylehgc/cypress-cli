@@ -12,7 +12,6 @@
 
 import net from 'node:net';
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 
 import type { CommandQueue } from '../daemon/commandQueue.js';
@@ -209,9 +208,11 @@ function createBridgeSetupNodeEvents() {
         });
       },
       commandResult: function(result) {
-        // Fire and forget - use sync-like pattern
-        sendRequest('commandResult', result).catch(function() {});
-        return true;
+        // Wait for the bridge to acknowledge the result before proceeding
+        return sendRequest('commandResult', result).then(function(resp) {
+          if (resp && resp.error) throw new Error(resp.error);
+          return true;
+        });
       }
     });
     return config;

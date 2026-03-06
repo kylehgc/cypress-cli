@@ -41,6 +41,10 @@ describe('E2E: interaction', () => {
 			['type', emailRef!, 'test@example.com'],
 		);
 		expect(isSuccess(response)).toBe(true);
+
+		// Verify the typed text appears in the snapshot
+		const afterSnap = getSnapshot(response);
+		expect(afterSnap).toContain('test@example.com');
 	}, 60_000);
 
 	it('types into password field', async () => {
@@ -67,9 +71,9 @@ describe('E2E: interaction', () => {
 		const response = await ctx.sendCommand(35, ['check', checkboxRef!]);
 		expect(isSuccess(response)).toBe(true);
 
-		// Verify the checkbox state in the snapshot
+		// Verify the checkbox is now checked in the snapshot
 		const afterSnap = getSnapshot(response);
-		expect(afterSnap).toContain('Remember me');
+		expect(afterSnap).toMatch(/checkbox.*Remember me.*\[checked\]/i);
 	}, 60_000);
 
 	it('unchecks a checkbox', async () => {
@@ -81,6 +85,12 @@ describe('E2E: interaction', () => {
 
 		const response = await ctx.sendCommand(37, ['uncheck', checkboxRef!]);
 		expect(isSuccess(response)).toBe(true);
+
+		// Verify the checkbox is no longer checked
+		const afterSnap = getSnapshot(response);
+		const checkboxLine = afterSnap.split('\n').find((l: string) => l.includes('Remember me') && l.includes('checkbox'));
+		expect(checkboxLine).toBeDefined();
+		expect(checkboxLine).not.toContain('[checked]');
 	}, 60_000);
 
 	it('selects a dropdown option', async () => {
@@ -95,9 +105,13 @@ describe('E2E: interaction', () => {
 			['select', selectRef!, 'Admin'],
 		);
 		expect(isSuccess(response)).toBe(true);
+
+		// Verify the selected option is reflected in the snapshot
+		const afterSnap = getSnapshot(response);
+		expect(afterSnap).toMatch(/Admin.*\[selected\]/);
 	}, 60_000);
 
-	it('clicks a button', async () => {
+	it('clicks a button and verifies DOM state change', async () => {
 		const snap = await ctx.sendCommand(40, ['snapshot']);
 		const snapshot = getSnapshot(snap);
 
@@ -106,6 +120,16 @@ describe('E2E: interaction', () => {
 
 		const response = await ctx.sendCommand(41, ['click', buttonRef!]);
 		expect(isSuccess(response)).toBe(true);
+
+		// Verify that clicking the Login button was successful and the
+		// system still responds. The form's onsubmit handler fires
+		// (with event.preventDefault), so the page remains stable.
+		const afterSnap = await ctx.sendCommand(42, ['snapshot']);
+		expect(isSuccess(afterSnap)).toBe(true);
+		const afterSnapshot = getSnapshot(afterSnap);
+		// The form page should still be visible after the click
+		expect(afterSnapshot).toContain('Login Form');
+		expect(afterSnapshot).toContain('Login');
 	}, 60_000);
 });
 

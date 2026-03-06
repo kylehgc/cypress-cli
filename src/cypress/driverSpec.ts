@@ -11,8 +11,8 @@
  * or copied as-is for Cypress to consume.
  */
 
-// MODIFIED: Use extensionless imports for Cypress's webpack preprocessor
-// (these files are excluded from tsc and bundled by Cypress's webpack)
+// MODIFIED: Use extensionless imports for the Cypress driver bundling pipeline
+// (this spec is excluded from tsc and bundled by esbuild into dist/cypress/driverSpec.js)
 import { injectSnapshotLib, takeSnapshot } from './support';
 import { resolveRefFromMap } from '../browser/refMap';
 import { generateSelector, buildCypressCommand } from '../browser/selectorGenerator';
@@ -65,6 +65,25 @@ function resolveRef(ref: string): Cypress.Chainable {
 	});
 }
 
+/**
+ * Validates that a ref exists in the element map. If not, stores the error
+ * in `_asyncCommandError` so the polling loop reports it as a command failure.
+ *
+ * Must be called from within a cy.window().then() chain so the element map
+ * is accessible.
+ *
+ * @returns true if the ref is valid, false if invalid (error stored)
+ */
+function validateRef(win: Window, ref: string): boolean {
+	try {
+		resolveRefFromMap(win, ref);
+		return true;
+	} catch (err) {
+		_asyncCommandError = err instanceof Error ? err.message : String(err);
+		return false;
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Command execution
 // ---------------------------------------------------------------------------
@@ -83,6 +102,68 @@ const COMMANDS_REQUIRING_REF = new Set([
 const COMMANDS_REQUIRING_TEXT = new Set([
 	'type', 'select', 'navigate', 'press',
 ]);
+
+/**
+ * Shared mutable state for capturing errors from async Cypress chains.
+ * This is set by executeCommand's assertion handlers (inside cy.then callbacks)
+ * and read by the polling loop when building the result.
+ */
+let _asyncCommandError: string | undefined;
+
+/**
+ * Apply a chai-style chainer assertion manually.
+ *
+ * Instead of throwing (which would crash the Cypress chain), this stores
+ * the error in `_asyncCommandError` so the polling loop can report it.
+ */
+function applyChainer(chainer: string, actual: string, expected?: string): void {
+	let error: string | undefined;
+
+	switch (chainer) {
+		case 'equal':
+		case 'eq':
+			if (actual !== expected) {
+				error = `Expected "${expected}" but got "${actual}"`;
+			}
+			break;
+		case 'not.equal':
+			if (actual === expected) {
+				error = `Expected value to not equal "${expected}"`;
+			}
+			break;
+		case 'include':
+		case 'contain':
+		case 'contain.text':
+		case 'contains':
+			if (expected && !actual.includes(expected)) {
+				error = `Expected "${actual}" to include "${expected}"`;
+			}
+			break;
+		case 'not.include':
+		case 'not.contain':
+			if (expected && actual.includes(expected)) {
+				error = `Expected "${actual}" to not include "${expected}"`;
+			}
+			break;
+		case 'have.text':
+			if (actual.trim() !== (expected ?? '').trim()) {
+				error = `Expected text to be "${expected}" but got "${actual}"`;
+			}
+			break;
+		case 'match':
+			if (expected && !new RegExp(expected).test(actual)) {
+				error = `Expected "${actual}" to match /${expected}/`;
+			}
+			break;
+		default:
+			error = `Unsupported chainer: "${chainer}"`;
+			break;
+	}
+
+	if (error) {
+		_asyncCommandError = error;
+	}
+}
 
 /**
  * Executes a single command received from the daemon.
@@ -167,27 +248,28 @@ function executeCommand(cmd: DriverCommand): void {
 		case 'press':
 			cy.get('body').type(`{${cmd.text}}`, { log: false });
 			break;
-		case 'assert':
-			if (cmd.text) {
-				resolveRef(cmd.ref!).should(cmd.options?.['chainer'] as string, cmd.text);
-			} else {
-				resolveRef(cmd.ref!).should(cmd.options?.['chainer'] as string);
-			}
+		case 'assert': {
+			const chainer = cmd.options?.['chainer'] as string;
+			resolveRef(cmd.ref!).then(($el) => {
+				const actual = $el.text();
+				applyChainer(chainer, actual, cmd.text);
+			});
 			break;
-		case 'asserturl':
-			if (cmd.text) {
-				cy.url().should(cmd.options?.['chainer'] as string, cmd.text);
-			} else {
-				cy.url().should(cmd.options?.['chainer'] as string);
-			}
+		}
+		case 'asserturl': {
+			const chainer = cmd.options?.['chainer'] as string;
+			cy.url().then((url: string) => {
+				applyChainer(chainer, url, cmd.text);
+			});
 			break;
-		case 'asserttitle':
-			if (cmd.text) {
-				cy.title().should(cmd.options?.['chainer'] as string, cmd.text);
-			} else {
-				cy.title().should(cmd.options?.['chainer'] as string);
-			}
+		}
+		case 'asserttitle': {
+			const chainer = cmd.options?.['chainer'] as string;
+			cy.title().then((title: string) => {
+				applyChainer(chainer, title, cmd.text);
+			});
 			break;
+		}
 		case 'wait':
 			cy.wait(Number(cmd.text) || 0);
 			break;
@@ -231,51 +313,77 @@ function pollForCommands(): void {
 				return;
 			}
 
-			// Execute the command, handling errors gracefully
-			let commandError: string | undefined;
-			try {
-				executeCommand(cmd);
-			} catch (err) {
-				commandError =
-					err instanceof Error ? err.message : String(err);
+			// Reset async error state before each command
+			_asyncCommandError = undefined;
+
+			// Pre-validate ref if the command requires one. This check runs
+			// inside a cy.window() chain so we can access the element map.
+			// If the ref is invalid, we skip executeCommand entirely and
+			// report the error (avoiding Cypress chain crashes from detached elements).
+			if (COMMANDS_REQUIRING_REF.has(cmd.action!) && cmd.ref) {
+				cy.window({ log: false }).then((win: Window) => {
+					if (!validateRef(win, cmd.ref!)) {
+						// Ref is invalid — skip to result reporting
+						return;
+					}
+				});
 			}
+
+			// Execute the command, handling errors gracefully.
+			// Synchronous errors (e.g. missing ref/text, unknown action) are
+			// caught by try/catch. Assertion failures are captured in
+			// _asyncCommandError by applyChainer (runs inside cy.then).
+			// Invalid ref errors are captured by validateRef above.
+			cy.then(() => {
+				// Skip execution if ref validation already failed
+				if (_asyncCommandError) {
+					return;
+				}
+
+				try {
+					executeCommand(cmd);
+				} catch (err) {
+					_asyncCommandError =
+						err instanceof Error ? err.message : String(err);
+				}
+			});
 
 			// Re-inject snapshot lib (in case of navigation)
 			injectSnapshotLib();
 
 			// Take post-command snapshot and report result
 			takeSnapshot().then((snapshotYaml: string) => {
-				/**
-				 * Build the result and resolve selector/cypressCommand info.
-				 * For commands with a ref, we generate a CSS selector and
-				 * Cypress command string. For non-ref commands, we still
-				 * generate the cypressCommand string for codegen.
-				 * This always goes through cy.window() to stay in the
-				 * Cypress command chain.
-				 */
+				// Pick up any async error from assertion commands or ref validation
+				const error = _asyncCommandError;
+
 				cy.window({ log: false }).then((win: Window) => {
 					let selector: string | undefined;
 					let cypressCommand: string | undefined;
 
-					if (cmd.ref && cmd.action) {
+					// Generate selector/cypressCommand for codegen.
+					// The ref '_' is a placeholder for "no element ref" used by
+					// commands like navigate, asserturl, asserttitle.
+					const hasRef = cmd.ref && cmd.ref !== '_';
+
+					if (!error && hasRef && cmd.action) {
 						try {
-							const element = resolveRefFromMap(win, cmd.ref);
+							const element = resolveRefFromMap(win, cmd.ref!);
 							selector = generateSelector(element);
 							const chainer = cmd.options?.['chainer'] as string | undefined;
 							cypressCommand = buildCypressCommand(selector, cmd.action, cmd.text, chainer);
 						} catch {
 							// Ref may no longer exist after command; ignore
 						}
-					} else if (cmd.action) {
+					} else if (!error && cmd.action) {
 						// Non-ref commands: still generate cypressCommand for codegen
 						const chainer = cmd.options?.['chainer'] as string | undefined;
 						cypressCommand = buildCypressCommand(undefined, cmd.action, cmd.text, chainer);
 					}
 
-					const result: DriverResult = commandError
+					const result: DriverResult = error
 						? {
 								success: false,
-								error: commandError,
+								error,
 								snapshot: snapshotYaml,
 							}
 						: {

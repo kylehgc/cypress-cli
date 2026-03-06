@@ -11,8 +11,8 @@
  * - Take aria snapshots and persist the ref→Element map on window
  */
 
-// MODIFIED: Use extensionless imports for Cypress's webpack preprocessor
-// (this file is excluded from tsc and bundled by Cypress's webpack)
+// MODIFIED: Use extensionless imports for the Cypress driver bundling pipeline
+// (this file is excluded from tsc and bundled by esbuild via driverSpec.ts into dist/cypress/driverSpec.js)
 import {
 	IIFE_ENV_KEY,
 	injectSnapshotIife,

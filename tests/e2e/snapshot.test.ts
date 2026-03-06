@@ -46,6 +46,11 @@ describe('E2E: snapshot', () => {
 		// Should contain buttons from simple.html
 		expect(snapshot).toContain('Say Hello');
 		expect(snapshot).toContain('Click me');
+
+		// Refs should follow the format [ref=eN] where N is a number
+		const refMatches = snapshot.match(/\[ref=e\d+\]/g);
+		expect(refMatches).not.toBeNull();
+		expect(refMatches!.length).toBeGreaterThan(0);
 	}, 60_000);
 
 	it('snapshot is valid YAML-like structure with indentation', async () => {

@@ -124,12 +124,13 @@ export function generateCypressConfig(
 /**
  * Writes the generated Cypress config to a temp directory.
  *
- * The config file wires `setupNodeEvents` by requiring the plugin module
- * at runtime. This avoids the JSON.stringify limitation where functions
- * are dropped, and ensures the Cypress Module API picks up our task
- * handlers from the config file.
+ * The config file embeds bridge client code (generated from queueBridge.ts)
+ * that connects to the QueueBridge socket in the launcher process. This
+ * enables the Cypress config subprocess to register `setupNodeEvents` with
+ * task handlers that communicate with the in-memory CommandQueue via IPC.
  *
  * @param options - Launcher options
+ * @param bridgeSocketPath - Path to the QueueBridge Unix socket (if provided, bridge client code is embedded)
  * @returns Path to the created temp directory
  */
 export async function writeConfigToTemp(
@@ -206,9 +207,9 @@ function isCypressRunFailed(result: unknown): boolean {
 /**
  * Launches Cypress in run mode (headless) with the generated config.
  *
- * The generated config file includes all e2e settings (specPattern,
- * taskTimeout, supportFile, etc.). The `setupNodeEvents` callback is
- * passed via the Module API's `config` override so Cypress picks it up.
+ * Starts a QueueBridge IPC server, writes a temp config file with
+ * embedded bridge client code for `setupNodeEvents`, then calls
+ * `cypress.run()` pointing at the temp project directory.
  *
  * @param options - Launcher options
  * @returns A Promise resolving with the run result
