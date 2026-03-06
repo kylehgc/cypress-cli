@@ -90,6 +90,22 @@ describe('templateEngine', () => {
 			const output = renderTestFile([], { itName: "user's flow" });
 			expect(output).toContain("it('user\\'s flow', () => {");
 		});
+
+		it('adds triple-slash directive for ts format', () => {
+			const output = renderTestFile(["cy.get('#btn').click()"], { format: 'ts' });
+			expect(output).toContain('/// <reference types="cypress" />');
+			expect(output).toContain("describe('cypress-cli generated test', () => {");
+		});
+
+		it('does not add triple-slash directive for js format', () => {
+			const output = renderTestFile(["cy.get('#btn').click()"], { format: 'js' });
+			expect(output).not.toContain('/// <reference types="cypress" />');
+		});
+
+		it('defaults to js format when format is not specified', () => {
+			const output = renderTestFile(["cy.get('#btn').click()"]);
+			expect(output).not.toContain('/// <reference types="cypress" />');
+		});
 	});
 });
 
@@ -373,6 +389,51 @@ describe('codegen', () => {
 				baseUrl: 'https://example.com/',
 			});
 			expect(output).toContain("cy.visit('/login');");
+		});
+
+		it('does not falsely match baseUrl that is a prefix of a different domain', () => {
+			const history = [
+				makeEntry(1, 'navigate', {
+					cypressCommand: "cy.visit('https://example.company.com/path')",
+				}),
+			];
+			const output = generateTestFile(history, {
+				baseUrl: 'https://example.com',
+			});
+			expect(output).toContain("cy.visit('https://example.company.com/path');");
+		});
+
+		it('handles baseUrl that exactly matches the URL', () => {
+			const history = [
+				makeEntry(1, 'navigate', {
+					cypressCommand: "cy.visit('https://example.com')",
+				}),
+			];
+			const output = generateTestFile(history, {
+				baseUrl: 'https://example.com',
+			});
+			expect(output).toContain("cy.visit('/');");
+		});
+
+		it('generates ts format with triple-slash directive', () => {
+			const history = [
+				makeEntry(1, 'click', {
+					cypressCommand: "cy.get('#btn').click()",
+				}),
+			];
+			const output = generateTestFile(history, { format: 'ts' });
+			expect(output).toContain('/// <reference types="cypress" />');
+			expect(output).toContain("cy.get('#btn').click();");
+		});
+
+		it('generates js format without triple-slash directive', () => {
+			const history = [
+				makeEntry(1, 'click', {
+					cypressCommand: "cy.get('#btn').click()",
+				}),
+			];
+			const output = generateTestFile(history, { format: 'js' });
+			expect(output).not.toContain('/// <reference types="cypress" />');
 		});
 	});
 });

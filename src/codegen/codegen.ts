@@ -27,8 +27,6 @@ export interface HistoryEntry {
 	cypressCode: string;
 	/** YAML snapshot after command */
 	afterSnapshot?: string;
-	/** Timestamp of when the command was recorded */
-	timestamp: number;
 }
 
 /**
@@ -99,7 +97,6 @@ export function buildHistory(
 			selector: result.selector,
 			cypressCode: result.cypressCommand,
 			afterSnapshot: result.snapshot,
-			timestamp: Date.now(),
 		});
 
 		index++;
@@ -154,7 +151,7 @@ function _makeVisitRelative(visitCode: string, baseUrl: string): string {
 	const url = match[1].replace(/\\'/g, "'").replace(/\\\\/g, '\\');
 	const normalizedBase = baseUrl.replace(/\/+$/, '');
 
-	if (url.startsWith(normalizedBase)) {
+	if (url === normalizedBase || url.startsWith(normalizedBase + '/')) {
 		let relativePath = url.slice(normalizedBase.length);
 		if (!relativePath.startsWith('/')) {
 			relativePath = '/' + relativePath;

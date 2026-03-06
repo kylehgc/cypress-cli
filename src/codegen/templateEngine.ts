@@ -2,7 +2,8 @@
  * Test file template engine for codegen.
  *
  * Generates the describe/it wrapper structure for exported Cypress test files.
- * Supports both JavaScript and TypeScript output formats.
+ * Supports JavaScript (default) and TypeScript output formats.
+ * TypeScript output includes a `/// <reference types="cypress" />` directive.
  */
 
 // ---------------------------------------------------------------------------
@@ -46,12 +47,19 @@ export function renderTestFile(
 ): string {
 	const describeName = options.describeName ?? DEFAULT_DESCRIBE_NAME;
 	const itName = options.itName ?? DEFAULT_IT_NAME;
+	const format = options.format ?? 'js';
 
 	const body = commands
 		.map((cmd) => `${INDENT}${INDENT}${cmd};`)
 		.join('\n');
 
 	const lines: string[] = [];
+
+	// TypeScript output includes a triple-slash directive for Cypress types
+	if (format === 'ts') {
+		lines.push('/// <reference types="cypress" />');
+		lines.push('');
+	}
 
 	lines.push(`describe('${_escapeQuotes(describeName)}', () => {`);
 	lines.push(`${INDENT}it('${_escapeQuotes(itName)}', () => {`);

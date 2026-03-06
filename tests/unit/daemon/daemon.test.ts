@@ -370,6 +370,92 @@ describe('Daemon', () => {
 
 			await daemon.stop();
 		});
+
+		it('export command returns testFile when session is running', async () => {
+			daemon = new Daemon({
+				sessionId: 'test-export',
+				socketDir,
+				idleTimeout: 0,
+			});
+
+			await daemon.start();
+
+			// Create a running session and record some history
+			const session = daemon.createSession({ id: 'export-session' });
+			session.transition('running');
+			session.recordHistory(
+				{ id: 1, action: 'navigate', text: '/login' },
+				{ success: true, cypressCommand: "cy.visit('/login')" },
+			);
+			session.recordHistory(
+				{ id: 2, action: 'click', ref: 'e5' },
+				{ success: true, selector: '#btn', cypressCommand: "cy.get('#btn').click()" },
+			);
+
+			const client = await connectClient(daemon.socketPath);
+
+			const responsePromise = new Promise<Record<string, unknown>>(
+				(resolve) => {
+					client.onMessage((msg) => {
+						resolve(msg as Record<string, unknown>);
+					});
+				},
+			);
+
+			const exportCmd: CommandMessage = {
+				id: 10,
+				method: 'run',
+				params: { args: { _: ['export'] } },
+			};
+			client.send(exportCmd);
+
+			const response = await responsePromise;
+			expect(response.id).toBe(10);
+			const result = response.result as Record<string, unknown>;
+			expect(result.success).toBe(true);
+			expect(typeof result.testFile).toBe('string');
+			const testFile = result.testFile as string;
+			expect(testFile).toContain("cy.visit('/login');");
+			expect(testFile).toContain("cy.get('#btn').click();");
+			expect(testFile).toContain("describe('cypress-cli generated test'");
+
+			client.close();
+			await daemon.stop();
+		});
+
+		it('export command returns error when no session is running', async () => {
+			daemon = new Daemon({
+				sessionId: 'test-export-no-session',
+				socketDir,
+				idleTimeout: 0,
+			});
+
+			await daemon.start();
+
+			const client = await connectClient(daemon.socketPath);
+
+			const responsePromise = new Promise<Record<string, unknown>>(
+				(resolve) => {
+					client.onMessage((msg) => {
+						resolve(msg as Record<string, unknown>);
+					});
+				},
+			);
+
+			const exportCmd: CommandMessage = {
+				id: 11,
+				method: 'run',
+				params: { args: { _: ['export'] } },
+			};
+			client.send(exportCmd);
+
+			const response = await responsePromise;
+			expect(response.id).toBe(11);
+			expect(response.error).toContain('No session running');
+
+			client.close();
+			await daemon.stop();
+		});
 	});
 });
 
