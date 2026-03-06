@@ -84,6 +84,12 @@ describe('parseGlobalFlags', () => {
 		expect(flags.version).toBe(false);
 		expect(flags.verbose).toBe(false);
 	});
+
+	it('passes --resume as a string option to command args', () => {
+		const { parsed } = parseGlobalFlags(['open', '--resume', 'my-session']);
+		expect(parsed['resume']).toBe('my-session');
+		expect(parsed._).toEqual(['open']);
+	});
 });
 
 // ---------------------------------------------------------------------------

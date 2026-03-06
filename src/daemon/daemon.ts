@@ -315,12 +315,19 @@ export class Daemon {
 
 		const action = args[0];
 
-		// Find a running session first (needed for both local and remote commands)
-		const session = this._findRunningSession();
+		// Handle daemon-local commands that don't need Cypress round-trip
+		if (action === 'history') {
+			this._handleHistory(conn, message);
+			return;
+		}
 
-		// Daemon-local commands: intercepted before building a QueuedCommand
+		if (action === 'undo') {
+			this._handleUndo(conn, message);
+			return;
+		}
+
 		if (action === 'export') {
-			this._handleExport(conn, message, session);
+			this._handleExport(conn, message);
 			return;
 		}
 
@@ -337,6 +344,9 @@ export class Daemon {
 			...(text !== undefined && { text }),
 			...(Object.keys(options).length > 0 && { options }),
 		};
+
+		// Find a running session to enqueue the command into
+		const session = this._findRunningSession();
 		if (!session) {
 			const errorMsg: ErrorMessage = {
 				id: message.id,
@@ -404,14 +414,89 @@ export class Daemon {
 	}
 
 	/**
+	 * Handle the "history" command: return all executed commands with timestamps.
+	 * This is a daemon-local command — it does not go through Cypress.
+	 */
+	private _handleHistory(
+		conn: SocketConnection,
+		message: CommandMessage,
+	): void {
+		const session = this._findRunningSession();
+		if (!session) {
+			const errorMsg: ErrorMessage = {
+				id: message.id,
+				error: 'No session running. Run `cypress-cli open <url>` to start one.',
+			};
+			conn.send(errorMsg);
+			return;
+		}
+
+		const entries = session.history.entries;
+		const formatted = entries.map((entry) => ({
+			index: entry.index,
+			action: entry.command.action,
+			ref: entry.command.ref,
+			text: entry.command.text,
+			executedAt: entry.executedAt,
+			success: entry.result.success,
+			active: entry.index < session.history.undoIndex,
+		}));
+
+		const response: ResponseMessage = {
+			id: message.id,
+			result: {
+				success: true,
+				snapshot: JSON.stringify(formatted),
+			},
+		};
+		conn.send(response);
+	}
+
+	/**
+	 * Handle the "undo" command: remove the last command from export history.
+	 * This is a daemon-local command — it does not go through Cypress.
+	 */
+	private _handleUndo(conn: SocketConnection, message: CommandMessage): void {
+		const session = this._findRunningSession();
+		if (!session) {
+			const errorMsg: ErrorMessage = {
+				id: message.id,
+				error: 'No session running. Run `cypress-cli open <url>` to start one.',
+			};
+			conn.send(errorMsg);
+			return;
+		}
+
+		const undone = session.undoHistory();
+		if (!undone) {
+			const errorMsg: ErrorMessage = {
+				id: message.id,
+				error:
+					'Cannot undo: history is empty. Execute a command first.',
+			};
+			conn.send(errorMsg);
+			return;
+		}
+
+		const response: ResponseMessage = {
+			id: message.id,
+			result: {
+				success: true,
+				snapshot: `Undone: ${undone.command.action}${undone.command.ref ? ' ' + undone.command.ref : ''}`,
+			},
+		};
+		conn.send(response);
+	}
+
+	/**
 	 * Handle the "export" daemon-local command: generate a Cypress test file
 	 * from the session's command history without round-tripping through Cypress.
 	 */
 	private _handleExport(
 		conn: SocketConnection,
 		message: CommandMessage,
-		session: Session | undefined,
 	): void {
+		const session = this._findRunningSession();
 		if (!session) {
 			const errorMsg: ErrorMessage = {
 				id: message.id,

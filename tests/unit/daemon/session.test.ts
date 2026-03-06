@@ -137,7 +137,9 @@ describe('Session', () => {
 
 			session.recordHistory(command, result);
 			expect(session.commandHistory).toHaveLength(1);
-			expect(session.commandHistory[0]).toEqual({ command, result });
+			expect(session.commandHistory[0]).toMatchObject({ command, result });
+			expect(session.commandHistory[0]).toHaveProperty('executedAt');
+			expect(session.commandHistory[0]).toHaveProperty('index', 0);
 		});
 
 		it('maintains order in history', () => {

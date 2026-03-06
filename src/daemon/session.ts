@@ -14,6 +14,11 @@ import {
 	type QueuedCommand,
 	type CommandResult,
 } from './commandQueue.js';
+import {
+	CommandHistory,
+	type HistoryEntry,
+	type SerializedHistory,
+} from './history.js';
 
 // ---------------------------------------------------------------------------
 // Session state
@@ -59,6 +64,15 @@ export interface SessionConfig {
 	configPath?: string;
 }
 
+/**
+ * Serialized form of a session, suitable for JSON persistence.
+ */
+export interface SerializedSession {
+	config: SessionConfig;
+	createdAt: number;
+	history: SerializedHistory;
+}
+
 // ---------------------------------------------------------------------------
 // Session class
 // ---------------------------------------------------------------------------
@@ -76,15 +90,13 @@ export class Session {
 	private _queue: CommandQueue;
 	private _config: SessionConfig;
 	private _createdAt: number;
-	private _commandHistory: Array<{
-		command: QueuedCommand;
-		result: CommandResult;
-	}> = [];
+	private _history: CommandHistory;
 
 	constructor(config: SessionConfig) {
 		this._config = Object.freeze({ ...config });
 		this._queue = new CommandQueue();
 		this._createdAt = Date.now();
+		this._history = new CommandHistory();
 	}
 
 	// -----------------------------------------------------------------------
@@ -170,8 +182,17 @@ export class Session {
 	 * Record a completed command and its result in the history.
 	 * Used for codegen export and the `history` command.
 	 */
-	recordHistory(command: QueuedCommand, result: CommandResult): void {
-		this._commandHistory.push({ command, result });
+	recordHistory(command: QueuedCommand, result: CommandResult): HistoryEntry {
+		return this._history.append(command, result);
+	}
+
+	/**
+	 * Undo the last command in the history.
+	 *
+	 * @returns The undone entry, or null if nothing to undo
+	 */
+	undoHistory(): HistoryEntry | null {
+		return this._history.undo();
 	}
 
 	// -----------------------------------------------------------------------
@@ -213,7 +234,14 @@ export class Session {
 		command: QueuedCommand;
 		result: CommandResult;
 	}> {
-		return this._commandHistory.slice();
+		return this._history.activeEntries;
+	}
+
+	/**
+	 * The CommandHistory instance for this session.
+	 */
+	get history(): CommandHistory {
+		return this._history;
 	}
 
 	/**
@@ -228,6 +256,31 @@ export class Session {
 	 */
 	get hasInflight(): boolean {
 		return this._queue.hasInflight;
+	}
+
+	/**
+	 * Serialize session state for persistence.
+	 * Only the config and history are persisted — queue state is transient.
+	 */
+	serialize(): SerializedSession {
+		return {
+			config: { ...this._config },
+			createdAt: this._createdAt,
+			history: this._history.serialize(),
+		};
+	}
+
+	/**
+	 * Restore a session from serialized state.
+	 *
+	 * @param data - The serialized session object
+	 * @returns A new Session with restored config and history
+	 */
+	static deserialize(data: SerializedSession): Session {
+		const session = new Session(data.config);
+		session._createdAt = data.createdAt;
+		session._history = CommandHistory.deserialize(data.history);
+		return session;
 	}
 }
 
