@@ -31,11 +31,19 @@ export {
 } from './commandQueue.js';
 
 export {
+	CommandHistory,
+	HistoryError,
+	type HistoryEntry,
+	type SerializedHistory,
+} from './history.js';
+
+export {
 	Session,
 	SessionMap,
 	SessionError,
 	type SessionState,
 	type SessionConfig,
+	type SerializedSession,
 } from './session.js';
 
 export {
@@ -54,3 +62,11 @@ export {
 	resolveSocketDir,
 	type DaemonOptions,
 } from './daemon.js';
+
+export {
+	resolveSessionsDir,
+	saveSession,
+	loadSession,
+	listPersistedSessions,
+	deletePersistedSession,
+} from './persistence.js';

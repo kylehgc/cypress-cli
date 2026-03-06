@@ -313,6 +313,18 @@ export class Daemon {
 		}
 
 		const action = args[0];
+
+		// Handle daemon-local commands that don't need Cypress round-trip
+		if (action === 'history') {
+			this._handleHistory(conn, message);
+			return;
+		}
+
+		if (action === 'undo') {
+			this._handleUndo(conn, message);
+			return;
+		}
+
 		const ref = args[1];
 		const text = args.length > 2 ? args.slice(2).join(' ') : undefined;
 
@@ -393,6 +405,81 @@ export class Daemon {
 			};
 			conn.send(errorMsg);
 		}
+	}
+
+	/**
+	 * Handle the "history" command: return all executed commands with timestamps.
+	 * This is a daemon-local command — it does not go through Cypress.
+	 */
+	private _handleHistory(
+		conn: SocketConnection,
+		message: CommandMessage,
+	): void {
+		const session = this._findRunningSession();
+		if (!session) {
+			const errorMsg: ErrorMessage = {
+				id: message.id,
+				error: 'No session running. Run `cypress-cli open <url>` to start one.',
+			};
+			conn.send(errorMsg);
+			return;
+		}
+
+		const entries = session.history.entries;
+		const formatted = entries.map((entry) => ({
+			index: entry.index,
+			action: entry.command.action,
+			ref: entry.command.ref,
+			text: entry.command.text,
+			executedAt: entry.executedAt,
+			success: entry.result.success,
+			active: entry.index < session.history.undoIndex,
+		}));
+
+		const response: ResponseMessage = {
+			id: message.id,
+			result: {
+				success: true,
+				snapshot: JSON.stringify(formatted),
+			},
+		};
+		conn.send(response);
+	}
+
+	/**
+	 * Handle the "undo" command: remove the last command from export history.
+	 * This is a daemon-local command — it does not go through Cypress.
+	 */
+	private _handleUndo(conn: SocketConnection, message: CommandMessage): void {
+		const session = this._findRunningSession();
+		if (!session) {
+			const errorMsg: ErrorMessage = {
+				id: message.id,
+				error: 'No session running. Run `cypress-cli open <url>` to start one.',
+			};
+			conn.send(errorMsg);
+			return;
+		}
+
+		const undone = session.undoHistory();
+		if (!undone) {
+			const errorMsg: ErrorMessage = {
+				id: message.id,
+				error:
+					'Cannot undo: history is empty. Execute a command first.',
+			};
+			conn.send(errorMsg);
+			return;
+		}
+
+		const response: ResponseMessage = {
+			id: message.id,
+			result: {
+				success: true,
+				snapshot: `Undone: ${undone.command.action}${undone.command.ref ? ' ' + undone.command.ref : ''}`,
+			},
+		};
+		conn.send(response);
 	}
 
 	/**
