@@ -50,7 +50,17 @@ export function getSnapshotApi(win: Window): AriaSnapshotApi | undefined {
 export function injectSnapshotIife(win: Window, iife: string): void {
 	const existing = getSnapshotApi(win);
 	if (!existing) {
-		(win as Window & { eval: (code: string) => unknown }).eval(iife);
+		// The IIFE built by esbuild starts with "use strict" and uses a `var`
+		// declaration for the global name. In strict-mode eval, `var` does not
+		// create a property on the global object. Wrap the IIFE in a function
+		// so we can capture the declared variable and assign it explicitly.
+		const wrapped =
+			`(function(){${iife}\n;return typeof __cypressCliAriaSnapshot!=='undefined'?__cypressCliAriaSnapshot:undefined})()`;
+		const evalFn = (win as Window & { eval: (code: string) => unknown }).eval;
+		const result = evalFn.call(win, wrapped);
+		if (result) {
+			(win as unknown as Record<string, unknown>)[SNAPSHOT_API_KEY] = result;
+		}
 	}
 }
 

@@ -11,11 +11,13 @@
  * - Take aria snapshots and persist the ref→Element map on window
  */
 
+// MODIFIED: Use extensionless imports for the Cypress driver bundling pipeline
+// (this file is excluded from tsc and bundled by esbuild via driverSpec.ts into dist/cypress/driverSpec.js)
 import {
 	IIFE_ENV_KEY,
 	injectSnapshotIife,
 	takeSnapshotFromWindow,
-} from '../browser/index.js';
+} from '../browser/index';
 
 /**
  * Injects the aria snapshot IIFE into the current page's window context.

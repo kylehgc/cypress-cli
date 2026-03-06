@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 
 // Build the injected IIFE bundle
 await build({
@@ -24,3 +24,25 @@ await writeFile(
 );
 
 console.log('Built injected IIFE bundle');
+
+// Build the Cypress driver spec bundle.
+// The driver spec and its imports (support.ts, browser utils) use Cypress
+// globals (cy, Cypress, describe, it) and .js extension imports that
+// Cypress's default webpack preprocessor cannot resolve. Bundling into a
+// single JS file avoids these issues.
+await mkdir('dist/cypress', { recursive: true });
+await build({
+	entryPoints: ['src/cypress/driverSpec.ts'],
+	bundle: true,
+	format: 'iife',
+	outfile: 'dist/cypress/driverSpec.js',
+	platform: 'browser',
+	target: 'es2022',
+	minify: false,
+	sourcemap: false,
+	write: true,
+	// @cypress/unique-selector is used in browser context and must be bundled
+	external: [],
+});
+
+console.log('Built driver spec bundle');

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<title>Simple Page</title>
+</head>
+<body>
+	<nav>
+		<a href="/simple.html">Home</a>
+		<a href="/form.html">Form</a>
+	</nav>
+	<main>
+		<h1>Welcome</h1>
+		<p id="status">Ready</p>
+		<button id="btn-hello" onclick="document.getElementById('status').textContent = 'Hello!'">Say Hello</button>
+		<button id="btn-count" data-count="0" onclick="var c = parseInt(this.dataset.count) + 1; this.dataset.count = c; this.textContent = 'Clicked ' + c + ' times'">Click me</button>
+	</main>
+</body>
+</html>
