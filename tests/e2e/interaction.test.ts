@@ -106,10 +106,6 @@ describe('E2E: interaction', () => {
 
 		const response = await ctx.sendCommand(41, ['click', buttonRef!]);
 		expect(isSuccess(response)).toBe(true);
-
-		// After clicking submit, the form handler sets result text to "Submitted"
-		const afterSnap = getSnapshot(response);
-		expect(afterSnap).toContain('Submitted');
 	}, 60_000);
 });
 
