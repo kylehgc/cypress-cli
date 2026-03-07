@@ -172,6 +172,133 @@ function applyChainer(chainer: string, actual: string, expected?: string): void 
 }
 
 /**
+ * Apply a chai-style chainer assertion on a jQuery element.
+ *
+ * Handles element-based assertions (value, visibility, state, attributes)
+ * that require direct access to the DOM element rather than just its text
+ * content. Falls back to `applyChainer` with `$el.text()` for text-based
+ * chainers.
+ *
+ * @param chainer - The chai assertion chainer (e.g. 'have.value', 'be.visible')
+ * @param $el - The jQuery-wrapped DOM element
+ * @param expected - The expected value to compare against (optional for boolean chainers)
+ */
+function applyElementChainer(
+	chainer: string,
+	$el: JQuery<HTMLElement>,
+	expected?: string,
+): void {
+	let error: string | undefined;
+
+	switch (chainer) {
+		case 'have.value': {
+			if (expected === undefined) {
+				error = 'The "have.value" chainer requires an expected value.';
+				break;
+			}
+			const actual = String($el.val() ?? '');
+			if (actual !== expected) {
+				error = `Expected value "${expected}" but got "${actual}"`;
+			}
+			break;
+		}
+		case 'be.visible':
+			if (!$el.is(':visible')) {
+				error = 'Expected element to be visible';
+			}
+			break;
+		case 'not.be.visible':
+			if ($el.is(':visible')) {
+				error = 'Expected element to not be visible';
+			}
+			break;
+		case 'be.checked':
+			if (!$el.is(':checked')) {
+				error = 'Expected element to be checked';
+			}
+			break;
+		case 'not.be.checked':
+			if ($el.is(':checked')) {
+				error = 'Expected element to not be checked';
+			}
+			break;
+		case 'be.disabled':
+			if (!$el.is(':disabled')) {
+				error = 'Expected element to be disabled';
+			}
+			break;
+		case 'be.enabled':
+			if ($el.is(':disabled')) {
+				error = 'Expected element to be enabled';
+			}
+			break;
+		case 'be.empty': {
+			const val = $el.val();
+			const hasValue = val !== undefined && val !== '';
+			const hasText = $el.text() !== '';
+			if (hasValue || hasText) {
+				error = 'Expected element to be empty';
+			}
+			break;
+		}
+		case 'have.attr': {
+			if (!expected) {
+				error = 'have.attr requires an attribute name';
+				break;
+			}
+			// Support "name=value" encoding (preferred) and "name value" (fallback)
+			const eqIdx = expected.indexOf('=');
+			const spaceIdx = expected.indexOf(' ');
+			const sepIdx = eqIdx > 0 && eqIdx < expected.length - 1 ? eqIdx : spaceIdx;
+			if (sepIdx === -1) {
+				if ($el.attr(expected) === undefined) {
+					error = `Expected element to have attribute "${expected}"`;
+				}
+			} else {
+				const attrName = expected.substring(0, sepIdx);
+				const attrValue = expected.substring(sepIdx + 1);
+				const actual = $el.attr(attrName);
+				if (actual === undefined) {
+					error = `Expected element to have attribute "${attrName}"`;
+				} else if (actual !== attrValue) {
+					error = `Expected attribute "${attrName}" to be "${attrValue}" but got "${actual}"`;
+				}
+			}
+			break;
+		}
+		case 'have.class':
+			if (!expected) {
+				error = 'have.class requires a class name';
+			} else if (!$el.hasClass(expected)) {
+				error = `Expected element to have class "${expected}" but it has "${$el.attr('class') ?? ''}"`;
+			}
+			break;
+		case 'have.length': {
+			const actual = $el.length;
+			if (expected === undefined) {
+				error = 'have.length requires an expected length value';
+			} else {
+				const exp = Number(expected);
+				if (isNaN(exp)) {
+					error = `have.length requires a numeric value, got "${expected}"`;
+				} else if (actual !== exp) {
+					error = `Expected length ${expected} but got ${actual}`;
+				}
+			}
+			break;
+		}
+		default:
+			// Fall back to text-based assertion
+			applyChainer(chainer, $el.text(), expected);
+			return;
+	}
+
+	if (error) {
+		_asyncCommandError = error;
+	}
+}
+
+/**
  * Executes a single command received from the daemon.
  *
  * Maps command action strings to real Cypress API calls. Each command
@@ -257,8 +384,7 @@ function executeCommand(cmd: DriverCommand): void {
 		case 'assert': {
 			const chainer = cmd.options?.['chainer'] as string;
 			resolveRef(cmd.ref!).then(($el) => {
-				const actual = $el.text();
-				applyChainer(chainer, actual, cmd.text);
+				applyElementChainer(chainer, $el, cmd.text);
 			});
 			break;
 		}
