@@ -38,10 +38,10 @@ This roadmap tracks issues #43–#81 (see tiers below).
 | #47 | [Operational readiness](https://github.com/kylehgc/cypress-cli/issues/47)                                                   | P0, infra    | .nvmrc, pretest build, ESLint cleanup, README, npm link           |
 | #66 | [Validate cypress-cli with real LLM-driven test generation](https://github.com/kylehgc/cypress-cli/issues/66)               | P0, testing  | Have an actual LLM drive the tool end-to-end, file issues found   |
 | #68 | [Cross-origin redirects break active sessions](https://github.com/kylehgc/cypress-cli/issues/68)                            | P0, bug      | `chromeWebSecurity: false` fix — one-line config change           |
-| #72 | [Assert command cannot check form input values](https://github.com/kylehgc/cypress-cli/issues/72)                           | P0, bug      | ~~Missing chainers + $el.text() bug~~ **FIXED** (PR #74)         |
+| #72 | [Assert command cannot check form input values](https://github.com/kylehgc/cypress-cli/issues/72)                           | P0, bug      | ~~Missing chainers + $el.text() bug~~ **FIXED** (PR #74)          |
 | #76 | [Cypress command errors crash session](https://github.com/kylehgc/cypress-cli/issues/76)                                    | P0, bug      | Three-layer error recovery: pre-flight + fail handler + multi-it  |
 | #78 | [Wire up snapshot diff infrastructure](https://github.com/kylehgc/cypress-cli/issues/78)                                    | P0, infra    | Diff code exists but isn't connected — critical for agent context |
-| #79 | [Add testIsolation: false and chromeWebSecurity: false to config](https://github.com/kylehgc/cypress-cli/issues/79)          | P0, infra    | Prerequisite for #76 error recovery and #68 cross-origin fix      |
+| #79 | [Add testIsolation: false and chromeWebSecurity: false to config](https://github.com/kylehgc/cypress-cli/issues/79)         | P0, infra    | Prerequisite for #76 error recovery and #68 cross-origin fix      |
 
 ### Suggested order
 
@@ -68,22 +68,22 @@ This roadmap tracks issues #43–#81 (see tiers below).
 | #54 | [upload command](https://github.com/kylehgc/cypress-cli/issues/54)                                    | P1, command | `cy.get(sel).selectFile(path)`           |
 | #55 | [Command aliases: close, goto, go-back, go-forward](https://github.com/kylehgc/cypress-cli/issues/55) | P1, command | Aliases for existing commands            |
 
-| #73 | [Long-running real-world validation](https://github.com/kylehgc/cypress-cli/issues/73)                                | P1, testing | Side-by-side comparison with playwright-cli                       |
-| #80 | [Ref counter grows unboundedly in long sessions](https://github.com/kylehgc/cypress-cli/issues/80)                    | P1, bug     | `lastRef` never resets, memory leak + LLM confusion               |
+| #73 | [Long-running real-world validation](https://github.com/kylehgc/cypress-cli/issues/73) | P1, testing | Side-by-side comparison with playwright-cli |
+| #80 | [Ref counter grows unboundedly in long sessions](https://github.com/kylehgc/cypress-cli/issues/80) | P1, bug | `lastRef` never resets, memory leak + LLM confusion |
 
 P1 issues can be worked in parallel once P0 foundation is in place.
 
 ## P2 — DevTools & Storage
 
-| #   | Issue                                                                                      | Labels      | Cypress API                                   |
-| --- | ------------------------------------------------------------------------------------------ | ----------- | --------------------------------------------- |
-| #56 | [Cookie management commands](https://github.com/kylehgc/cypress-cli/issues/56)             | P2, command | `cy.getCookie()`, `cy.setCookie()`, etc.      |
-| #57 | [localStorage / sessionStorage commands](https://github.com/kylehgc/cypress-cli/issues/57) | P2, command | `cy.window().then(win => win.localStorage.*)` |
-| #58 | [console command](https://github.com/kylehgc/cypress-cli/issues/58)                        | P2, command | `Cypress.on('window:before:load', ...)`       |
-| #59 | [Network monitoring and route mocking](https://github.com/kylehgc/cypress-cli/issues/59)   | P2, command | `cy.intercept()`                              |
-| #60 | [state-save / state-load commands](https://github.com/kylehgc/cypress-cli/issues/60)       | P2, command | Cookies + localStorage serialization          |
-| #61 | [run-code command](https://github.com/kylehgc/cypress-cli/issues/61)                       | P2, command | `cy.window().then(win => win.eval(...))`      |
-| #77 | [cyrun command](https://github.com/kylehgc/cypress-cli/issues/77)                          | P2, command | Execute arbitrary Cypress chains               |
+| #   | Issue                                                                                      | Labels      | Cypress API                                     |
+| --- | ------------------------------------------------------------------------------------------ | ----------- | ----------------------------------------------- |
+| #56 | [Cookie management commands](https://github.com/kylehgc/cypress-cli/issues/56)             | P2, command | `cy.getCookie()`, `cy.setCookie()`, etc.        |
+| #57 | [localStorage / sessionStorage commands](https://github.com/kylehgc/cypress-cli/issues/57) | P2, command | `cy.window().then(win => win.localStorage.*)`   |
+| #58 | [console command](https://github.com/kylehgc/cypress-cli/issues/58)                        | P2, command | `Cypress.on('window:before:load', ...)`         |
+| #59 | [Network monitoring and route mocking](https://github.com/kylehgc/cypress-cli/issues/59)   | P2, command | `cy.intercept()`                                |
+| #60 | [state-save / state-load commands](https://github.com/kylehgc/cypress-cli/issues/60)       | P2, command | Cookies + localStorage serialization            |
+| #61 | [run-code command](https://github.com/kylehgc/cypress-cli/issues/61)                       | P2, command | `cy.window().then(win => win.eval(...))`        |
+| #77 | [cyrun command](https://github.com/kylehgc/cypress-cli/issues/77)                          | P2, command | Execute arbitrary Cypress chains                |
 | #81 | [run command](https://github.com/kylehgc/cypress-cli/issues/81)                            | P2, command | Execute generated test files and report results |
 
 ## P3 — Advanced
@@ -98,18 +98,18 @@ P1 issues can be worked in parallel once P0 foundation is in place.
 
 These are architectural constraints of Cypress that cannot be worked around:
 
-| Feature                   | playwright-cli                                   | cypress-cli          | Reason                                               |
-| ------------------------- | ------------------------------------------------ | -------------------- | ---------------------------------------------------- |
-| Multi-tab                 | `tab-list`, `tab-new`, `tab-select`, `tab-close` | Not feasible         | Cypress cannot control multiple tabs                 |
-| Named sessions            | `-s=name` concurrent sessions                    | Single session       | Each session needs separate Cypress+Electron process |
-| PDF generation            | `pdf` command                                    | Not feasible         | Cypress has no PDF API                               |
-| Mid-session tracing       | `tracing-start`, `tracing-stop`                  | Config-level only    | Cypress video/tracing is config, not runtime         |
-| Mid-session video         | `video-start`, `video-stop`                      | Config-level only    | Same as tracing                                      |
-| Native input events       | Direct CDP keyboard/mouse                        | Synthetic DOM events | Cypress uses `cy.trigger()`, not CDP                 |
-| Session dashboard         | `show` command with live preview                 | Not planned          | Would require significant UI infrastructure          |
-| Browser extension connect | `open --extension`                               | Not applicable       | Cypress manages its own browser lifecycle            |
-| Cross-origin (Firefox)    | Transparent                                      | Chromium only        | `chromeWebSecurity: false` is Chromium-only; Firefox ignores it  |
-| Error recovery            | try/catch on any command                         | Pre-flight + safety net | Cypress commands can't be caught; requires validation layer |
+| Feature                   | playwright-cli                                   | cypress-cli             | Reason                                                          |
+| ------------------------- | ------------------------------------------------ | ----------------------- | --------------------------------------------------------------- |
+| Multi-tab                 | `tab-list`, `tab-new`, `tab-select`, `tab-close` | Not feasible            | Cypress cannot control multiple tabs                            |
+| Named sessions            | `-s=name` concurrent sessions                    | Single session          | Each session needs separate Cypress+Electron process            |
+| PDF generation            | `pdf` command                                    | Not feasible            | Cypress has no PDF API                                          |
+| Mid-session tracing       | `tracing-start`, `tracing-stop`                  | Config-level only       | Cypress video/tracing is config, not runtime                    |
+| Mid-session video         | `video-start`, `video-stop`                      | Config-level only       | Same as tracing                                                 |
+| Native input events       | Direct CDP keyboard/mouse                        | Synthetic DOM events    | Cypress uses `cy.trigger()`, not CDP                            |
+| Session dashboard         | `show` command with live preview                 | Not planned             | Would require significant UI infrastructure                     |
+| Browser extension connect | `open --extension`                               | Not applicable          | Cypress manages its own browser lifecycle                       |
+| Cross-origin (Firefox)    | Transparent                                      | Chromium only           | `chromeWebSecurity: false` is Chromium-only; Firefox ignores it |
+| Error recovery            | try/catch on any command                         | Pre-flight + safety net | Cypress commands can't be caught; requires validation layer     |
 
 ## Comparison: Current Command Set
 
