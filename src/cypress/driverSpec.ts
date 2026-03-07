@@ -16,6 +16,7 @@
 import { injectSnapshotLib, takeSnapshot } from './support';
 import { resolveRefFromMap } from '../browser/refMap';
 import { generateSelector, buildCypressCommand } from '../browser/selectorGenerator';
+import { validateElementForCommand } from '../browser/commandValidation';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -76,7 +77,13 @@ function resolveRef(ref: string): Cypress.Chainable {
  */
 function validateRef(win: Window, ref: string): boolean {
 	try {
-		resolveRefFromMap(win, ref);
+		const element = resolveRefFromMap(win, ref);
+		if (!element.isConnected) {
+			_asyncCommandError =
+				`Ref "${ref}" points to a detached DOM element. ` +
+				'Run `snapshot` to refresh the element map.';
+			return false;
+		}
 		return true;
 	} catch (err) {
 		_asyncCommandError = err instanceof Error ? err.message : String(err);
@@ -109,6 +116,13 @@ const COMMANDS_REQUIRING_TEXT = new Set([
  * and read by the polling loop when building the result.
  */
 let _asyncCommandError: string | undefined;
+
+/**
+ * Reference to the currently registered Cypress.once('fail') handler, if any.
+ * Used to clean up the handler when no error occurs, preventing it from
+ * leaking into subsequent commands or snapshot-taking.
+ */
+let _pendingFailHandler: ((err: Error) => false) | undefined;
 
 /**
  * Apply a chai-style chainer assertion manually.
@@ -465,8 +479,19 @@ function pollForCommands(): void {
 						return;
 					}
 
+					// Pre-flight validation: check element type is appropriate
+					// for the command (e.g., type requires an input/textarea).
+					const element = resolveRefFromMap(win, cmd.ref!);
+					const validationError = validateElementForCommand(
+						element,
+						cmd.action,
+					);
+					if (validationError) {
+						_asyncCommandError = validationError;
+						return;
+					}
+
 					try {
-						const element = resolveRefFromMap(win, cmd.ref!);
 						selector = generateSelector(element);
 						const chainer = cmd.options?.['chainer'] as string | undefined;
 						cypressCommand = buildCypressCommand(
@@ -494,17 +519,41 @@ function pollForCommands(): void {
 			// caught by try/catch. Assertion failures are captured in
 			// _asyncCommandError by applyChainer (runs inside cy.then).
 			// Invalid ref errors are captured by validateRef above.
+			// Unexpected Cypress errors are caught by the Cypress.once('fail')
+			// safety net to prevent the session from crashing.
 			cy.then(() => {
-				// Skip execution if ref validation already failed
+				// Skip execution if ref or element validation already failed
 				if (_asyncCommandError) {
 					return;
 				}
+
+				// Layer 2: Register a fail handler as a safety net for
+				// unexpected Cypress errors that pre-flight validation
+				// cannot anticipate. This prevents the test from failing
+				// (and thus crashing the session) when a Cypress command
+				// throws internally.
+				_pendingFailHandler = (err: Error): false => {
+					_asyncCommandError = _asyncCommandError ?? err.message;
+					return false;
+				};
+				Cypress.once('fail', _pendingFailHandler);
 
 				try {
 					executeCommand(cmd);
 				} catch (err) {
 					_asyncCommandError =
 						err instanceof Error ? err.message : String(err);
+				}
+			});
+
+			// Remove any pending fail handler before snapshot-taking.
+			// If the handler fired (error occurred), Cypress.once already
+			// removed it. If not, we remove it to prevent it from catching
+			// errors during injectSnapshotLib or takeSnapshot.
+			cy.then(() => {
+				if (_pendingFailHandler) {
+					Cypress.removeListener('fail', _pendingFailHandler);
+					_pendingFailHandler = undefined;
 				}
 			});
 
