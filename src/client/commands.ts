@@ -338,6 +338,13 @@ export const export_ = declareCommand({
 	args: z.object({}),
 	options: z.object({
 		file: z.string().optional().describe('Output file path'),
+		format: z.enum(['js', 'ts']).optional().describe('Output file format'),
+		describe: z.string().optional().describe('Custom describe block name'),
+		it: z.string().optional().describe('Custom it block name'),
+		baseUrl: z
+			.string()
+			.optional()
+			.describe('Base URL for making cy.visit() paths relative'),
 	}),
 });
 

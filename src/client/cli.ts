@@ -11,11 +11,13 @@
 import { createRequire } from 'node:module';
 
 import minimist from 'minimist';
+import { z } from 'zod';
 
 import { parseCommand, CommandValidationError } from './command.js';
 import { commandRegistry, allCommands } from './commands.js';
 import { ClientSession, type ClientResult } from './session.js';
 import { ClientConnectionError } from './socketConnection.js';
+import { openSession } from './open.js';
 import { createClientLogger } from '../shared/logger.js';
 
 /**
@@ -80,7 +82,17 @@ export function parseGlobalFlags(argv: string[]): {
 } {
 	const parsed = minimist(argv, {
 		boolean: ['json', 'help', 'version', 'verbose', 'force', 'multiple', 'headed', 'diff'],
-		string: ['session', 'browser', 'config', 'file', 'resume'],
+		string: [
+			'session',
+			'browser',
+			'config',
+			'file',
+			'resume',
+			'format',
+			'describe',
+			'it',
+			'baseUrl',
+		],
 		alias: {
 			s: 'session',
 			h: 'help',
@@ -122,7 +134,8 @@ export function generateHelpText(): string {
 	for (const [category, cmds] of categories) {
 		lines.push(`  ${category}:`);
 		for (const cmd of cmds) {
-			lines.push(`    ${cmd.name.padEnd(14)} ${cmd.description}`);
+			const usage = getCommandUsage(cmd.name);
+			lines.push(`    ${usage.padEnd(30)} ${cmd.description}`);
 		}
 		lines.push('');
 	}
@@ -150,18 +163,33 @@ export function formatResult(result: ClientResult, asJson: boolean): string {
 	}
 
 	if (!result.success) {
-		return `Error: ${result.error ?? 'Unknown error'}`;
+		const resultObj = result.result as Record<string, unknown> | undefined;
+		const snapshot =
+			typeof resultObj?.['snapshot'] === 'string' ? resultObj['snapshot'] : undefined;
+		const lines = [`Error: ${result.error ?? 'Unknown error'}`];
+		if (snapshot) {
+			lines.push('', 'Current snapshot:', snapshot);
+		}
+		return lines.join('\n');
+	}
+
+	const resultObj = result.result as Record<string, unknown> | undefined;
+	if (typeof resultObj?.['filePath'] === 'string') {
+		return `Wrote test file: ${resultObj['filePath']}`;
+	}
+	if (typeof resultObj?.['testFile'] === 'string') {
+		return String(resultObj['testFile']);
 	}
 
 	// If there's a snapshot, show it prominently
-	const resultObj = result.result as Record<string, unknown> | undefined;
 	if (resultObj?.snapshot) {
 		return String(resultObj.snapshot);
 	}
 
 	// For non-snapshot results, show as key-value pairs
 	if (resultObj) {
-		const { success: _success, ...rest } = resultObj;
+		const rest = { ...resultObj };
+		delete rest.success;
 		if (Object.keys(rest).length > 0) {
 			return Object.entries(rest)
 				.map(([key, value]) => `${key}: ${String(value)}`)
@@ -236,9 +264,15 @@ export async function run(argv: string[]): Promise<CliResult> {
 
 	// Send the command to the daemon
 	try {
-		const session = new ClientSession({
-			session: flags.session,
-		});
+		if (parsedCommand.command === 'open') {
+			const result = await openSession(parsedCommand, flags.session);
+			return {
+				exitCode: result.success ? EXIT_SUCCESS : EXIT_COMMAND_ERROR,
+				output: formatResult(result, flags.json),
+			};
+		}
+
+		const session = new ClientSession({ session: flags.session });
 
 		log.debug('Sending command to daemon', { command: parsedCommand.command, session: flags.session });
 		const result = await session.sendCommand(parsedCommand);
@@ -270,6 +304,25 @@ export async function run(argv: string[]): Promise<CliResult> {
 			output: formatError(err, flags.json),
 		};
 	}
+}
+
+function getCommandUsage(commandName: string): string {
+	const entry = commandRegistry.get(commandName);
+	if (!entry) {
+		return commandName;
+	}
+
+	if (!(entry.schema.args instanceof z.ZodObject)) {
+		return commandName;
+	}
+
+	const shape = entry.schema.args.shape;
+	const positionalTokens = entry.positionals.map((name) => {
+		const argSchema = shape[name];
+		return argSchema?.isOptional?.() ? `[${name}]` : `<${name}>`;
+	});
+
+	return [commandName, ...positionalTokens].join(' ');
 }
 
 /**

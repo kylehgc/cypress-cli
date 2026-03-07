@@ -12,10 +12,16 @@ Client → Daemon:  { "id": 1, "method": "run", "params": { "args": { "_": ["cli
 Daemon → Client:  { "id": 1, "result": { "snapshot": "...", "success": true } }
 ```
 
-Error responses:
+Protocol / daemon errors:
 
 ```
-Daemon → Client:  { "id": 1, "error": "Element ref e5 not found in current snapshot" }
+Daemon → Client:  { "id": 1, "error": "No session \"default\" found. Run `cypress-cli open <url>` to start a session." }
+```
+
+Command execution failures:
+
+```
+Daemon → Client:  { "id": 1, "result": { "success": false, "error": "Ref \"e5\" not found in current snapshot", "snapshot": "- main:\n  ..." } }
 ```
 
 The `method` is always `"run"` for command execution or `"stop"` for shutdown.
@@ -28,9 +34,9 @@ matching minimist's parsing convention.
 
 | Command    | Syntax                             | Description                                      |
 | ---------- | ---------------------------------- | ------------------------------------------------ |
-| `open`     | `cypress-cli open [url] [options]` | Start a session: launch Cypress, navigate to URL |
+| `open`     | `cypress-cli open [url] [options]` | Start or reuse a session, launch Cypress, and navigate to URL |
 | `stop`     | `cypress-cli stop`                 | Stop the current session                         |
-| `status`   | `cypress-cli status`               | Check if a session is running                    |
+| `status`   | `cypress-cli status`               | Check if a session is running and return session metadata |
 | `snapshot` | `cypress-cli snapshot [--diff]`    | Get current aria snapshot                        |
 
 ### Navigation
@@ -77,7 +83,7 @@ matching minimist's parsing convention.
 
 | Command   | Syntax                             | Description                                |
 | --------- | ---------------------------------- | ------------------------------------------ |
-| `export`  | `cypress-cli export [--file path]` | Export commands as a `.cy.ts` test file    |
+| `export`  | `cypress-cli export [--file path] [--format ts\|js] [--describe name] [--it name] [--baseUrl url]` | Export commands as a Cypress test file |
 | `history` | `cypress-cli history`              | List all commands executed in this session |
 | `undo`    | `cypress-cli undo`                 | Remove last command from export history    |
 
@@ -238,6 +244,12 @@ type CommandResponse = {
 	error?: string; // Error message if command failed
 	selector?: string; // Resolved selector (for codegen tracking)
 	cypressCommand?: string; // The Cypress command that was executed (for codegen)
+	filePath?: string; // Path written by export --file
+	status?: string; // Session status for status command
+	sessionId?: string;
+	url?: string;
+	browser?: string;
+	headed?: boolean;
 };
 ```
 
@@ -252,7 +264,7 @@ Example success response:
 }
 ```
 
-Example error response:
+Example command failure response:
 
 ```json
 {
@@ -264,6 +276,11 @@ Example error response:
 
 Note: snapshot is included even on error, because the LLM needs to see the
 current page state to decide what to do next.
+
+Top-level protocol errors (`{ id, error }`) are reserved for transport / daemon
+failures such as invalid commands, missing sessions, or server-side exceptions.
+Normal command failures should come back in the `result` payload with
+`success: false` plus the current snapshot.
 
 ## Resolved Design Questions
 
@@ -290,3 +307,10 @@ by extending the snapshot injection to traverse into iframe documents.
 **Decision**: Will be implemented as `upload <ref> <file>` using
 `cy.get(sel).selectFile(path)` (available since Cypress 9.3). See ROADMAP.md
 for tracking.
+
+### 5. How to handle cross-origin redirects during an active session?
+
+**Current limitation**: Active sessions are not robust across origin changes yet.
+During issue #66 validation, opening `https://www.wikipedia.org/` and then
+interacting after the browser landed on `https://en.wikipedia.org/` caused an
+origin mismatch failure that broke the session. This is tracked in issue #68.

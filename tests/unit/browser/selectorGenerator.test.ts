@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
 	DEFAULT_SELECTOR_PRIORITY,
 	generateSelector,
+	buildFallbackSelector,
 	buildCypressCommand,
 } from '../../../src/browser/selectorGenerator.js';
 
@@ -80,6 +81,43 @@ describe('selectorGenerator', () => {
 			expect(found).toBe(el);
 
 			el.remove();
+		});
+	});
+
+	describe('buildFallbackSelector', () => {
+		it('prefers stable data attributes', () => {
+			const el = document.createElement('button');
+			el.setAttribute('data-cy', 'submit-order');
+			document.body.appendChild(el);
+
+			expect(buildFallbackSelector(el)).toBe('[data-cy="submit-order"]');
+
+			el.remove();
+		});
+
+		it('falls back to id selectors', () => {
+			const el = document.createElement('button');
+			el.id = 'submit-btn';
+			document.body.appendChild(el);
+
+			expect(buildFallbackSelector(el)).toBe('#submit-btn');
+
+			el.remove();
+		});
+
+		it('builds a structural selector when needed', () => {
+			const wrapper = document.createElement('main');
+			const first = document.createElement('button');
+			first.textContent = 'One';
+			const second = document.createElement('button');
+			second.textContent = 'Two';
+			wrapper.append(first, second);
+			document.body.appendChild(wrapper);
+
+			const selector = buildFallbackSelector(second);
+			expect(document.querySelector(selector)).toBe(second);
+
+			wrapper.remove();
 		});
 	});
 

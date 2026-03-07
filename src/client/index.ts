@@ -15,6 +15,15 @@ export type { ClientSocketOptions } from './socketConnection.js';
 
 export { startRepl, splitArgv } from './repl.js';
 export type { ReplOptions } from './repl.js';
+export {
+	openSession,
+	buildOpenDaemonArgs,
+	resolveOpenSessionName,
+} from './open.js';
+export type {
+	OpenCommandDependencies,
+	SessionClient,
+} from './open.js';
 
 export {
 	declareCommand,

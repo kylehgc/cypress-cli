@@ -304,6 +304,9 @@ export function getError(response: DaemonMessage): string {
 	if ('error' in response) {
 		return (response as ErrorMessage).error;
 	}
+	if ('result' in response && !(response as ResponseMessage).result.success) {
+		return (response as ResponseMessage).result.error ?? 'Unknown error';
+	}
 	throw new Error('Expected error response, got success');
 }
 
@@ -318,5 +321,6 @@ export function isSuccess(response: DaemonMessage): boolean {
  * Check if a response is an error.
  */
 export function isError(response: DaemonMessage): boolean {
-	return 'error' in response;
+	return 'error' in response ||
+		('result' in response && !(response as ResponseMessage).result.success);
 }

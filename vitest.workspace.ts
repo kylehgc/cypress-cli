@@ -25,11 +25,23 @@ export default defineWorkspace([
 				'tests/unit/protocol/**/*.test.ts',
 				'tests/unit/shared/**/*.test.ts',
 				'tests/integration/**/*.test.ts',
-				'tests/e2e/**/*.test.ts',
 			],
-			sequence: {
-				sequentialFiles: ['tests/e2e/**'],
+		},
+	},
+	{
+		extends: './vitest.config.ts',
+		test: {
+			name: 'e2e',
+			environment: 'node',
+			include: ['tests/e2e/**/*.test.ts'],
+			pool: 'forks',
+			poolOptions: {
+				forks: {
+					singleFork: true,
+				},
 			},
+			fileParallelism: false,
+			maxWorkers: 1,
 		},
 	},
 ]);

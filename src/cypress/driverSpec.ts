@@ -308,6 +308,8 @@ function pollForCommands(): void {
 	cy.task('getCommand', null, { timeout: GET_COMMAND_TIMEOUT }).then(
 		(raw: unknown) => {
 			const cmd = raw as DriverCommand;
+			let selector: string | undefined;
+			let cypressCommand: string | undefined;
 
 			// Poll sentinel: re-poll
 			if (cmd.type === 'poll') {
@@ -332,7 +334,33 @@ function pollForCommands(): void {
 						// Ref is invalid — skip to result reporting
 						return;
 					}
+
+					if (!cmd.action) {
+						return;
+					}
+
+					try {
+						const element = resolveRefFromMap(win, cmd.ref!);
+						selector = generateSelector(element);
+						const chainer = cmd.options?.['chainer'] as string | undefined;
+						cypressCommand = buildCypressCommand(
+							selector,
+							cmd.action,
+							cmd.text,
+							chainer,
+						);
+					} catch {
+						// Codegen metadata is best-effort; command execution can continue.
+					}
 				});
+			} else if (cmd.action) {
+				const chainer = cmd.options?.['chainer'] as string | undefined;
+				cypressCommand = buildCypressCommand(
+					undefined,
+					cmd.action,
+					cmd.text,
+					chainer,
+				);
 			}
 
 			// Execute the command, handling errors gracefully.
@@ -362,46 +390,21 @@ function pollForCommands(): void {
 				// Pick up any async error from assertion commands or ref validation
 				const error = _asyncCommandError;
 
-				cy.window({ log: false }).then((win: Window) => {
-					let selector: string | undefined;
-					let cypressCommand: string | undefined;
-
-					// Generate selector/cypressCommand for codegen.
-					// The ref '_' is a placeholder for "no element ref" used by
-					// commands like navigate, asserturl, asserttitle.
-					const hasRef = cmd.ref && cmd.ref !== '_';
-
-					if (!error && hasRef && cmd.action) {
-						try {
-							const element = resolveRefFromMap(win, cmd.ref!);
-							selector = generateSelector(element);
-							const chainer = cmd.options?.['chainer'] as string | undefined;
-							cypressCommand = buildCypressCommand(selector, cmd.action, cmd.text, chainer);
-						} catch {
-							// Ref may no longer exist after command; ignore
+				const result: DriverResult = error
+					? {
+							success: false,
+							error,
+							snapshot: snapshotYaml,
 						}
-					} else if (!error && cmd.action) {
-						// Non-ref commands: still generate cypressCommand for codegen
-						const chainer = cmd.options?.['chainer'] as string | undefined;
-						cypressCommand = buildCypressCommand(undefined, cmd.action, cmd.text, chainer);
-					}
+					: {
+							success: true,
+							snapshot: snapshotYaml,
+							selector,
+							cypressCommand,
+						};
 
-					const result: DriverResult = error
-						? {
-								success: false,
-								error,
-								snapshot: snapshotYaml,
-							}
-						: {
-								success: true,
-								snapshot: snapshotYaml,
-								selector,
-								cypressCommand,
-							};
-
-					cy.task('commandResult', result, { log: false }).then(() => {
-						pollForCommands();
-					});
+				cy.task('commandResult', result, { log: false }).then(() => {
+					pollForCommands();
 				});
 			});
 		},

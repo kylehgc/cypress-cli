@@ -29,6 +29,8 @@ export const DEFAULT_SELECTOR_PRIORITY: string[] = [
 /**
  * Generates a unique CSS selector for a DOM element using
  * `@cypress/unique-selector` with the Cypress default priority order.
+ * Falls back to a deterministic selector when the library cannot produce
+ * a usable selector in the live page.
  *
  * This function must run in browser context (needs `document`).
  *
@@ -36,9 +38,57 @@ export const DEFAULT_SELECTOR_PRIORITY: string[] = [
  * @returns A CSS selector string that uniquely identifies the element
  */
 export function generateSelector(element: Element): string {
-	return unique(element, {
-		selectorTypes: DEFAULT_SELECTOR_PRIORITY,
-	});
+	try {
+		const selector = unique(element, {
+			selectorTypes: DEFAULT_SELECTOR_PRIORITY,
+		});
+		if (selector && isUsableSelector(selector, element)) {
+			return selector;
+		}
+	} catch {
+		// Fall through to the deterministic fallback selector builder.
+	}
+
+	return buildFallbackSelector(element);
+}
+
+/**
+ * Builds a deterministic CSS selector without relying on Cypress internals.
+ *
+ * The strategy prefers short, stable selectors first, then falls back to a
+ * structural selector so codegen remains available on real-world pages.
+ */
+export function buildFallbackSelector(element: Element): string {
+	const document = element.ownerDocument;
+
+	for (const attr of ['data-cy', 'data-test', 'data-testid', 'data-qa']) {
+		const value = element.getAttribute(attr);
+		if (value) {
+			const selector = `[${attr}="${escapeAttribute(value)}"]`;
+			if (isUniqueSelector(document, selector, element)) {
+				return selector;
+			}
+		}
+	}
+
+	if (element.id) {
+		return `#${escapeIdentifier(element.id)}`;
+	}
+
+	const name = element.getAttribute('name');
+	if (name) {
+		const selector = `${element.tagName.toLowerCase()}[name="${escapeAttribute(name)}"]`;
+		if (isUniqueSelector(document, selector, element)) {
+			return selector;
+		}
+	}
+
+	const classSelector = buildClassSelector(element);
+	if (classSelector && isUniqueSelector(document, classSelector, element)) {
+		return classSelector;
+	}
+
+	return buildStructuralSelector(element);
 }
 
 /**
@@ -165,4 +215,80 @@ function _buildNonRefCommand(
 		default:
 			return `cy.${action}()`;
 	}
+}
+
+function isUsableSelector(selector: string, element: Element): boolean {
+	try {
+		return element.ownerDocument.querySelector(selector) === element;
+	} catch {
+		return false;
+	}
+}
+
+function isUniqueSelector(
+	document: Document,
+	selector: string,
+	element: Element,
+): boolean {
+	try {
+		const matches = document.querySelectorAll(selector);
+		return matches.length === 1 && matches[0] === element;
+	} catch {
+		return false;
+	}
+}
+
+function buildClassSelector(element: Element): string | undefined {
+	const classNames = Array.from(element.classList).filter(Boolean);
+	if (classNames.length === 0) {
+		return undefined;
+	}
+
+	return `${element.tagName.toLowerCase()}${classNames
+		.slice(0, 3)
+		.map((className) => `.${escapeIdentifier(className)}`)
+		.join('')}`;
+}
+
+function buildStructuralSelector(element: Element): string {
+	const segments: string[] = [];
+	let current: Element | null = element;
+
+	while (current) {
+		if (current.id) {
+			segments.unshift(`#${escapeIdentifier(current.id)}`);
+			break;
+		}
+
+		const parent: Element | null = current.parentElement;
+		const tagName = current.tagName.toLowerCase();
+		if (!parent) {
+			segments.unshift(tagName);
+			break;
+		}
+
+		const currentTagName = current.tagName;
+		const siblings = Array.from(parent.children).filter(
+			(sibling: Element) => sibling.tagName === currentTagName,
+		);
+		const index = siblings.indexOf(current) + 1;
+		segments.unshift(
+			siblings.length > 1 ? `${tagName}:nth-of-type(${index})` : tagName,
+		);
+		current = parent;
+	}
+
+	return segments.join(' > ');
+}
+
+function escapeIdentifier(value: string): string {
+	if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+		return CSS.escape(value);
+	}
+
+	return value.replace(/([ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
+}
+
+function escapeAttribute(value: string): string {
+	return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
