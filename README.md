@@ -2,7 +2,7 @@
 
 A CLI tool that gives LLMs (and humans) REPL-like access to a live web page through real Cypress commands, using Playwright's aria snapshot for DOM representation. Every action executes as a genuine Cypress command (`cy.get().click()`, `cy.visit()`, etc.), and the result is returned as an [aria snapshot](https://playwright.dev/docs/aria-snapshots) — a compact, accessibility-tree-based view of the page that LLMs can reason about.
 
-Unlike `@playwright/mcp` which targets Playwright test generation, **cypress-cli** targets **Cypress test generation**: every command you run maps 1-to-1 to a Cypress API call, and you can export your entire session as a ready-to-run `.cy.ts` test file.
+Unlike [`playwright-cli`](https://github.com/microsoft/playwright-cli) which targets Playwright test generation, **cypress-cli** targets **Cypress test generation**: every command you run maps 1-to-1 to a Cypress API call, and you can export your entire session as a ready-to-run `.cy.ts` test file. Both tools follow the same CLI + SKILLS model for coding agents — see [docs/ROADMAP.md](docs/ROADMAP.md) for a detailed comparison.
 
 ## Prerequisites
 

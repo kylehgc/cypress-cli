@@ -12,6 +12,12 @@ Cypress commands, using Playwright's aria snapshot for DOM representation.
 sends a command → the CLI executes it as a real Cypress command in a live
 browser → the result (aria snapshot) comes back.
 
+**Comparison target:** Our feature-parity target is
+[`playwright-cli`](https://github.com/microsoft/playwright-cli) (the CLI +
+SKILLS tool for coding agents), **not** `@playwright/mcp` (which is a separate
+MCP server). See `docs/ROADMAP.md` for the detailed comparison and known
+limitations.
+
 ## Repository Layout
 
 ```
