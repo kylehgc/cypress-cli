@@ -95,6 +95,127 @@ describe('E2E: assertion', () => {
 	}, 60_000);
 });
 
+describe('E2E: element assertions on form', () => {
+	let ctx: E2EContext;
+
+	beforeAll(async () => {
+		ctx = await setupE2E('/form.html');
+	}, 60_000);
+
+	afterAll(async () => {
+		await ctx?.teardown();
+	}, 30_000);
+
+	it('asserts have.value after typing into an input', async () => {
+		const snap = await ctx.sendCommand(100, ['snapshot']);
+		const snapshot = getSnapshot(snap);
+		const emailRef = findRef(snapshot, 'Email');
+		expect(emailRef).toBeTruthy();
+
+		// Type into the email field
+		await ctx.sendCommand(101, ['type', emailRef!, 'hello@example.com']);
+
+		// Assert the input has the typed value
+		const response = await ctx.sendCommand(
+			102,
+			['assert', emailRef!, 'hello@example.com'],
+			{ chainer: 'have.value' },
+		);
+		expect(isSuccess(response)).toBe(true);
+	}, 60_000);
+
+	it('fails have.value with wrong expected value', async () => {
+		const snap = await ctx.sendCommand(103, ['snapshot']);
+		const snapshot = getSnapshot(snap);
+		const emailRef = findRef(snapshot, 'Email');
+		expect(emailRef).toBeTruthy();
+
+		const response = await ctx.sendCommand(
+			104,
+			['assert', emailRef!, 'wrong@value.com'],
+			{ chainer: 'have.value' },
+		);
+		expect(isError(response)).toBe(true);
+	}, 60_000);
+
+	it('asserts be.visible on a visible element', async () => {
+		const snap = await ctx.sendCommand(105, ['snapshot']);
+		const snapshot = getSnapshot(snap);
+		const btnRef = findRef(snapshot, 'Login');
+		expect(btnRef).toBeTruthy();
+
+		const response = await ctx.sendCommand(
+			106,
+			['assert', btnRef!],
+			{ chainer: 'be.visible' },
+		);
+		expect(isSuccess(response)).toBe(true);
+	}, 60_000);
+
+	it('asserts be.checked after checking a checkbox', async () => {
+		const snap = await ctx.sendCommand(107, ['snapshot']);
+		const snapshot = getSnapshot(snap);
+		const checkRef = findRef(snapshot, 'Remember');
+		expect(checkRef).toBeTruthy();
+
+		// Check the checkbox
+		await ctx.sendCommand(108, ['check', checkRef!]);
+
+		// Assert it is checked
+		const response = await ctx.sendCommand(
+			109,
+			['assert', checkRef!],
+			{ chainer: 'be.checked' },
+		);
+		expect(isSuccess(response)).toBe(true);
+	}, 60_000);
+
+	it('asserts not.be.checked on an unchecked checkbox', async () => {
+		const snap = await ctx.sendCommand(110, ['snapshot']);
+		const snapshot = getSnapshot(snap);
+		const checkRef = findRef(snapshot, 'Remember');
+		expect(checkRef).toBeTruthy();
+
+		// Uncheck the checkbox first
+		await ctx.sendCommand(111, ['uncheck', checkRef!]);
+
+		const response = await ctx.sendCommand(
+			112,
+			['assert', checkRef!],
+			{ chainer: 'not.be.checked' },
+		);
+		expect(isSuccess(response)).toBe(true);
+	}, 60_000);
+
+	it('asserts be.enabled on an enabled button', async () => {
+		const snap = await ctx.sendCommand(113, ['snapshot']);
+		const snapshot = getSnapshot(snap);
+		const btnRef = findRef(snapshot, 'Login');
+		expect(btnRef).toBeTruthy();
+
+		const response = await ctx.sendCommand(
+			114,
+			['assert', btnRef!],
+			{ chainer: 'be.enabled' },
+		);
+		expect(isSuccess(response)).toBe(true);
+	}, 60_000);
+
+	it('asserts have.attr for existing attribute', async () => {
+		const snap = await ctx.sendCommand(115, ['snapshot']);
+		const snapshot = getSnapshot(snap);
+		const emailRef = findRef(snapshot, 'Email');
+		expect(emailRef).toBeTruthy();
+
+		const response = await ctx.sendCommand(
+			116,
+			['assert', emailRef!, 'name'],
+			{ chainer: 'have.attr' },
+		);
+		expect(isSuccess(response)).toBe(true);
+	}, 60_000);
+});
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
