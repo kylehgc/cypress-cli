@@ -11,7 +11,6 @@ import {
 } from '../../../src/daemon/daemon.js';
 import { SocketConnection } from '../../../src/daemon/connection.js';
 import {
-	serializeMessage,
 	type CommandMessage,
 	type ResponseMessage,
 } from '../../../src/daemon/protocol.js';
