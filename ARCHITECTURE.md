@@ -269,6 +269,48 @@ the daemon holds the CLI client connection open. If a second CLI command arrives
 it queues behind the first. This is simple and avoids race conditions in
 Cypress's command queue.
 
+### Error Handling in the REPL Loop
+
+Cypress commands are chainables, not Promises — errors thrown during command
+execution fail the entire `it()` block with no recovery path. This is
+fundamentally different from Playwright, where every command is an `async`
+function whose errors can be caught with try/catch.
+
+The driver spec uses a **three-layer defense** to keep the session alive:
+
+1. **Pre-flight validation** (primary). Before calling a Cypress command,
+   validate the element in a `.then()` callback. If the element is wrong type
+   (e.g., `type` on a `<h1>`), store the error in `_asyncCommandError` and skip
+   the command entirely. This is the same pattern used for assertions
+   (`applyChainer`).
+
+2. **`Cypress.once('fail')` safety net**. Registered before each command
+   execution. Catches unexpected Cypress command failures and stores the error
+   in `_asyncCommandError`. The test does not die, but Cypress's internal queue
+   may be in an indeterminate state afterward.
+
+3. **Multi-`it()` with `testIsolation: false`** (catastrophic recovery). The
+   driver spec can use multiple pre-allocated `it()` blocks. If a command fails
+   so badly that layers 1-2 cannot save the queue, Cypress moves to the next
+   `it()` block. With `testIsolation: false`, the browser state (page, cookies,
+   localStorage, DOM, injected IIFE) persists across blocks. The `afterEach`
+   hook reports the error back to the daemon.
+
+All three layers funnel errors through `_asyncCommandError`, which is checked
+after `takeSnapshot()` to build the `DriverResult`.
+
+### Cross-Origin Navigation
+
+Cypress enforces same-origin policy by default. The generated config sets
+`chromeWebSecurity: false` to disable this for Chromium browsers (Chrome,
+Electron), matching Playwright's behavior where no same-origin restrictions
+apply. Firefox does not respect this setting — cross-origin navigation in Firefox
+is a known limitation.
+
+`cy.origin()` is **not** used because `cy.task()` cannot reliably be called
+inside `cy.origin()` blocks (restricted browser context), which would break the
+polling loop.
+
 ## Session Lifecycle
 
 ```
