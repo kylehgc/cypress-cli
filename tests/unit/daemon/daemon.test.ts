@@ -415,9 +415,59 @@ describe('Daemon', () => {
 			expect(result.success).toBe(true);
 			expect(typeof result.testFile).toBe('string');
 			const testFile = result.testFile as string;
+			expect(testFile).toContain('/// <reference types="cypress" />');
 			expect(testFile).toContain("cy.visit('/login');");
 			expect(testFile).toContain("cy.get('#btn').click();");
 			expect(testFile).toContain("describe('cypress-cli generated test'");
+
+			client.close();
+			await daemon.stop();
+		});
+
+		it('export command writes the generated test file when --file is provided', async () => {
+			daemon = new Daemon({
+				sessionId: 'test-export-file',
+				socketDir,
+				idleTimeout: 0,
+			});
+
+			await daemon.start();
+
+			const session = daemon.createSession({ id: 'export-file-session' });
+			session.transition('running');
+			session.recordHistory(
+				{ id: 1, action: 'navigate', text: '/dashboard' },
+				{ success: true, cypressCommand: "cy.visit('/dashboard')" },
+			);
+
+			const outputFile = path.join(socketDir, 'generated', 'flow.cy.ts');
+			const client = await connectClient(daemon.socketPath);
+			const responsePromise = new Promise<Record<string, unknown>>(
+				(resolve) => {
+					client.onMessage((msg) => {
+						resolve(msg as Record<string, unknown>);
+					});
+				},
+			);
+
+			const exportCmd: CommandMessage = {
+				id: 12,
+				method: 'run',
+				params: {
+					args: { _: ['export'], file: outputFile },
+				},
+			};
+			client.send(exportCmd);
+
+			const response = await responsePromise;
+			expect(response.id).toBe(12);
+			const result = response.result as Record<string, unknown>;
+			expect(result.success).toBe(true);
+			expect(result.filePath).toBe(outputFile);
+
+			const written = await fs.readFile(outputFile, 'utf-8');
+			expect(written).toContain("cy.visit('/dashboard');");
+			expect(written).toContain('/// <reference types="cypress" />');
 
 			client.close();
 			await daemon.stop();

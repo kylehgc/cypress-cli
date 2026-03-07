@@ -119,6 +119,13 @@ describe('generateHelpText', () => {
 		expect(help).toContain('--help');
 		expect(help).toContain('--version');
 	});
+
+	it('includes positional argument syntax for commands', () => {
+		const help = generateHelpText();
+		expect(help).toContain('open [url]');
+		expect(help).toContain('type <ref> <text>');
+		expect(help).toContain('assert <ref> <chainer> [value]');
+	});
 });
 
 // ---------------------------------------------------------------------------
@@ -153,6 +160,18 @@ describe('formatResult', () => {
 		expect(formatResult(result, false)).toBe('Error: Element not found');
 	});
 
+	it('includes the snapshot when a failed command returns one', () => {
+		const result: ClientResult = {
+			success: false,
+			error: 'Element not found',
+			result: { snapshot: '- button "Retry"' },
+		};
+		const output = formatResult(result, false);
+		expect(output).toContain('Error: Element not found');
+		expect(output).toContain('Current snapshot:');
+		expect(output).toContain('- button "Retry"');
+	});
+
 	it('returns key-value pairs for non-snapshot results', () => {
 		const result: ClientResult = {
 			success: true,
@@ -161,6 +180,27 @@ describe('formatResult', () => {
 		const output = formatResult(result, false);
 		expect(output).toContain('url: http://localhost:3000');
 		expect(output).toContain('title: Home');
+	});
+
+	it('returns raw exported test source when testFile is present', () => {
+		const result: ClientResult = {
+			success: true,
+			result: { testFile: "describe('generated', () => {});" },
+		};
+		expect(formatResult(result, false)).toBe("describe('generated', () => {});");
+	});
+
+	it('returns the written file path when export writes to disk', () => {
+		const result: ClientResult = {
+			success: true,
+			result: {
+				testFile: "describe('generated', () => {});",
+				filePath: 'generated/example.cy.ts',
+			},
+		};
+		expect(formatResult(result, false)).toBe(
+			'Wrote test file: generated/example.cy.ts',
+		);
 	});
 });
 

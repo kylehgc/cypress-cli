@@ -314,6 +314,23 @@ export class SessionMap {
 	}
 
 	/**
+	 * Register an existing session instance (for restore/resume flows).
+	 *
+	 * @param session - The session instance to register
+	 * @returns The registered session
+	 * @throws {SessionError} If a session with the same ID already exists
+	 */
+	add(session: Session): Session {
+		if (this._sessions.has(session.id)) {
+			throw new SessionError(
+				`Session "${session.id}" already exists. Stop it first or use a different name.`,
+			);
+		}
+		this._sessions.set(session.id, session);
+		return session;
+	}
+
+	/**
 	 * Get a session by ID.
 	 *
 	 * @param id - Session identifier

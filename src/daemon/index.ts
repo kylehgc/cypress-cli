@@ -62,6 +62,11 @@ export {
 	resolveSocketDir,
 	type DaemonOptions,
 } from './daemon.js';
+export {
+	runDaemonProcess,
+	parseDaemonProcessArgs,
+	type DaemonProcessOptions,
+} from './main.js';
 
 export {
 	resolveSessionsDir,

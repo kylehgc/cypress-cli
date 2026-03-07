@@ -85,6 +85,16 @@ describe('deserializeMessage', () => {
 		expect(msg.result.success).toBe(true);
 	});
 
+	it('deserializes a failed response message with error context', () => {
+		const line =
+			'{"id":2,"result":{"success":false,"error":"Element not found","snapshot":"- button \\"Retry\\""}}';
+		const msg = deserializeMessage(line) as ResponseMessage;
+		expect(msg.id).toBe(2);
+		expect(msg.result.success).toBe(false);
+		expect(msg.result.error).toBe('Element not found');
+		expect(msg.result.snapshot).toContain('Retry');
+	});
+
 	it('deserializes an error message', () => {
 		const line = '{"id":1,"error":"something went wrong"}';
 		const msg = deserializeMessage(line) as ErrorMessage;

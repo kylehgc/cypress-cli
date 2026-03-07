@@ -17,6 +17,10 @@ The client is a short-lived process. It:
 The client has **no state**. It doesn't know about browsers, Cypress, or
 snapshots. It's a thin transport layer.
 
+The one exception is `open`: the client handles it specially by starting or
+reusing the background daemon session before falling back to normal socket
+commands.
+
 ## Files
 
 ```
@@ -72,3 +76,22 @@ Multiple named sessions are supported (`-s mySession`).
 - **Command execution error**: Error message from Cypress + current snapshot
 
 All errors exit with non-zero status code for scripting.
+
+## Programmatic usage
+
+`index.ts` also re-exports a small programmatic surface for tool-call style
+automation:
+
+- `openSession(parsedCommand, sessionName?)`
+- `ClientSession`
+- `parseCommand(...)`
+- `commandRegistry`
+
+Typical usage is:
+
+1. Parse an `open` command and call `openSession(...)`
+2. Create a `ClientSession`
+3. Parse and send subsequent commands through `sendCommand(...)`
+
+This mirrors the CLI flow while letting another tool or agent drive commands
+without shelling out for every step.

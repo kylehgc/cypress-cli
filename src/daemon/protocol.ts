@@ -34,10 +34,17 @@ const responseMessageSchema = z.object({
 	id: z.number(),
 	result: z.object({
 		success: z.boolean(),
+		status: z.string().optional(),
+		sessionId: z.string().optional(),
+		url: z.string().optional(),
+		browser: z.string().optional(),
+		headed: z.boolean().optional(),
 		snapshot: z.string().optional(),
+		error: z.string().optional(),
 		selector: z.string().optional(),
 		cypressCommand: z.string().optional(),
 		testFile: z.string().optional(),
+		filePath: z.string().optional(),
 	}),
 });
 

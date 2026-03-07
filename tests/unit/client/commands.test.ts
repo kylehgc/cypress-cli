@@ -209,6 +209,17 @@ describe('command schemas', () => {
 			expect(withUrl.success).toBe(true);
 		});
 
+		it('export supports file, format, and naming options', () => {
+			const parsed = export_.options.safeParse({
+				file: 'generated/example.cy.ts',
+				format: 'ts',
+				describe: 'Generated flow',
+				it: 'replays the interaction',
+				baseUrl: 'https://example.com',
+			});
+			expect(parsed.success).toBe(true);
+		});
+
 		it('select requires ref and value', () => {
 			const good = select.args.safeParse({ ref: 'e2', value: 'option1' });
 			expect(good.success).toBe(true);

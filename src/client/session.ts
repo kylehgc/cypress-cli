@@ -22,7 +22,7 @@ import {
 import type { ParsedCommand } from './command.js';
 
 /** Default session name when none is specified via --session. */
-const DEFAULT_SESSION = 'default';
+export const DEFAULT_SESSION = 'default';
 
 /**
  * Options for creating a ClientSession.

@@ -70,6 +70,25 @@ describe('E2E: export', () => {
 		expect(testFile).toContain('should work');
 	}, 60_000);
 
+	it('includes ref-based commands in exported code', async () => {
+		const snapshotResponse = await ctx.sendCommand(65, ['snapshot']);
+		expect(isSuccess(snapshotResponse)).toBe(true);
+
+		const snapshot = (snapshotResponse as ResponseMessage).result.snapshot ?? '';
+		const helloRef = snapshot.match(/button "Say Hello" \[ref=(e\d+)\]/)?.[1];
+		expect(helloRef).toBeDefined();
+
+		const clickResponse = await ctx.sendCommand(66, ['click', helloRef!]);
+		expect(isSuccess(clickResponse)).toBe(true);
+
+		const exportResponse = await ctx.sendCommand(67, ['export']);
+		expect(isSuccess(exportResponse)).toBe(true);
+
+		const result = (exportResponse as ResponseMessage).result;
+		const testFile = result.testFile ?? '';
+		expect(testFile).toContain("cy.get('#btn-hello').click()");
+	}, 60_000);
+
 	it('history command returns executed commands', async () => {
 		const historyResponse = await ctx.sendCommand(64, ['history']);
 		expect(isSuccess(historyResponse)).toBe(true);

@@ -227,5 +227,117 @@ describe('Client ↔ Daemon integration', () => {
 				result: { success: true, snapshot: 'snapshot-2' },
 			});
 		});
+
+		it('maps direct-style navigate arguments into the text field', async () => {
+			daemon = new Daemon({
+				sessionId: 'client-navigate',
+				socketDir,
+				idleTimeout: 0,
+			});
+			await daemon.start();
+
+			const session = daemon.createSession({ id: 'sess-nav' });
+			session.transition('running');
+
+			const opts: ClientSocketOptions = {
+				socketPath: daemon.socketPath,
+				connectTimeout: 2000,
+				responseTimeout: 5000,
+				maxRetries: 0,
+			};
+
+			const responsePromise = sendAndReceive(
+				makeRunCommand(3, ['navigate', 'https://example.com/dashboard']),
+				opts,
+			);
+
+			const command = await session.queue.dequeue();
+			expect(command.action).toBe('navigate');
+			expect(command.ref).toBeUndefined();
+			expect(command.text).toBe('https://example.com/dashboard');
+
+			session.queue.reportResult({ success: true, snapshot: 'snapshot-nav' });
+			const response = await responsePromise;
+			expect(response).toEqual({
+				id: 3,
+				result: { success: true, snapshot: 'snapshot-nav' },
+			});
+		});
+
+		it('maps direct-style assert arguments into chainer + value fields', async () => {
+			daemon = new Daemon({
+				sessionId: 'client-assert',
+				socketDir,
+				idleTimeout: 0,
+			});
+			await daemon.start();
+
+			const session = daemon.createSession({ id: 'sess-assert' });
+			session.transition('running');
+
+			const opts: ClientSocketOptions = {
+				socketPath: daemon.socketPath,
+				connectTimeout: 2000,
+				responseTimeout: 5000,
+				maxRetries: 0,
+			};
+
+			const responsePromise = sendAndReceive(
+				makeRunCommand(4, ['assert', 'e353', 'contain', 'submitted']),
+				opts,
+			);
+
+			const command = await session.queue.dequeue();
+			expect(command.action).toBe('assert');
+			expect(command.ref).toBe('e353');
+			expect(command.text).toBe('submitted');
+			expect(command.options).toEqual({ chainer: 'contain' });
+
+			session.queue.reportResult({ success: true, snapshot: 'snapshot-assert' });
+			const response = await responsePromise;
+			expect(response).toEqual({
+				id: 4,
+				result: { success: true, snapshot: 'snapshot-assert' },
+			});
+		});
+
+		it('reports status without sending a command through Cypress', async () => {
+			daemon = new Daemon({
+				sessionId: 'client-status',
+				socketDir,
+				idleTimeout: 0,
+			});
+			await daemon.start();
+
+			const session = daemon.createSession({
+				id: 'sess-status',
+				url: 'https://example.com',
+				browser: 'electron',
+				headed: false,
+			});
+			session.transition('running');
+
+			const opts: ClientSocketOptions = {
+				socketPath: daemon.socketPath,
+				connectTimeout: 2000,
+				responseTimeout: 5000,
+				maxRetries: 0,
+			};
+
+			const response = await sendAndReceive(makeRunCommand(5, ['status']), opts);
+			expect(response).toEqual({
+				id: 5,
+				result: {
+					success: true,
+					status: 'running',
+					sessionId: 'sess-status',
+					url: 'https://example.com',
+					browser: 'electron',
+					headed: false,
+				},
+			});
+			expect(session.queue.size).toBe(0);
+			expect(session.queue.hasInflight).toBe(false);
+		});
 	});
 });

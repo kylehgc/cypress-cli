@@ -187,6 +187,21 @@ export class Daemon {
 	}
 
 	/**
+	 * Register a restored session instance with the daemon.
+	 *
+	 * @param session - The restored session
+	 * @returns The registered session
+	 */
+	registerSession(session: Session): Session {
+		const registered = this._sessions.add(session);
+		if (this._idleTimer) {
+			clearTimeout(this._idleTimer);
+			this._idleTimer = null;
+		}
+		return registered;
+	}
+
+	/**
 	 * Get a session by ID.
 	 */
 	getSession(id: string): Session | undefined {
@@ -326,24 +341,27 @@ export class Daemon {
 			return;
 		}
 
+		if (action === 'status') {
+			this._handleStatus(conn, message);
+			return;
+		}
+
 		if (action === 'export') {
 			this._handleExport(conn, message);
 			return;
 		}
 
-		const ref = args[1];
-		const text = args.length > 2 ? args.slice(2).join(' ') : undefined;
-
-		// Build options from any extra params
-		const { _: _positional, ...options } = message.params.args;
-
-		const command: QueuedCommand = {
-			id: message.id,
-			action,
-			...(ref !== undefined && { ref }),
-			...(text !== undefined && { text }),
-			...(Object.keys(options).length > 0 && { options }),
-		};
+		let command: QueuedCommand;
+		try {
+			command = buildQueuedCommand(message.id, message.params.args);
+		} catch (err) {
+			const errorMsg: ErrorMessage = {
+				id: message.id,
+				error: err instanceof Error ? err.message : String(err),
+			};
+			conn.send(errorMsg);
+			return;
+		}
 
 		// Find a running session to enqueue the command into
 		const session = this._findRunningSession();
@@ -367,32 +385,25 @@ export class Daemon {
 					session.recordHistory(command, result);
 
 					// Send result back to client
-					if (!result.success && result.error) {
-						// Map failed commands to ErrorMessage so the CLI gets
-						// an actionable failure reason
-						const errorMsg: ErrorMessage = {
-							id: message.id,
-							error: result.error,
-						};
-						conn.send(errorMsg);
-					} else {
-						const response: ResponseMessage = {
-							id: message.id,
-							result: {
-								success: result.success,
-								...(result.snapshot !== undefined && {
-									snapshot: result.snapshot,
-								}),
-								...(result.selector !== undefined && {
-									selector: result.selector,
-								}),
-								...(result.cypressCommand !== undefined && {
-									cypressCommand: result.cypressCommand,
-								}),
-							},
-						};
-						conn.send(response);
-					}
+					const response: ResponseMessage = {
+						id: message.id,
+						result: {
+							success: result.success,
+							...(result.snapshot !== undefined && {
+								snapshot: result.snapshot,
+							}),
+							...(result.error !== undefined && {
+								error: result.error,
+							}),
+							...(result.selector !== undefined && {
+								selector: result.selector,
+							}),
+							...(result.cypressCommand !== undefined && {
+								cypressCommand: result.cypressCommand,
+							}),
+						},
+					};
+					conn.send(response);
 				})
 				.catch((err: Error) => {
 					// Client may have disconnected while the command was running
@@ -411,6 +422,32 @@ export class Daemon {
 			};
 			conn.send(errorMsg);
 		}
+	}
+
+	/**
+	 * Handle the "status" command: report whether a session is running.
+	 * This is a daemon-local command — it does not go through Cypress.
+	 */
+	private _handleStatus(conn: SocketConnection, message: CommandMessage): void {
+		const session = this._findPrimarySession();
+		const response: ResponseMessage = {
+			id: message.id,
+			result: {
+				success: true,
+				...(session
+					? {
+							status: session.state,
+							sessionId: session.id,
+							url: session.config.url,
+							browser: session.config.browser,
+							headed: session.config.headed,
+						}
+					: {
+							status: 'stopped',
+						}),
+			},
+		};
+		conn.send(response);
 	}
 
 	/**
@@ -492,10 +529,10 @@ export class Daemon {
 	 * Handle the "export" daemon-local command: generate a Cypress test file
 	 * from the session's command history without round-tripping through Cypress.
 	 */
-	private _handleExport(
+	private async _handleExport(
 		conn: SocketConnection,
 		message: CommandMessage,
-	): void {
+	): Promise<void> {
 		const session = this._findRunningSession();
 		if (!session) {
 			const errorMsg: ErrorMessage = {
@@ -506,21 +543,32 @@ export class Daemon {
 			return;
 		}
 
-		const { _: _positional, ...options } = message.params.args;
+		const options = stripPositionals(message.params.args);
 
 		try {
+			const format = inferExportFormat(options);
 			const testFile = generateTestFile(session.commandHistory, {
 				describeName: options.describe as string | undefined,
 				itName: options.it as string | undefined,
-				format: (options.format as 'js' | 'ts') ?? 'js',
+				format,
 				baseUrl: options.baseUrl as string | undefined,
 			});
+			const filePath =
+				typeof options.file === 'string' && options.file.length > 0
+					? options.file
+					: undefined;
+
+			if (filePath) {
+				await fs.mkdir(path.dirname(filePath), { recursive: true });
+				await fs.writeFile(filePath, testFile, 'utf-8');
+			}
 
 			const response: ResponseMessage = {
 				id: message.id,
 				result: {
 					success: true,
 					testFile,
+					...(filePath !== undefined && { filePath }),
 				},
 			};
 			conn.send(response);
@@ -561,6 +609,11 @@ export class Daemon {
 			}
 		}
 		return undefined;
+	}
+
+	private _findPrimarySession(): Session | undefined {
+		const [firstId] = this._sessions.ids;
+		return firstId ? this._sessions.get(firstId) : undefined;
 	}
 
 	// -----------------------------------------------------------------------
@@ -645,6 +698,208 @@ export class Daemon {
 			throw err;
 		}
 	}
+}
+
+function inferExportFormat(options: Record<string, unknown>): 'js' | 'ts' {
+	if (options.format === 'js' || options.format === 'ts') {
+		return options.format;
+	}
+
+	if (typeof options.file === 'string') {
+		if (options.file.endsWith('.ts')) {
+			return 'ts';
+		}
+		if (options.file.endsWith('.js')) {
+			return 'js';
+		}
+	}
+
+	return 'ts';
+}
+
+function buildQueuedCommand(
+	id: number,
+	args: CommandMessage['params']['args'],
+): QueuedCommand {
+	const [action, ...positionals] = args._;
+	const options = stripPositionals(args);
+
+	switch (action) {
+		case 'click':
+		case 'dblclick':
+		case 'rightclick':
+		case 'clear':
+		case 'check':
+		case 'uncheck':
+		case 'focus':
+		case 'blur':
+		case 'hover':
+		case 'waitfor':
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && { ref: positionals[0] }),
+				},
+				options,
+			);
+		case 'type':
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && { ref: positionals[0] }),
+					...(joinText(positionals.slice(1)) !== undefined && {
+						text: joinText(positionals.slice(1)),
+					}),
+				},
+				options,
+			);
+		case 'select':
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && { ref: positionals[0] }),
+					...(joinText(positionals.slice(1)) !== undefined && {
+						text: joinText(positionals.slice(1)),
+					}),
+				},
+				options,
+			);
+		case 'scrollto':
+			if (positionals[0] && looksLikeRef(positionals[0])) {
+				return withOptions({ id, action, ref: positionals[0] }, options);
+			}
+			return withOptions(
+				{
+					id,
+					action,
+					...(joinText(positionals) !== undefined && {
+						text: joinText(positionals),
+					}),
+				},
+				options,
+			);
+		case 'navigate': {
+			const navigateText = joinText(stripPlaceholder(positionals));
+			return withOptions(
+				{
+					id,
+					action,
+					...(navigateText !== undefined && {
+						text: navigateText,
+					}),
+				},
+				options,
+			);
+		}
+		case 'back':
+		case 'forward':
+		case 'reload':
+		case 'snapshot':
+			return withOptions({ id, action }, options);
+		case 'press':
+		case 'wait':
+			return withOptions(
+				{
+					id,
+					action,
+					...(joinText(positionals) !== undefined && {
+						text: joinText(positionals),
+					}),
+				},
+				options,
+			);
+		case 'assert': {
+			const legacyChainer =
+				typeof options['chainer'] === 'string' ? options['chainer'] : undefined;
+			const [ref, second, ...rest] = positionals;
+			const chainer = legacyChainer ?? second;
+			const valueParts = legacyChainer ? [second, ...rest] : rest;
+			return withOptions(
+				{
+					id,
+					action,
+					...(ref !== undefined && { ref }),
+					...(joinText(valueParts) !== undefined && {
+						text: joinText(valueParts),
+					}),
+				},
+				{
+					...options,
+					...(chainer !== undefined && { chainer }),
+				},
+			);
+		}
+		case 'asserturl':
+		case 'asserttitle': {
+			const legacyChainer =
+				typeof options['chainer'] === 'string' ? options['chainer'] : undefined;
+			const normalized = stripPlaceholder(positionals);
+			const [second, ...rest] = normalized;
+			const chainer = legacyChainer ?? second;
+			const valueParts = legacyChainer ? normalized : rest;
+			return withOptions(
+				{
+					id,
+					action,
+					...(joinText(valueParts) !== undefined && {
+						text: joinText(valueParts),
+					}),
+				},
+				{
+					...options,
+					...(chainer !== undefined && { chainer }),
+				},
+			);
+		}
+		default:
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && { ref: positionals[0] }),
+					...(joinText(positionals.slice(1)) !== undefined && {
+						text: joinText(positionals.slice(1)),
+					}),
+				},
+				options,
+			);
+	}
+}
+
+function stripPositionals(
+	args: CommandMessage['params']['args'],
+): Record<string, unknown> {
+	return Object.fromEntries(
+		Object.entries(args).filter(([key]) => key !== '_'),
+	);
+}
+
+function withOptions(
+	command: QueuedCommand,
+	options: Record<string, unknown>,
+): QueuedCommand {
+	return Object.keys(options).length > 0
+		? {
+				...command,
+				options,
+			}
+		: command;
+}
+
+function joinText(parts: string[]): string | undefined {
+	const text = parts.join(' ').trim();
+	return text.length > 0 ? text : undefined;
+}
+
+function stripPlaceholder(parts: string[]): string[] {
+	return parts[0] === '_' ? parts.slice(1) : parts;
+}
+
+function looksLikeRef(value: string): boolean {
+	return /^e\d+$/.test(value);
 }
 
 // ---------------------------------------------------------------------------

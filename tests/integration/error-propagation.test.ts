@@ -135,7 +135,7 @@ describe('Error propagation integration', () => {
 			await fs.rm(socketDir, { recursive: true, force: true }).catch(() => {});
 		});
 
-		it('command failure propagates as error message to client via raw socket', async () => {
+		it('command failure propagates as failed response to client via raw socket', async () => {
 			daemon = new Daemon({
 				sessionId: 'error-raw',
 				socketDir,
@@ -168,15 +168,16 @@ describe('Error propagation integration', () => {
 			// Client receives structured error
 			const response = await responsePromise;
 			expect(response).toHaveProperty('id', 1);
+			expect(response).toHaveProperty('result.success', false);
 			expect(response).toHaveProperty(
-				'error',
+				'result.error',
 				'Element ref e99 not found in current snapshot',
 			);
 
 			client.close();
 		});
 
-		it('command failure propagates as error message to client via sendAndReceive', async () => {
+		it('command failure propagates as failed response to client via sendAndReceive', async () => {
 			daemon = new Daemon({
 				sessionId: 'error-sendrecv',
 				socketDir,
@@ -215,8 +216,9 @@ describe('Error propagation integration', () => {
 
 			const response = await responsePromise;
 			expect(response).toHaveProperty('id', 5);
+			expect(response).toHaveProperty('result.success', false);
 			expect(response).toHaveProperty(
-				'error',
+				'result.error',
 				'Element e3 is not an input field',
 			);
 		});
