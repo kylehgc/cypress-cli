@@ -230,8 +230,9 @@ function applyElementChainer(
 			break;
 		case 'be.empty': {
 			const val = $el.val();
-			const text = $el.text();
-			if ((val !== undefined && val !== '') || text !== '') {
+			const hasValue = val !== undefined && val !== '';
+			const hasText = $el.text() !== '';
+			if (hasValue || hasText) {
 				error = 'Expected element to be empty';
 			}
 			break;
@@ -259,14 +260,18 @@ function applyElementChainer(
 			break;
 		}
 		case 'have.class':
-			if (expected && !$el.hasClass(expected)) {
+			if (!expected) {
+				error = 'have.class requires a class name';
+			} else if (!$el.hasClass(expected)) {
 				error = `Expected element to have class "${expected}" but it has "${$el.attr('class') ?? ''}"`;
 			}
 			break;
 		case 'have.length': {
 			const actual = $el.length;
 			const exp = Number(expected);
-			if (actual !== exp) {
+			if (isNaN(exp)) {
+				error = `have.length requires a numeric value, got "${expected}"`;
+			} else if (actual !== exp) {
 				error = `Expected length ${expected} but got ${actual}`;
 			}
 			break;
