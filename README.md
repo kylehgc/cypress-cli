@@ -56,15 +56,16 @@ cypress-cli repl
 
 ## Commands
 
-| Category    | Commands                                                                 |
-| ----------- | ------------------------------------------------------------------------ |
-| Core        | `open`, `stop`, `status`, `snapshot`                                     |
-| Navigation  | `navigate`, `back`, `forward`, `reload`                                  |
-| Interaction | `click`, `dblclick`, `rightclick`, `type`, `clear`, `check`, `uncheck`, `select`, `focus`, `blur`, `scrollto`, `hover` |
-| Keyboard    | `press`                                                                  |
-| Assertion   | `assert`, `asserturl`, `asserttitle`                                     |
-| Wait        | `wait`, `waitfor`                                                        |
-| Export      | `export`, `history`, `undo`                                              |
+| Category    | Commands                                                          |
+| ----------- | ----------------------------------------------------------------- |
+| Core        | `open`, `stop`, `status`, `snapshot`                              |
+| Navigation  | `navigate`, `back`, `forward`, `reload`                           |
+| Interaction | `click`, `dblclick`, `rightclick`, `type`, `clear`, `select`      |
+|             | `check`, `uncheck`, `focus`, `blur`, `scrollto`, `hover`          |
+| Keyboard    | `press`                                                           |
+| Assertion   | `assert`, `asserturl`, `asserttitle`                              |
+| Wait        | `wait`, `waitfor`                                                 |
+| Export      | `export`, `history`, `undo`                                       |
 
 See [docs/COMMANDS.md](docs/COMMANDS.md) for full syntax, schemas, and Cypress API mappings.
 
