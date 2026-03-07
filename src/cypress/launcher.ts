@@ -111,11 +111,13 @@ export function generateCypressConfig(
 		e2e: {
 			supportFile: false,
 			specPattern: driverSpecPath,
+			testIsolation: false,
 			taskTimeout: TASK_TIMEOUT,
 			defaultCommandTimeout: DEFAULT_COMMAND_TIMEOUT,
 			video: false,
 			screenshotOnRunFailure: false,
 		},
+		chromeWebSecurity: false,
 		// Cypress env must be at the root config level, not nested under e2e
 		env,
 	};

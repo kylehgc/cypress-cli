@@ -46,6 +46,21 @@ describe('generateCypressConfig', () => {
 		expect(e2e.screenshotOnRunFailure).toBe(false);
 	});
 
+	it('sets testIsolation to false', () => {
+		const queue = new CommandQueue();
+		const config = generateCypressConfig({ queue });
+		const e2e = config.e2e as Record<string, unknown>;
+
+		expect(e2e.testIsolation).toBe(false);
+	});
+
+	it('sets chromeWebSecurity to false', () => {
+		const queue = new CommandQueue();
+		const config = generateCypressConfig({ queue });
+
+		expect(config.chromeWebSecurity).toBe(false);
+	});
+
 	it('includes CYPRESS_CLI_URL in env when url is provided', () => {
 		const queue = new CommandQueue();
 		const config = generateCypressConfig({
