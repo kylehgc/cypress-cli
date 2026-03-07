@@ -156,8 +156,8 @@ describe('startRepl', () => {
 				outputChunks.push(chunk);
 				return true;
 			}),
-		} as any;
-		const fakeInput: NodeJS.ReadableStream = {} as any;
+		} as unknown as NodeJS.WritableStream;
+		const fakeInput = {} as unknown as NodeJS.ReadableStream;
 		return { outputChunks, fakeOutput, fakeInput };
 	}
 

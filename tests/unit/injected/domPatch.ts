@@ -16,7 +16,7 @@ export function patchDom() {
       get(target, prop) {
         if (prop === 'visibility') return target.visibility || 'visible';
         if (prop === 'display') return target.display || 'block';
-        const val = (target as any)[prop];
+        const val = (target as unknown as Record<string | symbol, unknown>)[prop];
         return typeof val === 'function' ? val.bind(target) : val;
       },
     });

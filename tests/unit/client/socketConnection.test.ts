@@ -7,7 +7,6 @@ import os from 'node:os';
 import {
 	sendAndReceive,
 	ClientConnectionError,
-	type ClientSocketOptions,
 } from '../../../src/client/socketConnection.js';
 import {
 	serializeMessage,
