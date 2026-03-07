@@ -21,6 +21,7 @@ browser → the result (aria snapshot) comes back.
 ├── docs/
 │   ├── ARIA_SNAPSHOT_PORT.md ← Line-by-line keep/cut plan for porting Playwright code
 │   ├── COMMANDS.md           ← All CLI commands, zod schemas, Cypress API mappings
+│   ├── LIVE_VALIDATION.md    ← How to validate usability changes with real CLI usage
 │   ├── PACKAGE_SPEC.md       ← package.json, tsconfig.json, esbuild, vitest config
 │   ├── TEST_PLAN.md          ← ~60 test cases, test structure, fixtures
 │   └── TIME_TRAVEL.md        ← Future feature notes (not in scope yet)
@@ -51,7 +52,8 @@ Each `src/` subdirectory has a `README.md` explaining its purpose.
    PRs are merged and their code is on `main` before starting.
 4. **Branch** from `main`: `git checkout -b issue-N-short-description main`
 5. **Implement** the code and tests listed in the acceptance criteria.
-6. **Validate** before committing (see check commands below).
+6. **Validate** before committing (see check commands below). If the change
+   affects usability, also perform **live validation** (see section below).
 7. **Commit** with conventional commits: `feat:`, `fix:`, `test:`, `refactor:`,
    `docs:`, `chore:`
 8. **Open a PR** referencing `Closes #N` in the body.
@@ -77,6 +79,15 @@ npm run build
 If `package.json` doesn't exist yet (you're working on issue #1), these commands
 don't apply — just make sure tsc, vitest, and eslint are configured correctly.
 
+## Live Validation (Required for Usability Changes)
+
+If your issue touches command execution, assertions, CLI output, snapshots,
+selectors, or codegen — or is labeled `P0`, `P1`, `command`, or `testing` —
+you **must** run the CLI against a real web page and confirm it works before
+opening a PR. Tests alone are not sufficient.
+
+**Read `docs/LIVE_VALIDATION.md` for the full procedure and PR template.**
+
 ## Code Style (Quick Reference)
 
 Full rules in `CONVENTIONS.md`. Key points:
@@ -91,60 +102,20 @@ Full rules in `CONVENTIONS.md`. Key points:
 - **Pin exact dependency versions** (no `^` or `~`)
 - **Conventional commits**: `feat:`, `fix:`, `test:`, etc.
 
-## Ported Code Rules (src/injected/)
-
-Code in `src/injected/` is ported from Playwright. Special rules apply:
-
-- Keep original Apache 2.0 copyright headers; add ours below
-- Only remove what's documented in `docs/ARIA_SNAPSHOT_PORT.md`
-- Mark changes with `// MODIFIED: reason`
-- Mark removals with `// REMOVED: functionName — reason`
-- Do NOT reformat to match project style (preserves diff-ability with upstream)
-
-## Tech Stack
-
-| Component       | Tool                    |
-|----------------|-------------------------|
-| Language        | TypeScript (strict, ESM) |
-| Target          | ESNext                  |
-| Runtime         | Node.js ≥18             |
-| CLI parsing     | minimist + zod          |
-| IPC             | Unix domain sockets     |
-| Wire format     | Newline-delimited JSON  |
-| Browser bridge  | cy.task() polling loop  |
-| Bundler (IIFE)  | esbuild                 |
-| Test framework  | Vitest                  |
-| Browser DOM tests| happy-dom              |
-| Linting         | ESLint 9 (flat config)  |
-| Peer dependency | Cypress ≥12             |
-
-## Key Architecture Decisions
-
-These are settled. Don't revisit them:
-
-- **cy.task() polling loop** is the only viable bridge between the daemon and
-  Cypress. Cypress cannot accept out-of-band commands. The driver spec polls
-  `cy.task('getCommand')` in a loop.
-- **Unix domain sockets** for IPC (not HTTP, not stdio). Matches Playwright's
-  daemon pattern.
-- **IIFE injection** for aria snapshot code. Built with esbuild, injected via
-  `cy.window().then(win => win.eval(IIFE_STRING))`.
-- **No Cypress plugin architecture** — we use Module API (`cypress.run()`) to
-  launch Cypress with a generated config, plugin, and spec.
-- **Minimist + zod** for CLI parsing — minimist handles the flags, zod validates
-  the parsed result.
-
 ## Where Decisions Are Documented
 
-| Question                          | Read this                    |
-|----------------------------------|------------------------------|
-| How does the system work?         | `ARCHITECTURE.md`            |
-| What commands exist?              | `docs/COMMANDS.md`           |
-| How should I write code?          | `CONVENTIONS.md`             |
-| What's in package.json?           | `docs/PACKAGE_SPEC.md`       |
-| What tests should I write?        | `docs/TEST_PLAN.md`          |
-| What Playwright code to port?     | `docs/ARIA_SNAPSHOT_PORT.md` |
-| What does each src/ dir do?       | `src/<dir>/README.md`        |
+| Question                           | Read this                     |
+| ---------------------------------- | ----------------------------- |
+| How does the system work?          | `ARCHITECTURE.md`             |
+| What commands exist?               | `docs/COMMANDS.md`            |
+| How should I write code?           | `CONVENTIONS.md`              |
+| Ported code rules (src/injected/)? | `CONVENTIONS.md` §Ported Code |
+| Tech stack and architecture ADRs?  | `ARCHITECTURE.md` §Tech Stack |
+| What's in package.json?            | `docs/PACKAGE_SPEC.md`        |
+| What tests should I write?         | `docs/TEST_PLAN.md`           |
+| What Playwright code to port?      | `docs/ARIA_SNAPSHOT_PORT.md`  |
+| How to validate usability changes? | `docs/LIVE_VALIDATION.md`     |
+| What does each src/ dir do?        | `src/<dir>/README.md`         |
 
 ## Recovering Mid-Session
 
@@ -167,3 +138,4 @@ When reviewing a PR against an issue:
 - [ ] Ported code follows ported code rules (if applicable)
 - [ ] Commit messages use conventional format
 - [ ] No unnecessary files (no `dist/`, no `node_modules/`, no temp files)
+- [ ] Live validation performed and documented (if usability change — see above)
