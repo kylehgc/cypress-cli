@@ -265,44 +265,28 @@ Example error response:
 Note: snapshot is included even on error, because the LLM needs to see the
 current page state to decide what to do next.
 
-## Open Design Questions
+## Resolved Design Questions
 
 ### 1. Should `assert` commands appear in the REPL loop?
 
-Assertions don't change page state, but they produce pass/fail results. Two
-options:
-
-- **Yes**: treat them like any other command. The LLM issues `assert e5 have.text "Hello"`,
-  it runs as `cy.get(sel).should('have.text', 'Hello')`, and the result comes
-  back with success/error. This is simpler and consistent.
-- **No**: assertions are codegen-only. The LLM says "assert the heading says
-  Hello" and we just record it for export without executing it in the browser.
-
-**Current decision**: Yes, execute assertions. The LLM benefits from immediate
-feedback about whether the assertion passes.
+**Decision**: Yes, execute assertions. The LLM benefits from immediate
+feedback about whether the assertion passes. Assertions are executed via manual
+chainer comparison in `cy.then()` callbacks (not `cy.should()`, which kills the
+test on failure).
 
 ### 2. Should `wait` be explicit or implicit?
 
-Cypress has built-in retry/wait logic. An explicit `wait 2000` is usually an
-anti-pattern. But LLMs may want to wait for async operations.
-
-**Current decision**: Support `wait` for explicit waits and `waitfor` for
-element-based waits. Document that `waitfor` is preferred. The codegen system
-can flag `wait` commands as code smells.
+**Decision**: Support `wait` for explicit waits and `waitfor` for
+element-based waits. `waitfor` is preferred. In the future, the codegen
+system may flag `wait` commands as code smells.
 
 ### 3. How to handle iframes?
 
-Playwright's aria snapshot includes `[iframe]` markers with separate ref
-prefixes. Cypress handles iframes via `cy.iframe()` (with `cypress-iframe`
-plugin) or manual `cy.get('iframe').its('0.contentDocument')`.
-
-**Current decision**: Phase 1 ignores iframes. Phase 2 can add iframe support
+**Decision**: Phase 1 ignores iframes. A future issue can add iframe support
 by extending the snapshot injection to traverse into iframe documents.
 
 ### 4. How to handle file uploads?
 
-`cy.get('input[type=file]').selectFile(path)` is the Cypress way. But the LLM
-would need to specify a file path on disk.
-
-**Current decision**: Defer to Phase 2. A `selectfile <ref> <path>` command
-would work but needs file path validation and security considerations.
+**Decision**: Will be implemented as `upload <ref> <file>` using
+`cy.get(sel).selectFile(path)` (available since Cypress 9.3). See ROADMAP.md
+for tracking.

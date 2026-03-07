@@ -161,7 +161,19 @@ Each command maps to real Cypress APIs:
 - `navigate https://example.com` → `cy.visit("https://example.com")`
 - `snapshot` → take aria snapshot without executing an action
 
-### 5. Injected Bundle (`src/injected/`)
+### 5. Browser Module (`src/browser/`)
+
+Browser-context helpers that run inside the Cypress test.
+
+Responsibilities:
+
+- Element ref map (`refMap.ts`): maps `eN` ref strings to live DOM elements
+- Selector generation (`selectorGenerator.ts`): wraps `@cypress/unique-selector`
+  with Cypress's default priority order for codegen
+- Snapshot manager (`snapshotManager.ts`): coordinates IIFE injection and
+  snapshot capture
+
+### 6. Injected Bundle (`src/injected/`)
 
 Playwright's aria snapshot code, ported and bundled as an IIFE string. Injected
 into the browser page via `cy.window().then(win => win.eval(iife))`.
@@ -178,7 +190,7 @@ Responsibilities:
 
 Cypress patches Content Security Policy, so `eval()` works even on strict pages.
 
-### 6. Codegen (`src/codegen/`)
+### 7. Codegen (`src/codegen/`)
 
 Builds up a Cypress test file from the sequence of executed commands.
 
@@ -191,6 +203,7 @@ Responsibilities:
 - Export as `.cy.ts` file with proper `describe`/`it` structure
 - Handle assertions (the LLM can issue `assert` commands that become
   `cy.get(selector).should(...)`)
+- Filter meta-commands (history, undo, export) from generated output
 
 #### Selector Generation Strategy
 
@@ -322,6 +335,8 @@ cypress-cli/
 │   ├── COMMANDS.md            ← Command definitions and schemas
 │   ├── PACKAGE_SPEC.md        ← package.json, tsconfig.json, build pipeline
 │   ├── PHASE1_REVIEW.md       ← Phase 1 implementation review
+│   ├── READINESS_ASSESSMENT.md ← User testing readiness check
+│   ├── ROADMAP.md             ← Feature parity roadmap and issue tracking
 │   ├── TEST_PLAN.md           ← Test strategy and specific test cases
 │   └── TIME_TRAVEL.md         ← Future feature: snapshot-based debugging
 ├── src/
@@ -335,9 +350,9 @@ cypress-cli/
 │   │   └── README.md
 │   ├── shared/               ← Error handling + logging infrastructure
 │   │   └── README.md
-│   ├── codegen/              ← Test file generation (Phase 2 stub)
+│   ├── codegen/              ← Test file generation from session history
 │   │   └── README.md
-│   └── browser/              ← Browser-side utilities (Phase 2 stub)
+│   ├── browser/              ← Ref map, selector generation, snapshot manager
 │       └── README.md
 └── tests/
     ├── unit/                 ← Pure function tests (snapshot, codegen, etc.)
@@ -358,50 +373,42 @@ by `tsc` for Node.js.
 
 ## Phases
 
-### Phase 1: Proof of Concept ✅ Complete
+### Phase 1–3: Core Implementation ✅ Complete
 
-All acceptance criteria met. The following are implemented and tested (416 unit tests):
+All planned functionality is implemented and tested (634 unit/integration + 29 E2E = 663 tests):
 
 - **Aria snapshot port**: Complete port from Playwright (tree generation, YAML rendering,
-  incremental diffs, role/accessible name computation). 111 unit tests.
+  incremental diffs, role/accessible name computation).
 - **Daemon**: Socket server, session management, command queue with Promise-based
-  blocking, graceful shutdown, idle timeout. 82 unit tests.
+  blocking, graceful shutdown, idle timeout, session persistence to `$XDG_STATE_HOME`.
 - **CLI client**: Argument parsing (minimist + zod), 28 command schemas, socket
-  connection with retry logic, REPL mode, help text, JSON output. 86 unit tests.
+  connection with retry logic, REPL mode, help text, JSON output.
 - **Cypress layer**: Plugin with getCommand/commandResult task handlers, driver spec
-  with full REPL loop (25+ commands), support file for IIFE injection and snapshot
-  taking, launcher for generating temp configs. 38 unit tests.
-- **Socket protocol**: Newline-delimited JSON messages, serialization/deserialization,
-  split buffer handling. 31 unit tests.
-- **Error handling**: Typed error hierarchy (CypressCliError, ConnectionError,
-  TimeoutError, ValidationError, CommandError, SessionError), structured logging
-  with JSON and human-readable modes. 68 unit tests.
+  with full REPL loop (28 commands), support file for IIFE injection and snapshot
+  taking, launcher with cross-process IPC via QueueBridge.
+- **Browser module** (`src/browser/`): Element ref map, selector generation via
+  `@cypress/unique-selector` with Cypress priority order, IIFE snapshot injection.
+- **Codegen module** (`src/codegen/`): Export to `.cy.ts`, template engine with
+  describe/it structure, meta-command filtering, TypeScript output.
+- **Integration tests**: Client↔daemon, daemon↔plugin, command queue flow,
+  session lifecycle, error propagation (real sockets, mock Cypress).
+- **E2E tests**: 29 tests with real Cypress + Electron against fixture HTML pages.
 - **Build pipeline**: esbuild IIFE bundling, TypeScript compilation, ESLint with
   TypeScript support.
 
-Remaining stubs (deferred to later phases):
+### Phase 4: Feature Parity & AI Agent Integration (Current)
 
-- `src/browser/` — ref→element mapping utilities (functionality exists inline in driverSpec.ts)
-- `src/codegen/` — test file generation from command history
+See `docs/ROADMAP.md` for the full issue list. Key areas:
 
-### Phase 2: Full Command Set
+- **SKILL file + install command** — primary integration surface for coding agents
+- **Snapshot-to-file output** — token-efficient output model for AI agents
+- **Inline codegen per command** — return generated Cypress code with each response
+- **New commands** — `eval`, `fill`, `drag`, `upload`, `screenshot`, `dialog-accept/dismiss`,
+  `resize`, cookie/storage management, console/network access, network mocking
+- **Command naming alignment** — add `goto` alias, `close` alias
+- **Feasibility audit** — determine which playwright-cli features are achievable in Cypress
 
-- All navigation, keyboard, mouse commands (schemas declared, execution implemented in driver spec)
-- Integration tests (daemon↔plugin↔driver tests with real sockets)
-- Session management enhancements (multiple sessions, named sessions, persistence)
-- Codegen module implementation
+### Future
 
-### Phase 3: Codegen + E2E
-
-- Export accumulated commands as a `.cy.ts` file
-- Selector resolution via `Cypress.ElementSelector`
-- Assertion generation
-- End-to-end tests with real Cypress against fixture HTML pages
-- CI/CD pipeline
-
-### Phase 4: Polish
-
-- Headed mode support
-- Config file support
-- Incremental snapshot diffs
 - Time-travel debugging (see docs/TIME_TRAVEL.md)
+- MCP server wrapper
