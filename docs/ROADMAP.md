@@ -16,6 +16,8 @@ This project (`cypress-cli`) targets the same CLI + SKILLS model but for
 **Cypress test generation**. Command naming follows Cypress conventions since the
 goal is producing idiomatic Cypress tests.
 
+This roadmap tracks 21 issues: #43–#47 and #48–#66 (see tiers below).
+
 ## Priority Tiers
 
 | Tier   | Description                 | Focus                                                            |

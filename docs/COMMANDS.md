@@ -277,8 +277,8 @@ test on failure).
 ### 2. Should `wait` be explicit or implicit?
 
 **Decision**: Support `wait` for explicit waits and `waitfor` for
-element-based waits. `waitfor` is preferred. The codegen system flags `wait`
-commands as code smells.
+element-based waits. `waitfor` is preferred. In the future, the codegen
+system may flag `wait` commands as code smells.
 
 ### 3. How to handle iframes?
 

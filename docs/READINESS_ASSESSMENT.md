@@ -65,7 +65,7 @@ The full happy path works end-to-end:
 
 1. **Add `.nvmrc` file** — The project requires Node ≥18, but the default nvm version is 16. Without `.nvmrc`, anyone running `npm install` or `npx vitest` on the default Node will hit `crypto.getRandomValues is not a function` (Vite/Vitest) and `structuredClone is not defined` (ESLint).
 
-2. **E2E tests require `npm run build` first** — The E2E suite expects `dist/cypress/driverSpec.js` to exist. Running `npx vitest run` without building first causes 6 E2E test failures with "no spec files were found." Consider adding a `pretest` script or documenting the requirement.
+2. **E2E tests require `npm run build:iife` first** — The E2E helpers fail fast when `dist/injected.iife.js` is missing, printing an error that instructs running `npm run build:iife` before the suite. This command produces both the injected IIFE (`dist/injected.iife.js`) and the driver spec bundle (`dist/cypress/driverSpec.js`). Running `npx vitest run` without building first causes 6 E2E test failures. Consider adding a `pretest` script or documenting the requirement.
 
 ### Should-fix
 
