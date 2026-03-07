@@ -67,27 +67,28 @@ function resolveRef(ref: string): Cypress.Chainable {
 }
 
 /**
- * Validates that a ref exists in the element map. If not, stores the error
- * in `_asyncCommandError` so the polling loop reports it as a command failure.
+ * Validates that a ref exists in the element map and is connected to the DOM.
+ * If not, stores the error in `_asyncCommandError` so the polling loop
+ * reports it as a command failure.
  *
  * Must be called from within a cy.window().then() chain so the element map
  * is accessible.
  *
- * @returns true if the ref is valid, false if invalid (error stored)
+ * @returns The resolved Element if valid, or undefined if invalid (error stored)
  */
-function validateRef(win: Window, ref: string): boolean {
+function validateRef(win: Window, ref: string): Element | undefined {
 	try {
 		const element = resolveRefFromMap(win, ref);
 		if (!element.isConnected) {
 			_asyncCommandError =
 				`Ref "${ref}" points to a detached DOM element. ` +
 				'Run `snapshot` to refresh the element map.';
-			return false;
+			return undefined;
 		}
-		return true;
+		return element;
 	} catch (err) {
 		_asyncCommandError = err instanceof Error ? err.message : String(err);
-		return false;
+		return undefined;
 	}
 }
 
@@ -470,7 +471,8 @@ function pollForCommands(): void {
 			// report the error (avoiding Cypress chain crashes from detached elements).
 			if (COMMANDS_REQUIRING_REF.has(cmd.action!) && cmd.ref) {
 				cy.window({ log: false }).then((win: Window) => {
-					if (!validateRef(win, cmd.ref!)) {
+					const element = validateRef(win, cmd.ref!);
+					if (!element) {
 						// Ref is invalid — skip to result reporting
 						return;
 					}
@@ -481,7 +483,6 @@ function pollForCommands(): void {
 
 					// Pre-flight validation: check element type is appropriate
 					// for the command (e.g., type requires an input/textarea).
-					const element = resolveRefFromMap(win, cmd.ref!);
 					const validationError = validateElementForCommand(
 						element,
 						cmd.action,
