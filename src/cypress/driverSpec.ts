@@ -192,8 +192,12 @@ function applyElementChainer(
 
 	switch (chainer) {
 		case 'have.value': {
+			if (expected === undefined) {
+				error = 'The "have.value" chainer requires an expected value.';
+				break;
+			}
 			const actual = String($el.val() ?? '');
-			if (actual !== (expected ?? '')) {
+			if (actual !== expected) {
 				error = `Expected value "${expected}" but got "${actual}"`;
 			}
 			break;
@@ -242,14 +246,17 @@ function applyElementChainer(
 				error = 'have.attr requires an attribute name';
 				break;
 			}
+			// Support "name=value" encoding (preferred) and "name value" (fallback)
+			const eqIdx = expected.indexOf('=');
 			const spaceIdx = expected.indexOf(' ');
-			if (spaceIdx === -1) {
+			const sepIdx = eqIdx > 0 && eqIdx < expected.length - 1 ? eqIdx : spaceIdx;
+			if (sepIdx === -1) {
 				if ($el.attr(expected) === undefined) {
 					error = `Expected element to have attribute "${expected}"`;
 				}
 			} else {
-				const attrName = expected.substring(0, spaceIdx);
-				const attrValue = expected.substring(spaceIdx + 1);
+				const attrName = expected.substring(0, sepIdx);
+				const attrValue = expected.substring(sepIdx + 1);
 				const actual = $el.attr(attrName);
 				if (actual === undefined) {
 					error = `Expected element to have attribute "${attrName}"`;
@@ -268,11 +275,15 @@ function applyElementChainer(
 			break;
 		case 'have.length': {
 			const actual = $el.length;
-			const exp = Number(expected);
-			if (isNaN(exp)) {
-				error = `have.length requires a numeric value, got "${expected}"`;
-			} else if (actual !== exp) {
-				error = `Expected length ${expected} but got ${actual}`;
+			if (expected === undefined) {
+				error = 'have.length requires an expected length value';
+			} else {
+				const exp = Number(expected);
+				if (isNaN(exp)) {
+					error = `have.length requires a numeric value, got "${expected}"`;
+				} else if (actual !== exp) {
+					error = `Expected length ${expected} but got ${actual}`;
+				}
 			}
 			break;
 		}

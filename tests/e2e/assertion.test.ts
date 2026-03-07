@@ -130,6 +130,10 @@ describe('E2E: element assertions on form', () => {
 		const emailRef = findRef(snapshot, 'Email');
 		expect(emailRef).toBeTruthy();
 
+		// Type a known value so this test is self-contained
+		await ctx.sendCommand(1030, ['clear', emailRef!]);
+		await ctx.sendCommand(1031, ['type', emailRef!, 'known@value.com']);
+
 		const response = await ctx.sendCommand(
 			104,
 			['assert', emailRef!, 'wrong@value.com'],
@@ -141,7 +145,7 @@ describe('E2E: element assertions on form', () => {
 	it('asserts be.visible on a visible element', async () => {
 		const snap = await ctx.sendCommand(105, ['snapshot']);
 		const snapshot = getSnapshot(snap);
-		const btnRef = findRef(snapshot, 'Login');
+		const btnRef = findRef(snapshot, 'button "Login"');
 		expect(btnRef).toBeTruthy();
 
 		const response = await ctx.sendCommand(
@@ -190,7 +194,7 @@ describe('E2E: element assertions on form', () => {
 	it('asserts be.enabled on an enabled button', async () => {
 		const snap = await ctx.sendCommand(113, ['snapshot']);
 		const snapshot = getSnapshot(snap);
-		const btnRef = findRef(snapshot, 'Login');
+		const btnRef = findRef(snapshot, 'button "Login"');
 		expect(btnRef).toBeTruthy();
 
 		const response = await ctx.sendCommand(
@@ -210,6 +214,20 @@ describe('E2E: element assertions on form', () => {
 		const response = await ctx.sendCommand(
 			116,
 			['assert', emailRef!, 'name'],
+			{ chainer: 'have.attr' },
+		);
+		expect(isSuccess(response)).toBe(true);
+	}, 60_000);
+
+	it('asserts have.attr with matching attribute value', async () => {
+		const snap = await ctx.sendCommand(117, ['snapshot']);
+		const snapshot = getSnapshot(snap);
+		const emailRef = findRef(snapshot, 'Email');
+		expect(emailRef).toBeTruthy();
+
+		const response = await ctx.sendCommand(
+			118,
+			['assert', emailRef!, 'name=email'],
 			{ chainer: 'have.attr' },
 		);
 		expect(isSuccess(response)).toBe(true);
