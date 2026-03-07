@@ -72,10 +72,18 @@ export function parseDaemonProcessArgs(argv: string[]): DaemonProcessOptions {
 			typeof parsed['sessions-dir'] === 'string'
 				? parsed['sessions-dir']
 				: undefined,
-		idleTimeout:
-			typeof parsed['idle-timeout'] === 'string'
-				? Number(parsed['idle-timeout'])
-				: undefined,
+		idleTimeout: (() => {
+			if (typeof parsed['idle-timeout'] !== 'string') {
+				return undefined;
+			}
+			const parsedValue = Number(parsed['idle-timeout']);
+			if (!Number.isFinite(parsedValue)) {
+				throw new Error(
+					`Invalid --idle-timeout value "${parsed['idle-timeout']}": must be a finite number.`,
+				);
+			}
+			return parsedValue;
+		})(),
 	};
 }
 

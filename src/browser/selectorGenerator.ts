@@ -72,7 +72,10 @@ export function buildFallbackSelector(element: Element): string {
 	}
 
 	if (element.id) {
-		return `#${escapeIdentifier(element.id)}`;
+		const idSelector = `#${escapeIdentifier(element.id)}`;
+		if (isUniqueSelector(document, idSelector, element)) {
+			return idSelector;
+		}
 	}
 
 	const name = element.getAttribute('name');
@@ -218,11 +221,7 @@ function _buildNonRefCommand(
 }
 
 function isUsableSelector(selector: string, element: Element): boolean {
-	try {
-		return element.ownerDocument.querySelector(selector) === element;
-	} catch {
-		return false;
-	}
+	return isUniqueSelector(element.ownerDocument, selector, element);
 }
 
 function isUniqueSelector(

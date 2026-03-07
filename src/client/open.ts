@@ -205,12 +205,24 @@ async function waitForSessionReady(
 			throw new Error(childExitMessage);
 		}
 
+		const remaining = deadline - Date.now();
+		if (remaining <= 0) {
+			break;
+		}
+
 		try {
-			return await session.sendCommand({
+			const commandPromise = session.sendCommand({
 				command: 'snapshot',
 				args: {},
 				options: {},
 			});
+			const deadlinePromise = new Promise<never>((_, reject) =>
+				setTimeout(
+					() => reject(new ClientConnectionError('Startup probe timed out')),
+					remaining,
+				),
+			);
+			return await Promise.race([commandPromise, deadlinePromise]);
 		} catch (err) {
 			if (!(err instanceof ClientConnectionError)) {
 				throw err;

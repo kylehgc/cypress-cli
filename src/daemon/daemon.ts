@@ -781,17 +781,19 @@ function buildQueuedCommand(
 				},
 				options,
 			);
-		case 'navigate':
+		case 'navigate': {
+			const navigateText = joinText(stripPlaceholder(positionals));
 			return withOptions(
 				{
 					id,
 					action,
-					...(joinText(stripPlaceholder(positionals)) !== undefined && {
-						text: joinText(stripPlaceholder(positionals)),
+					...(navigateText !== undefined && {
+						text: navigateText,
 					}),
 				},
 				options,
 			);
+		}
 		case 'back':
 		case 'forward':
 		case 'reload':
