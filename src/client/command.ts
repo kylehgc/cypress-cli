@@ -119,12 +119,16 @@ export function parseCommand(
 		);
 	}
 
-	// Map positional args to named fields
+	// Map positional args to named fields.
+	// Also accept named flags for declared positionals (e.g. `open --url <url>`)
+	// so that both `open <url>` and `open --url <url>` work.
 	const argsObj: Record<string, unknown> = {};
 	for (let i = 0; i < entry.positionals.length; i++) {
 		const name = entry.positionals[i];
 		if (i < positionals.length) {
 			argsObj[name] = positionals[i];
+		} else if (name in argv && argv[name] !== undefined) {
+			argsObj[name] = argv[name];
 		}
 	}
 

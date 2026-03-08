@@ -505,6 +505,22 @@ describe('parseCommand', () => {
 			options: {},
 		});
 	});
+
+	it('accepts named flags for declared positionals (open --url)', () => {
+		const result = parseCommand(
+			{ _: ['open'], url: 'https://example.com' },
+			commandRegistry,
+		);
+		expect(result.args).toEqual({ url: 'https://example.com' });
+	});
+
+	it('prefers positional over named flag when both are provided', () => {
+		const result = parseCommand(
+			{ _: ['open', 'https://positional.com'], url: 'https://flag.com' },
+			commandRegistry,
+		);
+		expect(result.args).toEqual({ url: 'https://positional.com' });
+	});
 });
 
 describe('buildRegistry', () => {

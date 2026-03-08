@@ -56,14 +56,11 @@ export function parseDaemonProcessArgs(argv: string[]): DaemonProcessOptions {
 				: DEFAULT_SESSION,
 		url: typeof parsed['url'] === 'string' ? parsed['url'] : undefined,
 		browser:
-			typeof parsed['browser'] === 'string'
-				? parsed['browser']
-				: undefined,
+			typeof parsed['browser'] === 'string' ? parsed['browser'] : undefined,
 		headed: parsed['headed'] === true,
 		configPath:
 			typeof parsed['config'] === 'string' ? parsed['config'] : undefined,
-		resume:
-			typeof parsed['resume'] === 'string' ? parsed['resume'] : undefined,
+		resume: typeof parsed['resume'] === 'string' ? parsed['resume'] : undefined,
 		socketDir:
 			typeof parsed['socket-dir'] === 'string'
 				? parsed['socket-dir']
@@ -226,7 +223,9 @@ function validateResumeOptions(options: DaemonProcessOptions): void {
 }
 
 async function loadIifeBundle(): Promise<string> {
-	const bundlePath = fileURLToPath(new URL('../injected.iife.js', import.meta.url));
+	const bundlePath = fileURLToPath(
+		new URL('../injected.iife.js', import.meta.url),
+	);
 	try {
 		return await fs.readFile(bundlePath, 'utf-8');
 	} catch {
