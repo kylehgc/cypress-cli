@@ -638,6 +638,28 @@ function pollForCommands(): void {
 // ---------------------------------------------------------------------------
 
 /**
+ * Detects cross-origin error patterns and appends recovery guidance.
+ *
+ * When `chromeWebSecurity: false` is insufficient (e.g. Firefox) or Cypress
+ * raises its own origin-mismatch error, this helper enriches the message so
+ * the LLM agent knows how to continue.
+ */
+function enhanceCrossOriginError(error: string): string {
+	if (
+		/origin .+ but the application is at origin/i.test(error) ||
+		/Blocked a frame with origin/i.test(error)
+	) {
+		return (
+			error +
+			'\n\nCross-origin recovery: The page navigated to a different origin. ' +
+			'Run "open <current-url>" to start a fresh session on the new URL. ' +
+			'If using Firefox, switch to Chrome or Electron which support cross-origin navigation.'
+		);
+	}
+	return error;
+}
+
+/**
  * Injects a new `it()` block into the Mocha runner's live test queue.
  *
  * Cypress patches Mocha's `Runner.prototype.runTests` to expose
@@ -673,12 +695,18 @@ function enqueueRecoveryTest(currentTest: unknown): void {
 		_asyncCommandError = undefined;
 		_pendingFailHandler = undefined;
 
+		// Enhance cross-origin errors with recovery guidance so the
+		// LLM agent knows how to continue after a redirect.
+		const errorMessage = enhanceCrossOriginError(
+			error ?? 'Unknown error (session recovered)',
+		);
+
 		// Re-inject snapshot lib and take a fresh snapshot
 		injectSnapshotLib();
 		takeSnapshot().then((snapshotYaml: string) => {
 			const result: DriverResult = {
 				success: false,
-				error: error ?? 'Unknown error (session recovered)',
+				error: errorMessage,
 				snapshot: snapshotYaml,
 			};
 			cy.task('commandResult', result, { log: false }).then(() => {
