@@ -212,8 +212,8 @@ export function formatResult(result: ClientResult, asJson: boolean): string {
 	}
 
 	// Show snapshot file path
-	if (typeof resultObj?.['filePath'] === 'string') {
-		lines.push(`Snapshot saved to: ${resultObj['filePath']}`);
+	if (typeof resultObj?.['snapshotFilePath'] === 'string') {
+		lines.push(`Snapshot saved to: ${resultObj['snapshotFilePath']}`);
 	}
 
 	if (lines.length > 0) {
