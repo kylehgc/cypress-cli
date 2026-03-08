@@ -111,6 +111,11 @@ describe('E2E: Layer 2 recovery (disabled elements)', () => {
 		expect(isError(response)).toBe(true);
 		const error = getError(response);
 		expect(error).toContain('disabled');
+
+		// Error response should also include a snapshot reflecting current page state
+		const errorSnapshot = getSnapshot(response);
+		expect(errorSnapshot).toBeTruthy();
+		expect(errorSnapshot).toContain('Disabled Elements');
 	}, 60_000);
 
 	it('session survives after typing into disabled element', async () => {

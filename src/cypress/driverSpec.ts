@@ -697,8 +697,14 @@ function enqueueRecoveryTest(currentTest: unknown): void {
 	// short-circuit to false, preserving the AUT page state across recoveries.
 	recovery['final'] = false;
 
-	if (t.parent?.testsQueue) {
-		t.parent.testsQueue.push(recovery);
+	const queue = t.parent?.testsQueue;
+	if (Array.isArray(queue)) {
+		queue.push(recovery);
+	} else {
+		console.error(
+			'[cypress-cli] Failed to enqueue recovery test: expected parent.testsQueue to be an array, but got',
+			queue,
+		);
 	}
 }
 
