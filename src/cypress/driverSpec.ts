@@ -15,7 +15,10 @@
 // (this spec is excluded from tsc and bundled by esbuild into dist/cypress/driverSpec.js)
 import { injectSnapshotLib, takeSnapshot } from './support';
 import { resolveRefFromMap } from '../browser/refMap';
-import { generateSelector, buildCypressCommand } from '../browser/selectorGenerator';
+import {
+	generateSelector,
+	buildCypressCommand,
+} from '../browser/selectorGenerator';
 import { validateElementForCommand } from '../browser/commandValidation';
 
 // ---------------------------------------------------------------------------
@@ -100,15 +103,29 @@ function validateRef(win: Window, ref: string): Element | undefined {
  * Commands that require a ref field to be present.
  */
 const COMMANDS_REQUIRING_REF = new Set([
-	'click', 'dblclick', 'rightclick', 'type', 'clear', 'check',
-	'uncheck', 'select', 'focus', 'blur', 'hover', 'assert', 'waitfor',
+	'click',
+	'dblclick',
+	'rightclick',
+	'type',
+	'clear',
+	'check',
+	'uncheck',
+	'select',
+	'focus',
+	'blur',
+	'hover',
+	'assert',
+	'waitfor',
 ]);
 
 /**
  * Commands that require a text field to be present.
  */
 const COMMANDS_REQUIRING_TEXT = new Set([
-	'type', 'select', 'navigate', 'press',
+	'type',
+	'select',
+	'navigate',
+	'press',
 ]);
 
 /**
@@ -126,6 +143,18 @@ let _asyncCommandError: string | undefined;
 let _pendingFailHandler: ((err: Error) => false) | undefined;
 
 /**
+ * Error captured by the fail handler that killed the current it() block's
+ * command queue. Read by the dynamically-injected recovery test to report
+ * the error and resume the polling loop.
+ */
+let _pendingRecoveryError: string | undefined;
+
+/**
+ * Counter for generating unique recovery test names.
+ */
+let _recoveryCount = 0;
+
+/**
  * Apply a chai-style chainer assertion manually.
  *
  * Instead of using Cypress's `.should()` (which retries and eventually fails
@@ -137,7 +166,11 @@ let _pendingFailHandler: ((err: Error) => false) | undefined;
  * @param actual - The actual value retrieved from the DOM/URL/title
  * @param expected - The expected value to compare against
  */
-function applyChainer(chainer: string, actual: string, expected?: string): void {
+function applyChainer(
+	chainer: string,
+	actual: string,
+	expected?: string,
+): void {
 	let error: string | undefined;
 
 	switch (chainer) {
@@ -264,7 +297,8 @@ function applyElementChainer(
 			// Support "name=value" encoding (preferred) and "name value" (fallback)
 			const eqIdx = expected.indexOf('=');
 			const spaceIdx = expected.indexOf(' ');
-			const sepIdx = eqIdx > 0 && eqIdx < expected.length - 1 ? eqIdx : spaceIdx;
+			const sepIdx =
+				eqIdx > 0 && eqIdx < expected.length - 1 ? eqIdx : spaceIdx;
 			if (sepIdx === -1) {
 				if ($el.attr(expected) === undefined) {
 					error = `Expected element to have attribute "${expected}"`;
@@ -331,9 +365,7 @@ function executeCommand(cmd: DriverCommand): void {
 		);
 	}
 	if (COMMANDS_REQUIRING_TEXT.has(cmd.action!) && !cmd.text) {
-		throw new Error(
-			`Command "${cmd.action}" requires a text argument.`,
-		);
+		throw new Error(`Command "${cmd.action}" requires a text argument.`);
 	}
 
 	const options = cmd.options ?? {};
@@ -375,7 +407,9 @@ function executeCommand(cmd: DriverCommand): void {
 			} else if (cmd.text) {
 				cy.scrollTo(cmd.text as Cypress.PositionType, options);
 			} else {
-				throw new Error('`scrollto` command requires either `ref` (for scrollIntoView) or `text` (for position/coords).');
+				throw new Error(
+					'`scrollto` command requires either `ref` (for scrollIntoView) or `text` (for position/coords).',
+				);
 			}
 			break;
 		case 'hover':
@@ -530,11 +564,24 @@ function pollForCommands(): void {
 
 				// Layer 2: Register a fail handler as a safety net for
 				// unexpected Cypress errors that pre-flight validation
-				// cannot anticipate. This prevents the test from failing
-				// (and thus crashing the session) when a Cypress command
-				// throws internally.
+				// cannot anticipate. When triggered, the current it() block's
+				// command queue is killed by Cypress ("subsequent commands will
+				// not be executed"). To recover, we save the error and inject
+				// a new it() block into the runner's live test queue. The
+				// recovery test reports the error and resumes polling.
 				_pendingFailHandler = (err: Error): false => {
-					_asyncCommandError = _asyncCommandError ?? err.message;
+					_pendingRecoveryError = err.message;
+
+					// Access the current test object. We clone it (not the
+					// suite) to produce a recovery test with all internal
+					// properties Cypress expects.
+					const currentTest = (
+						Cypress as unknown as { state: (key: string) => unknown }
+					).state('test');
+					if (currentTest) {
+						enqueueRecoveryTest(currentTest);
+					}
+
 					return false;
 				};
 				Cypress.once('fail', _pendingFailHandler);
@@ -542,8 +589,7 @@ function pollForCommands(): void {
 				try {
 					executeCommand(cmd);
 				} catch (err) {
-					_asyncCommandError =
-						err instanceof Error ? err.message : String(err);
+					_asyncCommandError = err instanceof Error ? err.message : String(err);
 				}
 			});
 
@@ -588,13 +634,98 @@ function pollForCommands(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Recovery: dynamic test injection
+// ---------------------------------------------------------------------------
+
+/**
+ * Injects a new `it()` block into the Mocha runner's live test queue.
+ *
+ * Cypress patches Mocha's `Runner.prototype.runTests` to expose
+ * `suite.testsQueue` — a live reference to the array the runner iterates.
+ * Pushing a Test onto this array causes the runner to execute it after
+ * the current `it()` completes.
+ *
+ * We clone the current test (rather than creating a fresh Mocha.Test)
+ * because Cypress's patched runner, reporter, and server-side code
+ * expect many internal properties (_testConfig, id, order, invocationDetails,
+ * ctx.currentTest, etc.) to be present. clone() copies them all, exactly
+ * the same way Cypress's own retry mechanism creates new attempts.
+ *
+ * The recovery test reports the captured error with a fresh snapshot,
+ * then resumes the polling loop with a brand-new command queue.
+ */
+function enqueueRecoveryTest(currentTest: unknown): void {
+	_recoveryCount++;
+
+	const t = currentTest as {
+		clone: () => Record<string, unknown>;
+		parent?: { testsQueue?: unknown[] };
+	};
+
+	// clone() copies parent, ctx, _testConfig, id, order, _currentRetry,
+	// timeout, slow, retries, file, etc. — everything Cypress needs.
+	const recovery = t.clone();
+
+	// Override the test function with our recovery logic
+	recovery['fn'] = () => {
+		const error = _pendingRecoveryError;
+		_pendingRecoveryError = undefined;
+		_asyncCommandError = undefined;
+		_pendingFailHandler = undefined;
+
+		// Re-inject snapshot lib and take a fresh snapshot
+		injectSnapshotLib();
+		takeSnapshot().then((snapshotYaml: string) => {
+			const result: DriverResult = {
+				success: false,
+				error: error ?? 'Unknown error (session recovered)',
+				snapshot: snapshotYaml,
+			};
+			cy.task('commandResult', result, { log: false }).then(() => {
+				pollForCommands();
+			});
+		});
+	};
+
+	// Reset retry counter so this isn't treated as a retry attempt
+	recovery['_currentRetry'] = 0;
+	recovery['title'] = `recovery-${_recoveryCount}`;
+
+	// Prevent Cypress from navigating to about:blank between tests.
+	// In run mode, Cypress checks `test.final && lastTestThatWillRunInSuite()`
+	// to decide whether to reset the page. Setting final=false makes this
+	// short-circuit to false, preserving the AUT page state across recoveries.
+	recovery['final'] = false;
+
+	const queue = t.parent?.testsQueue;
+	if (Array.isArray(queue)) {
+		queue.push(recovery);
+	} else {
+		console.error(
+			'[cypress-cli] Failed to enqueue recovery test: expected parent.testsQueue to be an array, but got',
+			queue,
+		);
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Test entry point
 // ---------------------------------------------------------------------------
 
-describe('cypress-cli', () => {
+describe('cypress-cli', function () {
+	// Prevent about:blank navigation between dynamic recovery tests.
+	// The Cypress sessions module registers a test:before:after:run:async
+	// listener that always navigates to about:blank between tests in run
+	// mode — regardless of testIsolation config — due to an argument
+	// alignment issue in the internal fire/action/emitThen chain.
+	// Since cypress-cli uses testIsolation:false and never uses sessions,
+	// removing this listener preserves page state across recoveries.
+	before(() => {
+		Cypress.removeAllListeners('test:before:after:run:async');
+	});
+
 	it('driver', () => {
-		const url =
-			(Cypress.env('CYPRESS_CLI_URL') as string | undefined) || '/';
+		const url = (Cypress.env('CYPRESS_CLI_URL') as string | undefined) || '/';
 		cy.visit(url);
 
 		// Inject aria snapshot IIFE

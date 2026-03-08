@@ -105,7 +105,12 @@ export function generateCypressConfig(
 	// Resolve from __dirname (either src/cypress/ or dist/cypress/) up to
 	// the project root, then into dist/cypress/driverSpec.js.
 	const projectRoot = path.resolve(__dirname, '..', '..');
-	const driverSpecPath = path.join(projectRoot, 'dist', 'cypress', 'driverSpec.js');
+	const driverSpecPath = path.join(
+		projectRoot,
+		'dist',
+		'cypress',
+		'driverSpec.js',
+	);
 
 	return {
 		e2e: {
@@ -139,9 +144,7 @@ export async function writeConfigToTemp(
 	options: LauncherOptions,
 	bridgeSocketPath?: string,
 ): Promise<string> {
-	const tempDir = await fs.mkdtemp(
-		path.join(os.tmpdir(), TEMP_DIR_PREFIX),
-	);
+	const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), TEMP_DIR_PREFIX));
 
 	const config = generateCypressConfig(options);
 
@@ -203,7 +206,9 @@ module.exports = defineConfig(staticConfig);
 function isCypressRunFailed(result: unknown): boolean {
 	if (!result) return true;
 	if (typeof result !== 'object') return true;
-	return 'status' in result && (result as { status: string }).status === 'failed';
+	return (
+		'status' in result && (result as { status: string }).status === 'failed'
+	);
 }
 
 /**
@@ -225,9 +230,7 @@ export async function launchCypressRun(
 	// Start a queue bridge server so the Cypress config subprocess can
 	// access the in-memory command queue via IPC.
 	const pollTimeout = options.pluginOptions?.pollTimeout ?? 110_000;
-	const tempDir = await fs.mkdtemp(
-		path.join(os.tmpdir(), TEMP_DIR_PREFIX),
-	);
+	const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), TEMP_DIR_PREFIX));
 	const bridgeSocketPath = path.join(tempDir, 'queue-bridge.sock');
 	const bridge = new QueueBridge(bridgeSocketPath, options.queue, pollTimeout);
 	await bridge.start();
@@ -278,9 +281,7 @@ export async function launchCypressOpen(
 	const cypress = await import('cypress');
 
 	const pollTimeout = options.pluginOptions?.pollTimeout ?? 110_000;
-	const tempDir = await fs.mkdtemp(
-		path.join(os.tmpdir(), TEMP_DIR_PREFIX),
-	);
+	const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), TEMP_DIR_PREFIX));
 	const bridgeSocketPath = path.join(tempDir, 'queue-bridge.sock');
 	const bridge = new QueueBridge(bridgeSocketPath, options.queue, pollTimeout);
 	await bridge.start();
