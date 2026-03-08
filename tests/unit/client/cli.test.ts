@@ -230,7 +230,7 @@ describe('formatResult', () => {
 			success: true,
 			result: {
 				snapshot: '- heading "Title"',
-				filePath: '.cypress-cli/page-2026-03-07T19-22-42-679Z.yml',
+				snapshotFilePath: '.cypress-cli/page-2026-03-07T19-22-42-679Z.yml',
 			},
 		};
 		const output = formatResult(result, false);
@@ -238,13 +238,13 @@ describe('formatResult', () => {
 		expect(output).toContain('.cypress-cli/page-2026-03-07T19-22-42-679Z.yml');
 	});
 
-	it('displays snapshot, cypressCommand, and filePath together', () => {
+	it('displays snapshot, cypressCommand, and snapshotFilePath together', () => {
 		const result: ClientResult = {
 			success: true,
 			result: {
 				snapshot: '- button "Go"',
 				cypressCommand: "cy.get('#go').click()",
-				filePath: '.cypress-cli/page-2026-03-07.yml',
+				snapshotFilePath: '.cypress-cli/page-2026-03-07.yml',
 			},
 		};
 		const output = formatResult(result, false);

@@ -42,7 +42,7 @@ const DEFAULT_IDLE_TIMEOUT = 30_000;
  * nominally "running". This prevents detached daemons from being orphaned.
  * 0 means no inactivity auto-exit.
  */
-const DEFAULT_SESSION_INACTIVITY_TIMEOUT = 1_800_000; // 30 minutes
+const DEFAULT_SESSION_INACTIVITY_TIMEOUT = 0; // disabled by default
 
 /**
  * Subdirectory under the runtime dir for socket files.
@@ -454,7 +454,7 @@ export class Daemon {
 								cypressCommand: result.cypressCommand,
 							}),
 							...(snapshotFile !== undefined && {
-								filePath: snapshotFile,
+								snapshotFilePath: snapshotFile,
 							}),
 						},
 					};
@@ -686,10 +686,30 @@ export class Daemon {
 		snapshot: string,
 		filename?: string,
 	): Promise<string> {
-		await fs.mkdir(this._snapshotDir, { recursive: true });
+		const baseDir = path.resolve(this._snapshotDir);
 		const name =
 			filename ?? `page-${new Date().toISOString().replace(/[:.]/g, '-')}.yml`;
-		const filePath = path.resolve(this._snapshotDir, name);
+
+		// Reject absolute paths in filename to prevent escaping snapshotDir
+		if (path.isAbsolute(name)) {
+			throw new Error(
+				`Invalid snapshot filename "${name}": absolute paths are not allowed`,
+			);
+		}
+
+		const filePath = path.resolve(baseDir, name);
+
+		// Reject path traversal (e.g. "../outside/file.yml") using path.relative
+		// to avoid platform-specific separator normalization issues.
+		const relative = path.relative(baseDir, filePath);
+		if (relative.startsWith('..') || path.isAbsolute(relative)) {
+			throw new Error(
+				`Invalid snapshot filename "${name}": path traversal is not allowed`,
+			);
+		}
+
+		// Ensure the directory for the resolved path exists (handles nested filenames)
+		await fs.mkdir(path.dirname(filePath), { recursive: true });
 		await fs.writeFile(filePath, snapshot, 'utf-8');
 		return path.relative(process.cwd(), filePath);
 	}

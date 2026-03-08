@@ -244,7 +244,8 @@ type CommandResponse = {
 	error?: string; // Error message if command failed
 	selector?: string; // Resolved selector (for codegen tracking)
 	cypressCommand?: string; // The Cypress command that was executed (for inline codegen)
-	filePath?: string; // Relative path to snapshot YAML file on disk
+	snapshotFilePath?: string; // Relative path to snapshot YAML file on disk (snapshot/action commands)
+	filePath?: string; // Relative path to generated test file on disk (export command only)
 	status?: string; // Session status for status command
 	sessionId?: string;
 	url?: string;
