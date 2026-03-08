@@ -189,6 +189,27 @@ describe('command schemas', () => {
 			expect(withDiff.success).toBe(true);
 		});
 
+		it('snapshot filename option is optional string', () => {
+			const noFilename = snapshot.options.safeParse({});
+			expect(noFilename.success).toBe(true);
+
+			const withFilename = snapshot.options.safeParse({
+				filename: 'custom.yml',
+			});
+			expect(withFilename.success).toBe(true);
+			if (withFilename.success) {
+				expect(withFilename.data.filename).toBe('custom.yml');
+			}
+		});
+
+		it('open snapshot-dir option is optional string', () => {
+			const noDir = open.options.safeParse({});
+			expect(noDir.success).toBe(true);
+
+			const withDir = open.options.safeParse({ 'snapshot-dir': '/tmp/snaps' });
+			expect(withDir.success).toBe(true);
+		});
+
 		it('wait requires ms as a number', () => {
 			const good = wait.args.safeParse({ ms: 1000 });
 			expect(good.success).toBe(true);

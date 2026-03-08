@@ -26,6 +26,8 @@ export interface DaemonProcessOptions {
 	socketDir?: string;
 	sessionsDir?: string;
 	idleTimeout?: number;
+	sessionInactivityTimeout?: number;
+	snapshotDir?: string;
 }
 
 /**
@@ -43,6 +45,8 @@ export function parseDaemonProcessArgs(argv: string[]): DaemonProcessOptions {
 			'socket-dir',
 			'sessions-dir',
 			'idle-timeout',
+			'session-inactivity-timeout',
+			'snapshot-dir',
 		],
 		alias: {
 			s: 'session',
@@ -81,6 +85,22 @@ export function parseDaemonProcessArgs(argv: string[]): DaemonProcessOptions {
 			}
 			return parsedValue;
 		})(),
+		sessionInactivityTimeout: (() => {
+			if (typeof parsed['session-inactivity-timeout'] !== 'string') {
+				return undefined;
+			}
+			const parsedValue = Number(parsed['session-inactivity-timeout']);
+			if (!Number.isFinite(parsedValue)) {
+				throw new Error(
+					`Invalid --session-inactivity-timeout value "${parsed['session-inactivity-timeout']}": must be a finite number.`,
+				);
+			}
+			return parsedValue;
+		})(),
+		snapshotDir:
+			typeof parsed['snapshot-dir'] === 'string'
+				? parsed['snapshot-dir']
+				: undefined,
 	};
 }
 
@@ -96,6 +116,8 @@ export async function runDaemonProcess(
 		sessionId: options.session,
 		socketDir: options.socketDir,
 		idleTimeout: options.idleTimeout,
+		sessionInactivityTimeout: options.sessionInactivityTimeout,
+		snapshotDir: options.snapshotDir,
 	});
 	let session: Session | undefined;
 	let hasStopped = false;

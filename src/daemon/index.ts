@@ -60,6 +60,8 @@ export {
 	Daemon,
 	DaemonError,
 	resolveSocketDir,
+	isSocketAlive,
+	cleanStaleSockets,
 	type DaemonOptions,
 } from './daemon.js';
 export {

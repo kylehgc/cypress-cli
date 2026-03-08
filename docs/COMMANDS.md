@@ -32,12 +32,12 @@ matching minimist's parsing convention.
 
 ### Core
 
-| Command    | Syntax                             | Description                                      |
-| ---------- | ---------------------------------- | ------------------------------------------------ |
-| `open`     | `cypress-cli open [url] [options]` | Start or reuse a session, launch Cypress, and navigate to URL |
-| `stop`     | `cypress-cli stop`                 | Stop the current session                         |
-| `status`   | `cypress-cli status`               | Check if a session is running and return session metadata |
-| `snapshot` | `cypress-cli snapshot [--diff]`    | Get current aria snapshot                        |
+| Command    | Syntax                                            | Description                                                   |
+| ---------- | ------------------------------------------------- | ------------------------------------------------------------- |
+| `open`     | `cypress-cli open [url] [options]`                | Start or reuse a session, launch Cypress, and navigate to URL |
+| `stop`     | `cypress-cli stop`                                | Stop the current session                                      |
+| `status`   | `cypress-cli status`                              | Check if a session is running and return session metadata     |
+| `snapshot` | `cypress-cli snapshot [--diff] [--filename path]` | Get current aria snapshot                                     |
 
 ### Navigation
 
@@ -81,11 +81,11 @@ matching minimist's parsing convention.
 
 ### Export
 
-| Command   | Syntax                             | Description                                |
-| --------- | ---------------------------------- | ------------------------------------------ |
-| `export`  | `cypress-cli export [--file path] [--format ts\|js] [--describe name] [--it name] [--baseUrl url]` | Export commands as a Cypress test file |
-| `history` | `cypress-cli history`              | List all commands executed in this session |
-| `undo`    | `cypress-cli undo`                 | Remove last command from export history    |
+| Command   | Syntax                                                                                             | Description                                |
+| --------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `export`  | `cypress-cli export [--file path] [--format ts\|js] [--describe name] [--it name] [--baseUrl url]` | Export commands as a Cypress test file     |
+| `history` | `cypress-cli history`                                                                              | List all commands executed in this session |
+| `undo`    | `cypress-cli undo`                                                                                 | Remove last command from export history    |
 
 ### Wait
 
@@ -243,8 +243,8 @@ type CommandResponse = {
 	snapshot?: string; // YAML aria snapshot (always included unless error)
 	error?: string; // Error message if command failed
 	selector?: string; // Resolved selector (for codegen tracking)
-	cypressCommand?: string; // The Cypress command that was executed (for codegen)
-	filePath?: string; // Path written by export --file
+	cypressCommand?: string; // The Cypress command that was executed (for inline codegen)
+	filePath?: string; // Relative path to snapshot YAML file on disk
 	status?: string; // Session status for status command
 	sessionId?: string;
 	url?: string;
@@ -253,6 +253,51 @@ type CommandResponse = {
 };
 ```
 
+### Inline Codegen (`cypressCommand`)
+
+Every action command response includes a `cypressCommand` field containing the
+generated Cypress code for that command. This lets agents build test files
+incrementally and understand exactly which Cypress command was executed.
+
+Examples:
+
+| CLI command                    | `cypressCommand` value                            |
+| ------------------------------ | ------------------------------------------------- |
+| `click e5`                     | `cy.get('[data-cy="submit"]').click()`            |
+| `type e3 "hello"`              | `cy.get('#search').type('hello')`                 |
+| `navigate https://example.com` | `cy.visit('https://example.com')`                 |
+| `assert e5 have.text "Hello"`  | `cy.get('.heading').should('have.text', 'Hello')` |
+| `snapshot`                     | _(not included — meta-command)_                   |
+
+The selector in `cypressCommand` comes from `@cypress/unique-selector` (the
+stable selector, not the ephemeral ref). The CLI and REPL display the generated
+code after each command result:
+
+```
+# Ran Cypress code:
+#   cy.get('[data-cy="submit"]').click()
+```
+
+### Snapshot File Output (`filePath`)
+
+After every command that produces a snapshot, the daemon writes the YAML to a
+file in the snapshot directory (default: `.cypress-cli/` in the working
+directory). The response includes the relative file path:
+
+```json
+{
+	"success": true,
+	"snapshot": "- main:\n  ...",
+	"filePath": ".cypress-cli/page-2026-03-07T19-22-42-679Z.yml",
+	"cypressCommand": "cy.get('#btn').click()"
+}
+```
+
+Options:
+
+- `--snapshot-dir <path>` on `open` command to configure the output directory
+- `--filename <path>` on `snapshot` command to save to a specific file
+
 Example success response:
 
 ```json
@@ -260,7 +305,8 @@ Example success response:
 	"success": true,
 	"snapshot": "- main:\n  - heading \"Dashboard\" [level=1]\n  - text: Welcome back",
 	"selector": "[data-cy=\"submit-btn\"]",
-	"cypressCommand": "cy.get('[data-cy=\"submit-btn\"]').click()"
+	"cypressCommand": "cy.get('[data-cy=\"submit-btn\"]').click()",
+	"filePath": ".cypress-cli/page-2026-03-07T19-22-42-679Z.yml"
 }
 ```
 

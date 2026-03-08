@@ -48,10 +48,12 @@ function makeStopCommand(id: number): CommandMessage {
 
 describe('Client ↔ Daemon integration', () => {
 	let socketDir: string;
+	let snapshotDir: string;
 	let daemon: Daemon;
 
 	beforeEach(async () => {
 		socketDir = await makeTempSocketDir();
+		snapshotDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cypress-cli-snap-'));
 	});
 
 	afterEach(async () => {
@@ -59,6 +61,7 @@ describe('Client ↔ Daemon integration', () => {
 			await daemon.stop();
 		}
 		await fs.rm(socketDir, { recursive: true, force: true }).catch(() => {});
+		await fs.rm(snapshotDir, { recursive: true, force: true }).catch(() => {});
 	});
 
 	// -----------------------------------------------------------------------
@@ -70,6 +73,7 @@ describe('Client ↔ Daemon integration', () => {
 			daemon = new Daemon({
 				sessionId: 'client-stop',
 				socketDir,
+				snapshotDir,
 				idleTimeout: 0,
 			});
 			await daemon.start();
@@ -89,6 +93,7 @@ describe('Client ↔ Daemon integration', () => {
 			daemon = new Daemon({
 				sessionId: 'client-no-session',
 				socketDir,
+				snapshotDir,
 				idleTimeout: 0,
 			});
 			await daemon.start();
@@ -115,6 +120,7 @@ describe('Client ↔ Daemon integration', () => {
 			daemon = new Daemon({
 				sessionId: 'client-empty-args',
 				socketDir,
+				snapshotDir,
 				idleTimeout: 0,
 			});
 			await daemon.start();
@@ -144,6 +150,7 @@ describe('Client ↔ Daemon integration', () => {
 			daemon = new Daemon({
 				sessionId: 'client-roundtrip',
 				socketDir,
+				snapshotDir,
 				idleTimeout: 0,
 			});
 			await daemon.start();
@@ -176,7 +183,7 @@ describe('Client ↔ Daemon integration', () => {
 			});
 
 			const response = await responsePromise;
-			expect(response).toEqual({
+			expect(response).toMatchObject({
 				id: 1,
 				result: { success: true, snapshot: '- button "Login"' },
 			});
@@ -186,6 +193,7 @@ describe('Client ↔ Daemon integration', () => {
 			daemon = new Daemon({
 				sessionId: 'client-multi',
 				socketDir,
+				snapshotDir,
 				idleTimeout: 0,
 			});
 			await daemon.start();
@@ -206,7 +214,7 @@ describe('Client ↔ Daemon integration', () => {
 			expect(cmd1.action).toBe('click');
 			session.queue.reportResult({ success: true, snapshot: 'snapshot-1' });
 			const r1 = await p1;
-			expect(r1).toEqual({
+			expect(r1).toMatchObject({
 				id: 1,
 				result: { success: true, snapshot: 'snapshot-1' },
 			});
@@ -222,7 +230,7 @@ describe('Client ↔ Daemon integration', () => {
 			expect(cmd2.text).toBe('hello');
 			session.queue.reportResult({ success: true, snapshot: 'snapshot-2' });
 			const r2 = await p2;
-			expect(r2).toEqual({
+			expect(r2).toMatchObject({
 				id: 2,
 				result: { success: true, snapshot: 'snapshot-2' },
 			});
@@ -232,6 +240,7 @@ describe('Client ↔ Daemon integration', () => {
 			daemon = new Daemon({
 				sessionId: 'client-navigate',
 				socketDir,
+				snapshotDir,
 				idleTimeout: 0,
 			});
 			await daemon.start();
@@ -258,7 +267,7 @@ describe('Client ↔ Daemon integration', () => {
 
 			session.queue.reportResult({ success: true, snapshot: 'snapshot-nav' });
 			const response = await responsePromise;
-			expect(response).toEqual({
+			expect(response).toMatchObject({
 				id: 3,
 				result: { success: true, snapshot: 'snapshot-nav' },
 			});
@@ -268,6 +277,7 @@ describe('Client ↔ Daemon integration', () => {
 			daemon = new Daemon({
 				sessionId: 'client-assert',
 				socketDir,
+				snapshotDir,
 				idleTimeout: 0,
 			});
 			await daemon.start();
@@ -293,9 +303,12 @@ describe('Client ↔ Daemon integration', () => {
 			expect(command.text).toBe('submitted');
 			expect(command.options).toEqual({ chainer: 'contain' });
 
-			session.queue.reportResult({ success: true, snapshot: 'snapshot-assert' });
+			session.queue.reportResult({
+				success: true,
+				snapshot: 'snapshot-assert',
+			});
 			const response = await responsePromise;
-			expect(response).toEqual({
+			expect(response).toMatchObject({
 				id: 4,
 				result: { success: true, snapshot: 'snapshot-assert' },
 			});
@@ -305,6 +318,7 @@ describe('Client ↔ Daemon integration', () => {
 			daemon = new Daemon({
 				sessionId: 'client-status',
 				socketDir,
+				snapshotDir,
 				idleTimeout: 0,
 			});
 			await daemon.start();
@@ -324,7 +338,10 @@ describe('Client ↔ Daemon integration', () => {
 				maxRetries: 0,
 			};
 
-			const response = await sendAndReceive(makeRunCommand(5, ['status']), opts);
+			const response = await sendAndReceive(
+				makeRunCommand(5, ['status']),
+				opts,
+			);
 			expect(response).toEqual({
 				id: 5,
 				result: {

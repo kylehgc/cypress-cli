@@ -22,11 +22,7 @@ import {
 	type ResponseMessage,
 	type ErrorMessage,
 } from './protocol.js';
-import {
-	SessionMap,
-	Session,
-	type SessionConfig,
-} from './session.js';
+import { SessionMap, Session, type SessionConfig } from './session.js';
 import type { QueuedCommand, CommandResult } from './commandQueue.js';
 import { generateTestFile } from '../codegen/codegen.js';
 
@@ -39,6 +35,14 @@ import { generateTestFile } from '../codegen/codegen.js';
  * session closes. 0 means no auto-exit.
  */
 const DEFAULT_IDLE_TIMEOUT = 30_000;
+
+/**
+ * Default session inactivity timeout (in ms). The daemon auto-exits when
+ * no client sends a command within this window — even if a session is still
+ * nominally "running". This prevents detached daemons from being orphaned.
+ * 0 means no inactivity auto-exit.
+ */
+const DEFAULT_SESSION_INACTIVITY_TIMEOUT = 1_800_000; // 30 minutes
 
 /**
  * Subdirectory under the runtime dir for socket files.
@@ -57,8 +61,16 @@ export interface DaemonOptions {
 	sessionId: string;
 	/** Idle timeout in ms. Daemon exits after this duration with no sessions. 0 = no auto-exit. */
 	idleTimeout?: number;
+	/**
+	 * Session inactivity timeout in ms. Daemon auto-exits when no client
+	 * command is received within this window, even if a session is still open.
+	 * 0 = no inactivity auto-exit.
+	 */
+	sessionInactivityTimeout?: number;
 	/** Override the socket directory path (for testing). */
 	socketDir?: string;
+	/** Directory to write snapshot YAML files. Defaults to `.cypress-cli/` in cwd. */
+	snapshotDir?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -76,15 +88,22 @@ export class Daemon {
 	private _socketDir: string;
 	private _idleTimeout: number;
 	private _idleTimer: ReturnType<typeof setTimeout> | null = null;
+	private _sessionInactivityTimeout: number;
+	private _inactivityTimer: ReturnType<typeof setTimeout> | null = null;
 	private _connections = new Set<SocketConnection>();
 	private _isShuttingDown = false;
 	private _stopPromise: Promise<void> | null = null;
+	private _snapshotDir: string;
 
 	constructor(options: DaemonOptions) {
 		this._sessions = new SessionMap();
 		this._idleTimeout = options.idleTimeout ?? DEFAULT_IDLE_TIMEOUT;
+		this._sessionInactivityTimeout =
+			options.sessionInactivityTimeout ?? DEFAULT_SESSION_INACTIVITY_TIMEOUT;
 		this._socketDir = options.socketDir ?? resolveSocketDir();
 		this._socketPath = path.join(this._socketDir, `${options.sessionId}.sock`);
+		this._snapshotDir =
+			options.snapshotDir ?? path.join(process.cwd(), '.cypress-cli');
 	}
 
 	// -----------------------------------------------------------------------
@@ -142,6 +161,12 @@ export class Daemon {
 				this._idleTimer = null;
 			}
 
+			// Clear inactivity timer
+			if (this._inactivityTimer) {
+				clearTimeout(this._inactivityTimer);
+				this._inactivityTimer = null;
+			}
+
 			// Stop all sessions
 			this._sessions.stopAll();
 
@@ -183,6 +208,8 @@ export class Daemon {
 			clearTimeout(this._idleTimer);
 			this._idleTimer = null;
 		}
+		// Start or reset the inactivity timer
+		this._resetInactivityTimer();
 		return session;
 	}
 
@@ -198,6 +225,8 @@ export class Daemon {
 			clearTimeout(this._idleTimer);
 			this._idleTimer = null;
 		}
+		// Start or reset the inactivity timer
+		this._resetInactivityTimer();
 		return registered;
 	}
 
@@ -262,6 +291,13 @@ export class Daemon {
 		return this._connections.size;
 	}
 
+	/**
+	 * The snapshot output directory.
+	 */
+	get snapshotDir(): string {
+		return this._snapshotDir;
+	}
+
 	// -----------------------------------------------------------------------
 	// Connection handling
 	// -----------------------------------------------------------------------
@@ -272,6 +308,7 @@ export class Daemon {
 	private _handleConnection(socket: net.Socket): void {
 		const conn = new SocketConnection(socket);
 		this._connections.add(conn);
+		this._touchActivity();
 
 		conn.onMessage((message: ProtocolMessage) => {
 			this._handleMessage(conn, message);
@@ -294,6 +331,7 @@ export class Daemon {
 		conn: SocketConnection,
 		message: ProtocolMessage,
 	): void {
+		this._touchActivity();
 		// Only handle command messages from clients
 		if (!('method' in message)) {
 			return;
@@ -374,15 +412,29 @@ export class Daemon {
 			return;
 		}
 
+		const snapshotFilename =
+			typeof command.options?.['filename'] === 'string'
+				? command.options['filename']
+				: undefined;
+
 		try {
 			session
 				.enqueueCommand(command)
-				.then((result: CommandResult) => {
+				.then(async (result: CommandResult) => {
 					// Client may have disconnected while the command was running
 					if (conn.isClosed) return;
 
 					// Record in history
 					session.recordHistory(command, result);
+
+					// Write snapshot to file if present
+					let snapshotFile: string | undefined;
+					if (result.snapshot) {
+						snapshotFile = await this._writeSnapshotFile(
+							result.snapshot,
+							snapshotFilename,
+						);
+					}
 
 					// Send result back to client
 					const response: ResponseMessage = {
@@ -400,6 +452,9 @@ export class Daemon {
 							}),
 							...(result.cypressCommand !== undefined && {
 								cypressCommand: result.cypressCommand,
+							}),
+							...(snapshotFile !== undefined && {
+								filePath: snapshotFile,
 							}),
 						},
 					};
@@ -508,8 +563,7 @@ export class Daemon {
 		if (!undone) {
 			const errorMsg: ErrorMessage = {
 				id: message.id,
-				error:
-					'Cannot undo: history is empty. Execute a command first.',
+				error: 'Cannot undo: history is empty. Execute a command first.',
 			};
 			conn.send(errorMsg);
 			return;
@@ -617,6 +671,30 @@ export class Daemon {
 	}
 
 	// -----------------------------------------------------------------------
+	// Snapshot file output
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Write a snapshot YAML string to a file in the snapshot directory.
+	 *
+	 * @param snapshot - The YAML snapshot content
+	 * @param filename - Optional explicit filename; if not provided, generates
+	 *   `page-<ISO-timestamp>.yml`
+	 * @returns The relative file path of the written snapshot
+	 */
+	private async _writeSnapshotFile(
+		snapshot: string,
+		filename?: string,
+	): Promise<string> {
+		await fs.mkdir(this._snapshotDir, { recursive: true });
+		const name =
+			filename ?? `page-${new Date().toISOString().replace(/[:.]/g, '-')}.yml`;
+		const filePath = path.resolve(this._snapshotDir, name);
+		await fs.writeFile(filePath, snapshot, 'utf-8');
+		return path.relative(process.cwd(), filePath);
+	}
+
+	// -----------------------------------------------------------------------
 	// Idle timer
 	// -----------------------------------------------------------------------
 
@@ -632,6 +710,37 @@ export class Daemon {
 				});
 			}
 		}, this._idleTimeout);
+	}
+
+	// -----------------------------------------------------------------------
+	// Session inactivity timer
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Record client activity and reset the inactivity timer.
+	 * Called on every new connection and every incoming message.
+	 */
+	private _touchActivity(): void {
+		this._resetInactivityTimer();
+	}
+
+	/**
+	 * (Re)start the inactivity timer. When it fires, the daemon auto-exits
+	 * to prevent orphaned processes when the CLI client is gone.
+	 */
+	private _resetInactivityTimer(): void {
+		if (this._sessionInactivityTimeout <= 0) {
+			return;
+		}
+		if (this._inactivityTimer) {
+			clearTimeout(this._inactivityTimer);
+			this._inactivityTimer = null;
+		}
+		this._inactivityTimer = setTimeout(() => {
+			this.stop().catch(() => {
+				// Best-effort shutdown
+			});
+		}, this._sessionInactivityTimeout);
 	}
 
 	// -----------------------------------------------------------------------
@@ -917,6 +1026,64 @@ export function resolveSocketDir(): string {
 	}
 	const tmpdir = process.env['TMPDIR'] || os.tmpdir();
 	return path.join(tmpdir, SOCKET_DIR_NAME);
+}
+
+/**
+ * Test whether something is listening on a Unix socket.
+ *
+ * @param socketPath - Absolute path to the socket file
+ * @returns `true` if a connection was established (socket is alive)
+ */
+export function isSocketAlive(socketPath: string): Promise<boolean> {
+	return new Promise<boolean>((resolve) => {
+		const client = net.createConnection(socketPath);
+		client.on('connect', () => {
+			client.destroy();
+			resolve(true);
+		});
+		client.on('error', () => {
+			resolve(false);
+		});
+	});
+}
+
+/**
+ * Scan the socket directory for stale `.sock` files left behind by dead
+ * daemons and remove them. Live sockets (where a daemon is still listening)
+ * are left untouched.
+ *
+ * @param socketDir - Override socket directory (for testing). Defaults to the
+ *   standard runtime directory.
+ * @returns Session IDs whose stale sockets were cleaned up
+ */
+export async function cleanStaleSockets(socketDir?: string): Promise<string[]> {
+	const dir = socketDir ?? resolveSocketDir();
+	const cleaned: string[] = [];
+
+	let entries: string[];
+	try {
+		entries = await fs.readdir(dir);
+	} catch {
+		// Directory may not exist yet — nothing to clean
+		return cleaned;
+	}
+
+	for (const entry of entries) {
+		if (!entry.endsWith('.sock')) continue;
+		const fullPath = path.join(dir, entry);
+
+		const alive = await isSocketAlive(fullPath);
+		if (!alive) {
+			try {
+				await fs.unlink(fullPath);
+				cleaned.push(entry.replace('.sock', ''));
+			} catch {
+				// Best-effort — ignore errors on individual files
+			}
+		}
+	}
+
+	return cleaned;
 }
 
 // ---------------------------------------------------------------------------
