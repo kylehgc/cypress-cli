@@ -200,15 +200,49 @@ describe('generateAriaTree + renderAriaTree', () => {
   });
 
   it('renders unchanged ref nodes as [unchanged] in diff', () => {
-    document.body.innerHTML = '<button>Stay</button><button>Change</button>';
+    document.body.innerHTML = '<button>Stay</button>';
     const prev = generateAriaTree(document.body, { mode: 'ai' });
 
-    // Modify in-place so DOM elements (and their cached refs) persist
-    document.querySelectorAll('button')[1].textContent = 'Changed';
+    // Add a new element; the parent subtree is "changed" while "Stay" is stable.
+    const added = document.createElement('button');
+    added.textContent = 'Added';
+    document.body.appendChild(added);
     const curr = generateAriaTree(document.body, { mode: 'ai' });
 
     const yaml = renderAriaTree(curr, { mode: 'ai' }, prev);
     expect(yaml).toContain('[unchanged]');
+  });
+
+  it('resets ref counter on each generateAriaTree call', () => {
+    document.body.innerHTML = '<a href="#">Link</a><button>Btn</button>';
+    const snap1 = generateAriaTree(document.body, { mode: 'ai' });
+    const refs1 = [...snap1.elements.keys()];
+
+    // Second call on the same DOM should produce the same low-numbered refs
+    const snap2 = generateAriaTree(document.body, { mode: 'ai' });
+    const refs2 = [...snap2.elements.keys()];
+
+    expect(refs1).toEqual(refs2);
+    // All refs should be low-numbered (e1, e2, etc.)
+    for (const ref of refs1) {
+      const num = parseInt(ref.replace(/^e/, ''), 10);
+      expect(num).toBeLessThanOrEqual(refs1.length);
+    }
+  });
+
+  it('produces consistent low-numbered refs across many snapshots', () => {
+    document.body.innerHTML = '<button>A</button><button>B</button><button>C</button>';
+    // Simulate many sequential snapshots (like a long REPL session)
+    for (let i = 0; i < 50; i++) {
+      generateAriaTree(document.body, { mode: 'ai' });
+    }
+    const snap = generateAriaTree(document.body, { mode: 'ai' });
+    const refs = [...snap.elements.keys()];
+    // After 50+ calls, refs should still be low-numbered, not e150+
+    for (const ref of refs) {
+      const num = parseInt(ref.replace(/^e/, ''), 10);
+      expect(num).toBeLessThanOrEqual(refs.length);
+    }
   });
 });
 

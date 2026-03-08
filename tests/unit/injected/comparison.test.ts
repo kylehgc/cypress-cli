@@ -240,11 +240,13 @@ describe('incremental diff via renderAriaTree', () => {
   });
 
   it('unchanged subtrees with refs collapse to [unchanged]', () => {
-    document.body.innerHTML = '<button>Stable</button><button>Will change</button>';
+    document.body.innerHTML = '<button>Stable</button>';
     const prev = generateAriaTree(document.body, { mode: 'ai' });
 
-    // Modify in-place so DOM elements (and their cached refs) persist
-    document.querySelectorAll('button')[1].textContent = 'Changed now';
+    // Add a new element; the parent subtree is "changed" while "Stable" is stable.
+    const added = document.createElement('button');
+    added.textContent = 'Added';
+    document.body.appendChild(added);
     const curr = generateAriaTree(document.body, { mode: 'ai' });
 
     const yaml = renderAriaTree(curr, { mode: 'ai' }, prev);
