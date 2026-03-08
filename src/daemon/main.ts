@@ -27,6 +27,7 @@ export interface DaemonProcessOptions {
 	sessionsDir?: string;
 	idleTimeout?: number;
 	sessionInactivityTimeout?: number;
+	snapshotDir?: string;
 }
 
 /**
@@ -45,6 +46,7 @@ export function parseDaemonProcessArgs(argv: string[]): DaemonProcessOptions {
 			'sessions-dir',
 			'idle-timeout',
 			'session-inactivity-timeout',
+			'snapshot-dir',
 		],
 		alias: {
 			s: 'session',
@@ -95,6 +97,10 @@ export function parseDaemonProcessArgs(argv: string[]): DaemonProcessOptions {
 			}
 			return parsedValue;
 		})(),
+		snapshotDir:
+			typeof parsed['snapshot-dir'] === 'string'
+				? parsed['snapshot-dir']
+				: undefined,
 	};
 }
 
@@ -111,6 +117,7 @@ export async function runDaemonProcess(
 		socketDir: options.socketDir,
 		idleTimeout: options.idleTimeout,
 		sessionInactivityTimeout: options.sessionInactivityTimeout,
+		snapshotDir: options.snapshotDir,
 	});
 	let session: Session | undefined;
 	let hasStopped = false;

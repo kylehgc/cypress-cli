@@ -17,7 +17,8 @@ import type { ClientResult } from '../../../src/client/session.js';
 // ---------------------------------------------------------------------------
 
 vi.mock('../../../src/client/session.js', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('../../../src/client/session.js')>();
+	const actual =
+		await importOriginal<typeof import('../../../src/client/session.js')>();
 	return {
 		...actual,
 		ClientSession: vi.fn().mockImplementation(() => ({
@@ -42,7 +43,12 @@ describe('parseGlobalFlags', () => {
 	});
 
 	it('parses --session flag with value', () => {
-		const { flags } = parseGlobalFlags(['--session', 'my-session', 'click', 'e1']);
+		const { flags } = parseGlobalFlags([
+			'--session',
+			'my-session',
+			'click',
+			'e1',
+		]);
 		expect(flags.session).toBe('my-session');
 	});
 
@@ -187,7 +193,9 @@ describe('formatResult', () => {
 			success: true,
 			result: { testFile: "describe('generated', () => {});" },
 		};
-		expect(formatResult(result, false)).toBe("describe('generated', () => {});");
+		expect(formatResult(result, false)).toBe(
+			"describe('generated', () => {});",
+		);
 	});
 
 	it('returns the written file path when export writes to disk', () => {
@@ -201,6 +209,64 @@ describe('formatResult', () => {
 		expect(formatResult(result, false)).toBe(
 			'Wrote test file: generated/example.cy.ts',
 		);
+	});
+
+	it('displays cypressCommand after snapshot', () => {
+		const result: ClientResult = {
+			success: true,
+			result: {
+				snapshot: '- button "Submit"',
+				cypressCommand: "cy.get('#btn').click()",
+			},
+		};
+		const output = formatResult(result, false);
+		expect(output).toContain('- button "Submit"');
+		expect(output).toContain('# Ran Cypress code:');
+		expect(output).toContain("cy.get('#btn').click()");
+	});
+
+	it('displays snapshot file path', () => {
+		const result: ClientResult = {
+			success: true,
+			result: {
+				snapshot: '- heading "Title"',
+				snapshotFilePath: '.cypress-cli/page-2026-03-07T19-22-42-679Z.yml',
+			},
+		};
+		const output = formatResult(result, false);
+		expect(output).toContain('Snapshot saved to:');
+		expect(output).toContain('.cypress-cli/page-2026-03-07T19-22-42-679Z.yml');
+	});
+
+	it('displays snapshot, cypressCommand, and snapshotFilePath together', () => {
+		const result: ClientResult = {
+			success: true,
+			result: {
+				snapshot: '- button "Go"',
+				cypressCommand: "cy.get('#go').click()",
+				snapshotFilePath: '.cypress-cli/page-2026-03-07.yml',
+			},
+		};
+		const output = formatResult(result, false);
+		const lines = output.split('\n');
+		// Snapshot comes first
+		expect(lines[0]).toBe('- button "Go"');
+		// Then generated code comment
+		expect(output).toContain("cy.get('#go').click()");
+		// Then file path
+		expect(output).toContain('.cypress-cli/page-2026-03-07.yml');
+	});
+
+	it('does not show cypressCommand for snapshot-only commands (no code)', () => {
+		const result: ClientResult = {
+			success: true,
+			result: {
+				snapshot: '- main',
+			},
+		};
+		const output = formatResult(result, false);
+		expect(output).toBe('- main');
+		expect(output).not.toContain('Ran Cypress code');
 	});
 });
 

@@ -22,11 +22,7 @@ import {
 	type ResponseMessage,
 	type ErrorMessage,
 } from './protocol.js';
-import {
-	SessionMap,
-	Session,
-	type SessionConfig,
-} from './session.js';
+import { SessionMap, Session, type SessionConfig } from './session.js';
 import type { QueuedCommand, CommandResult } from './commandQueue.js';
 import { generateTestFile } from '../codegen/codegen.js';
 
@@ -46,7 +42,7 @@ const DEFAULT_IDLE_TIMEOUT = 30_000;
  * nominally "running". This prevents detached daemons from being orphaned.
  * 0 means no inactivity auto-exit.
  */
-const DEFAULT_SESSION_INACTIVITY_TIMEOUT = 1_800_000; // 30 minutes
+const DEFAULT_SESSION_INACTIVITY_TIMEOUT = 0; // disabled by default
 
 /**
  * Subdirectory under the runtime dir for socket files.
@@ -73,6 +69,8 @@ export interface DaemonOptions {
 	sessionInactivityTimeout?: number;
 	/** Override the socket directory path (for testing). */
 	socketDir?: string;
+	/** Directory to write snapshot YAML files. Defaults to `.cypress-cli/` in cwd. */
+	snapshotDir?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -95,6 +93,7 @@ export class Daemon {
 	private _connections = new Set<SocketConnection>();
 	private _isShuttingDown = false;
 	private _stopPromise: Promise<void> | null = null;
+	private _snapshotDir: string;
 
 	constructor(options: DaemonOptions) {
 		this._sessions = new SessionMap();
@@ -103,6 +102,8 @@ export class Daemon {
 			options.sessionInactivityTimeout ?? DEFAULT_SESSION_INACTIVITY_TIMEOUT;
 		this._socketDir = options.socketDir ?? resolveSocketDir();
 		this._socketPath = path.join(this._socketDir, `${options.sessionId}.sock`);
+		this._snapshotDir =
+			options.snapshotDir ?? path.join(process.cwd(), '.cypress-cli');
 	}
 
 	// -----------------------------------------------------------------------
@@ -290,6 +291,13 @@ export class Daemon {
 		return this._connections.size;
 	}
 
+	/**
+	 * The snapshot output directory.
+	 */
+	get snapshotDir(): string {
+		return this._snapshotDir;
+	}
+
 	// -----------------------------------------------------------------------
 	// Connection handling
 	// -----------------------------------------------------------------------
@@ -404,15 +412,29 @@ export class Daemon {
 			return;
 		}
 
+		const snapshotFilename =
+			typeof command.options?.['filename'] === 'string'
+				? command.options['filename']
+				: undefined;
+
 		try {
 			session
 				.enqueueCommand(command)
-				.then((result: CommandResult) => {
+				.then(async (result: CommandResult) => {
 					// Client may have disconnected while the command was running
 					if (conn.isClosed) return;
 
 					// Record in history
 					session.recordHistory(command, result);
+
+					// Write snapshot to file if present
+					let snapshotFile: string | undefined;
+					if (result.snapshot) {
+						snapshotFile = await this._writeSnapshotFile(
+							result.snapshot,
+							snapshotFilename,
+						);
+					}
 
 					// Send result back to client
 					const response: ResponseMessage = {
@@ -430,6 +452,9 @@ export class Daemon {
 							}),
 							...(result.cypressCommand !== undefined && {
 								cypressCommand: result.cypressCommand,
+							}),
+							...(snapshotFile !== undefined && {
+								snapshotFilePath: snapshotFile,
 							}),
 						},
 					};
@@ -538,8 +563,7 @@ export class Daemon {
 		if (!undone) {
 			const errorMsg: ErrorMessage = {
 				id: message.id,
-				error:
-					'Cannot undo: history is empty. Execute a command first.',
+				error: 'Cannot undo: history is empty. Execute a command first.',
 			};
 			conn.send(errorMsg);
 			return;
@@ -644,6 +668,50 @@ export class Daemon {
 	private _findPrimarySession(): Session | undefined {
 		const [firstId] = this._sessions.ids;
 		return firstId ? this._sessions.get(firstId) : undefined;
+	}
+
+	// -----------------------------------------------------------------------
+	// Snapshot file output
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Write a snapshot YAML string to a file in the snapshot directory.
+	 *
+	 * @param snapshot - The YAML snapshot content
+	 * @param filename - Optional explicit filename; if not provided, generates
+	 *   `page-<ISO-timestamp>.yml`
+	 * @returns The relative file path of the written snapshot
+	 */
+	private async _writeSnapshotFile(
+		snapshot: string,
+		filename?: string,
+	): Promise<string> {
+		const baseDir = path.resolve(this._snapshotDir);
+		const name =
+			filename ?? `page-${new Date().toISOString().replace(/[:.]/g, '-')}.yml`;
+
+		// Reject absolute paths in filename to prevent escaping snapshotDir
+		if (path.isAbsolute(name)) {
+			throw new Error(
+				`Invalid snapshot filename "${name}": absolute paths are not allowed`,
+			);
+		}
+
+		const filePath = path.resolve(baseDir, name);
+
+		// Reject path traversal (e.g. "../outside/file.yml") using path.relative
+		// to avoid platform-specific separator normalization issues.
+		const relative = path.relative(baseDir, filePath);
+		if (relative.startsWith('..') || path.isAbsolute(relative)) {
+			throw new Error(
+				`Invalid snapshot filename "${name}": path traversal is not allowed`,
+			);
+		}
+
+		// Ensure the directory for the resolved path exists (handles nested filenames)
+		await fs.mkdir(path.dirname(filePath), { recursive: true });
+		await fs.writeFile(filePath, snapshot, 'utf-8');
+		return path.relative(process.cwd(), filePath);
 	}
 
 	// -----------------------------------------------------------------------

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import net from 'node:net';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -229,64 +229,68 @@ describe('Daemon', () => {
 	// -----------------------------------------------------------------------
 
 	describe('session inactivity timeout', () => {
+		afterEach(() => {
+			vi.useRealTimers();
+		});
+
 		it('shuts down after inactivity timeout with no client activity', async () => {
+			vi.useFakeTimers();
 			daemon = new Daemon({
 				sessionId: 'test-inactivity',
 				socketDir,
 				idleTimeout: 0,
-				sessionInactivityTimeout: 100, // 100ms for testing
+				sessionInactivityTimeout: 5000,
 			});
 
 			await daemon.start();
 			daemon.createSession({ id: 'active-session' });
 
-			// Wait for inactivity timeout to fire
-			await new Promise((r) => setTimeout(r, 200));
+			await vi.advanceTimersByTimeAsync(5001);
 			expect(daemon.isShuttingDown).toBe(true);
 		});
 
 		it('resets inactivity timer on client connection', async () => {
+			vi.useFakeTimers();
 			daemon = new Daemon({
 				sessionId: 'test-inactivity-reset',
 				socketDir,
 				idleTimeout: 0,
-				sessionInactivityTimeout: 200,
+				sessionInactivityTimeout: 5000,
 			});
 
 			await daemon.start();
 			daemon.createSession({ id: 'my-session' });
 
-			// Connect a client before timeout fires (resets timer)
-			await new Promise((r) => setTimeout(r, 100));
-			const client = await connectClient(daemon.socketPath);
-			await new Promise((r) => setTimeout(r, 50));
-			client.close();
-
-			// Shortly after connection, daemon should still be alive
-			await new Promise((r) => setTimeout(r, 50));
+			// Advance time partway through the timeout window
+			await vi.advanceTimersByTimeAsync(2000);
 			expect(daemon.isShuttingDown).toBe(false);
 
-			// Wait for the reset inactivity timer to fire
-			await new Promise((r) => setTimeout(r, 250));
+			// Connect a client — this resets the inactivity timer
+			const client = await connectClient(daemon.socketPath);
+			client.close();
+
+			// Advance past the reset timer (5001ms since reset): timer should fire
+			await vi.advanceTimersByTimeAsync(5001);
 			expect(daemon.isShuttingDown).toBe(true);
 		});
 
 		it('resets inactivity timer on incoming message', async () => {
+			vi.useFakeTimers();
 			daemon = new Daemon({
 				sessionId: 'test-inactivity-msg',
 				socketDir,
 				idleTimeout: 0,
-				sessionInactivityTimeout: 150,
+				sessionInactivityTimeout: 5000,
 			});
 
 			await daemon.start();
 			const session = daemon.createSession({ id: 'msg-session' });
 			session.transition('running');
 
-			// Connect and send a message before timeout fires
-			await new Promise((r) => setTimeout(r, 100));
+			// Advance time partway through the timeout window
+			await vi.advanceTimersByTimeAsync(2000);
+
 			const client = await connectClient(daemon.socketPath);
-			await new Promise((r) => setTimeout(r, 10));
 
 			const statusCmd: CommandMessage = {
 				id: 1,
@@ -294,17 +298,19 @@ describe('Daemon', () => {
 				params: { args: { _: ['status'] } },
 			};
 			client.send(statusCmd);
-			await new Promise((r) => setTimeout(r, 50));
+
+			// Advance a small amount to let the message be processed and reset the timer
+			await vi.advanceTimersByTimeAsync(100);
 			client.close();
 
-			// Wait past original timeout, but not past reset
-			await new Promise((r) => setTimeout(r, 50));
+			// Daemon should still be alive (timer reset by message)
 			expect(daemon.isShuttingDown).toBe(false);
 
 			await daemon.stop();
 		});
 
 		it('does not set inactivity timer when sessionInactivityTimeout is 0', async () => {
+			vi.useFakeTimers();
 			daemon = new Daemon({
 				sessionId: 'test-no-inactivity',
 				socketDir,
@@ -315,7 +321,7 @@ describe('Daemon', () => {
 			await daemon.start();
 			daemon.createSession({ id: 'persistent-session' });
 
-			await new Promise((r) => setTimeout(r, 100));
+			await vi.advanceTimersByTimeAsync(10_000);
 			expect(daemon.isShuttingDown).toBe(false);
 
 			await daemon.stop();
@@ -488,7 +494,11 @@ describe('Daemon', () => {
 			);
 			session.recordHistory(
 				{ id: 2, action: 'click', ref: 'e5' },
-				{ success: true, selector: '#btn', cypressCommand: "cy.get('#btn').click()" },
+				{
+					success: true,
+					selector: '#btn',
+					cypressCommand: "cy.get('#btn').click()",
+				},
 			);
 
 			const client = await connectClient(daemon.socketPath);
@@ -666,7 +676,12 @@ describe('isSocketAlive', () => {
 	});
 
 	it('returns true for a live daemon socket', async () => {
-		daemon = new Daemon({ sessionId: 'alive-test', socketDir, idleTimeout: 0, sessionInactivityTimeout: 0 });
+		daemon = new Daemon({
+			sessionId: 'alive-test',
+			socketDir,
+			idleTimeout: 0,
+			sessionInactivityTimeout: 0,
+		});
 		await daemon.start();
 		expect(await isSocketAlive(daemon.socketPath)).toBe(true);
 	});
@@ -716,7 +731,12 @@ describe('cleanStaleSockets', () => {
 	});
 
 	it('preserves live sockets', async () => {
-		daemon = new Daemon({ sessionId: 'live', socketDir, idleTimeout: 0, sessionInactivityTimeout: 0 });
+		daemon = new Daemon({
+			sessionId: 'live',
+			socketDir,
+			idleTimeout: 0,
+			sessionInactivityTimeout: 0,
+		});
 		await daemon.start();
 
 		// Add a stale socket alongside the live one
@@ -732,7 +752,9 @@ describe('cleanStaleSockets', () => {
 	});
 
 	it('returns empty array when socket directory does not exist', async () => {
-		const cleaned = await cleanStaleSockets('/tmp/nonexistent-cypress-cli-test-dir');
+		const cleaned = await cleanStaleSockets(
+			'/tmp/nonexistent-cypress-cli-test-dir',
+		);
 		expect(cleaned).toEqual([]);
 	});
 
@@ -746,5 +768,154 @@ describe('cleanStaleSockets', () => {
 		// Non-sock file should still exist
 		const entries = await fs.readdir(socketDir);
 		expect(entries).toContain('readme.txt');
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Snapshot-to-file (Issue #45)
+// ---------------------------------------------------------------------------
+
+describe('Daemon snapshotDir', () => {
+	let socketDir: string;
+	let snapshotDir: string;
+	let daemon: Daemon;
+
+	beforeEach(async () => {
+		socketDir = await makeTempSocketDir();
+		snapshotDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cypress-cli-snap-'));
+	});
+
+	afterEach(async () => {
+		if (daemon) {
+			await daemon.stop();
+		}
+		await fs.rm(socketDir, { recursive: true, force: true }).catch(() => {});
+		await fs.rm(snapshotDir, { recursive: true, force: true }).catch(() => {});
+	});
+
+	it('defaults snapshotDir to .cypress-cli/ in cwd', () => {
+		daemon = new Daemon({
+			sessionId: 'snap-default',
+			socketDir,
+			idleTimeout: 0,
+		});
+		expect(daemon.snapshotDir).toBe(path.join(process.cwd(), '.cypress-cli'));
+	});
+
+	it('uses custom snapshotDir when provided', () => {
+		daemon = new Daemon({
+			sessionId: 'snap-custom',
+			socketDir,
+			idleTimeout: 0,
+			snapshotDir,
+		});
+		expect(daemon.snapshotDir).toBe(snapshotDir);
+	});
+
+	it('writes snapshot file and includes snapshotFilePath in response', async () => {
+		daemon = new Daemon({
+			sessionId: 'snap-write',
+			socketDir,
+			idleTimeout: 0,
+			snapshotDir,
+		});
+
+		await daemon.start();
+		const session = daemon.createSession({ id: 'snap-session' });
+		session.transition('running');
+
+		const client = await connectClient(daemon.socketPath);
+
+		// Enqueue a command that will produce a result with a snapshot
+		const clickCmd: CommandMessage = {
+			id: 1,
+			method: 'run',
+			params: { args: { _: ['click', 'e5'] } },
+		};
+		client.send(clickCmd);
+
+		// Simulate Cypress plugin side: dequeue the command, then report result
+		const command = await session.queue.dequeue();
+		expect(command.action).toBe('click');
+		session.queue.reportResult({
+			success: true,
+			snapshot: '- button "Submit"',
+			selector: '#btn',
+			cypressCommand: "cy.get('#btn').click()",
+		});
+
+		const response = await new Promise<Record<string, unknown>>((resolve) => {
+			client.onMessage((msg) => {
+				resolve(msg as Record<string, unknown>);
+			});
+		});
+
+		const result = response['result'] as Record<string, unknown>;
+		expect(result['success']).toBe(true);
+		expect(result['snapshot']).toBe('- button "Submit"');
+		expect(result['cypressCommand']).toBe("cy.get('#btn').click()");
+		expect(typeof result['snapshotFilePath']).toBe('string');
+
+		// Verify the file was actually written
+		const snapFiles = await fs.readdir(snapshotDir);
+		expect(snapFiles.length).toBe(1);
+		expect(snapFiles[0]).toMatch(/^page-.*\.yml$/);
+
+		const content = await fs.readFile(
+			path.join(snapshotDir, snapFiles[0]),
+			'utf-8',
+		);
+		expect(content).toBe('- button "Submit"');
+
+		client.close();
+	});
+
+	it('uses --filename option when provided for snapshot command', async () => {
+		daemon = new Daemon({
+			sessionId: 'snap-filename',
+			socketDir,
+			idleTimeout: 0,
+			snapshotDir,
+		});
+
+		await daemon.start();
+		const session = daemon.createSession({ id: 'snap-session-2' });
+		session.transition('running');
+
+		const client = await connectClient(daemon.socketPath);
+
+		// Send a snapshot command with --filename
+		const snapshotCmd: CommandMessage = {
+			id: 1,
+			method: 'run',
+			params: { args: { _: ['snapshot'], filename: 'custom.yml' } },
+		};
+		client.send(snapshotCmd);
+
+		const command = await session.queue.dequeue();
+		expect(command.action).toBe('snapshot');
+		session.queue.reportResult({
+			success: true,
+			snapshot: '- heading "Dashboard"',
+		});
+
+		const response = await new Promise<Record<string, unknown>>((resolve) => {
+			client.onMessage((msg) => {
+				resolve(msg as Record<string, unknown>);
+			});
+		});
+
+		const result = response['result'] as Record<string, unknown>;
+		expect(typeof result['snapshotFilePath']).toBe('string');
+		expect(String(result['snapshotFilePath'])).toContain('custom.yml');
+
+		// Verify custom filename
+		const content = await fs.readFile(
+			path.join(snapshotDir, 'custom.yml'),
+			'utf-8',
+		);
+		expect(content).toBe('- heading "Dashboard"');
+
+		client.close();
 	});
 });

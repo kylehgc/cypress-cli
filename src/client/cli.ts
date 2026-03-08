@@ -81,7 +81,16 @@ export function parseGlobalFlags(argv: string[]): {
 	parsed: ReturnType<typeof minimist>;
 } {
 	const parsed = minimist(argv, {
-		boolean: ['json', 'help', 'version', 'verbose', 'force', 'multiple', 'headed', 'diff'],
+		boolean: [
+			'json',
+			'help',
+			'version',
+			'verbose',
+			'force',
+			'multiple',
+			'headed',
+			'diff',
+		],
 		string: [
 			'session',
 			'browser',
@@ -92,6 +101,8 @@ export function parseGlobalFlags(argv: string[]): {
 			'describe',
 			'it',
 			'baseUrl',
+			'snapshot-dir',
+			'filename',
 		],
 		alias: {
 			s: 'session',
@@ -105,7 +116,8 @@ export function parseGlobalFlags(argv: string[]): {
 
 	const flags: GlobalFlags = {
 		json: parsed['json'] === true,
-		session: typeof parsed['session'] === 'string' ? parsed['session'] : undefined,
+		session:
+			typeof parsed['session'] === 'string' ? parsed['session'] : undefined,
 		help: parsed['help'] === true,
 		version: parsed['version'] === true,
 		verbose: parsed['verbose'] === true,
@@ -124,7 +136,10 @@ export function generateHelpText(): string {
 		'Commands:',
 	];
 
-	const categories = new Map<string, Array<{ name: string; description: string }>>();
+	const categories = new Map<
+		string,
+		Array<{ name: string; description: string }>
+	>();
 	for (const cmd of allCommands) {
 		const list = categories.get(cmd.category) ?? [];
 		list.push({ name: cmd.name, description: cmd.description });
@@ -165,7 +180,9 @@ export function formatResult(result: ClientResult, asJson: boolean): string {
 	if (!result.success) {
 		const resultObj = result.result as Record<string, unknown> | undefined;
 		const snapshot =
-			typeof resultObj?.['snapshot'] === 'string' ? resultObj['snapshot'] : undefined;
+			typeof resultObj?.['snapshot'] === 'string'
+				? resultObj['snapshot']
+				: undefined;
 		const lines = [`Error: ${result.error ?? 'Unknown error'}`];
 		if (snapshot) {
 			lines.push('', 'Current snapshot:', snapshot);
@@ -174,16 +191,33 @@ export function formatResult(result: ClientResult, asJson: boolean): string {
 	}
 
 	const resultObj = result.result as Record<string, unknown> | undefined;
-	if (typeof resultObj?.['filePath'] === 'string') {
-		return `Wrote test file: ${resultObj['filePath']}`;
-	}
 	if (typeof resultObj?.['testFile'] === 'string') {
+		if (typeof resultObj['filePath'] === 'string') {
+			return `Wrote test file: ${resultObj['filePath']}`;
+		}
 		return String(resultObj['testFile']);
 	}
 
+	// Build output lines
+	const lines: string[] = [];
+
 	// If there's a snapshot, show it prominently
-	if (resultObj?.snapshot) {
-		return String(resultObj.snapshot);
+	if (typeof resultObj?.['snapshot'] === 'string') {
+		lines.push(String(resultObj['snapshot']));
+	}
+
+	// Show generated Cypress command after the snapshot
+	if (typeof resultObj?.['cypressCommand'] === 'string') {
+		lines.push(`# Ran Cypress code:\n#   ${resultObj['cypressCommand']}`);
+	}
+
+	// Show snapshot file path
+	if (typeof resultObj?.['snapshotFilePath'] === 'string') {
+		lines.push(`Snapshot saved to: ${resultObj['snapshotFilePath']}`);
+	}
+
+	if (lines.length > 0) {
+		return lines.join('\n');
 	}
 
 	// For non-snapshot results, show as key-value pairs
@@ -225,7 +259,10 @@ export async function run(argv: string[]): Promise<CliResult> {
 
 	// Version (check before help so `--version` alone works)
 	if (flags.version) {
-		return { exitCode: EXIT_SUCCESS, output: `cypress-cli ${getPackageVersion()}` };
+		return {
+			exitCode: EXIT_SUCCESS,
+			output: `cypress-cli ${getPackageVersion()}`,
+		};
 	}
 
 	// Help (explicit flag or no positional arguments)
@@ -242,7 +279,20 @@ export async function run(argv: string[]): Promise<CliResult> {
 		for (const [key, value] of Object.entries(parsed)) {
 			if (key === '_') continue;
 			// Skip global flags
-			if (['json', 'session', 'help', 'version', 'verbose', 'j', 's', 'h', 'v'].includes(key)) continue;
+			if (
+				[
+					'json',
+					'session',
+					'help',
+					'version',
+					'verbose',
+					'j',
+					's',
+					'h',
+					'v',
+				].includes(key)
+			)
+				continue;
 			commandArgv[key] = value;
 		}
 
@@ -274,7 +324,10 @@ export async function run(argv: string[]): Promise<CliResult> {
 
 		const session = new ClientSession({ session: flags.session });
 
-		log.debug('Sending command to daemon', { command: parsedCommand.command, session: flags.session });
+		log.debug('Sending command to daemon', {
+			command: parsedCommand.command,
+			session: flags.session,
+		});
 		const result = await session.sendCommand(parsedCommand);
 
 		if (!result.success) {
@@ -298,7 +351,9 @@ export async function run(argv: string[]): Promise<CliResult> {
 				output: formatError(err, flags.json),
 			};
 		}
-		log.debug('Unexpected error', { error: err instanceof Error ? err.message : String(err) });
+		log.debug('Unexpected error', {
+			error: err instanceof Error ? err.message : String(err),
+		});
 		return {
 			exitCode: EXIT_COMMAND_ERROR,
 			output: formatError(err, flags.json),

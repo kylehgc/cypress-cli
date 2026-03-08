@@ -4,7 +4,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { ParsedCommand } from './command.js';
-import { ClientSession, DEFAULT_SESSION, type ClientResult } from './session.js';
+import {
+	ClientSession,
+	DEFAULT_SESSION,
+	type ClientResult,
+} from './session.js';
 import { ClientConnectionError } from './socketConnection.js';
 import { cleanStaleSockets } from '../daemon/daemon.js';
 
@@ -96,6 +100,14 @@ export function buildOpenDaemonArgs(
 		args.push('--resume', resume);
 	}
 
+	const snapshotDir =
+		typeof parsedCommand.options['snapshot-dir'] === 'string'
+			? parsedCommand.options['snapshot-dir']
+			: undefined;
+	if (snapshotDir) {
+		args.push('--snapshot-dir', snapshotDir);
+	}
+
 	return args;
 }
 
@@ -111,7 +123,10 @@ export async function openSession(
 	sessionName?: string,
 	dependencies: OpenCommandDependencies = {},
 ): Promise<ClientResult> {
-	const resolvedSessionName = resolveOpenSessionName(parsedCommand, sessionName);
+	const resolvedSessionName = resolveOpenSessionName(
+		parsedCommand,
+		sessionName,
+	);
 	const session =
 		dependencies.createSession?.(resolvedSessionName) ??
 		new ClientSession({ session: resolvedSessionName });
@@ -195,7 +210,11 @@ async function waitForSessionReady(
 	});
 	child.once('exit', (code, signal) => {
 		const details =
-			code !== null ? `exit code ${code}` : signal ? `signal ${signal}` : 'unknown reason';
+			code !== null
+				? `exit code ${code}`
+				: signal
+					? `signal ${signal}`
+					: 'unknown reason';
 		childExitMessage = `Daemon exited before session "${sessionName}" was ready (${details}).`;
 	});
 
@@ -236,14 +255,18 @@ async function waitForSessionReady(
 		}
 	}
 
-	const context = lastConnectionError ? ` Last error: ${lastConnectionError.message}` : '';
+	const context = lastConnectionError
+		? ` Last error: ${lastConnectionError.message}`
+		: '';
 	throw new Error(
 		`Timed out waiting for session "${sessionName}" to start.${context}`,
 	);
 }
 
 function getDaemonEntryPath(): string {
-	const candidate = fileURLToPath(new URL('../daemon/main.js', import.meta.url));
+	const candidate = fileURLToPath(
+		new URL('../daemon/main.js', import.meta.url),
+	);
 	const sourceSegment = `${path.sep}src${path.sep}`;
 	if (candidate.includes(sourceSegment)) {
 		return candidate.replace(sourceSegment, `${path.sep}dist${path.sep}`);
