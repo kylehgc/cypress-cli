@@ -20,10 +20,11 @@ export const open = declareCommand({
 			.describe('Browser to use (e.g., "chrome", "electron")'),
 		headed: z.boolean().optional().describe('Run in headed mode'),
 		config: z.string().optional().describe('Path to Cypress config file'),
-		resume: z
+		resume: z.string().optional().describe('Resume a persisted session by ID'),
+		'snapshot-dir': z
 			.string()
 			.optional()
-			.describe('Resume a persisted session by ID'),
+			.describe('Directory to save snapshot YAML files'),
 	}),
 });
 
@@ -53,6 +54,10 @@ export const snapshot = declareCommand({
 			.boolean()
 			.optional()
 			.describe('Return incremental diff from last snapshot'),
+		filename: z
+			.string()
+			.optional()
+			.describe('Save snapshot to a specific file path'),
 	}),
 });
 

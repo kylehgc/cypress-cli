@@ -46,10 +46,12 @@ function waitForMessage(conn: SocketConnection): Promise<ProtocolMessage> {
 
 describe('Session lifecycle integration', () => {
 	let socketDir: string;
+	let snapshotDir: string;
 	let daemon: Daemon;
 
 	beforeEach(async () => {
 		socketDir = await makeTempSocketDir();
+		snapshotDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cypress-cli-snap-'));
 	});
 
 	afterEach(async () => {
@@ -57,6 +59,7 @@ describe('Session lifecycle integration', () => {
 			await daemon.stop();
 		}
 		await fs.rm(socketDir, { recursive: true, force: true }).catch(() => {});
+		await fs.rm(snapshotDir, { recursive: true, force: true }).catch(() => {});
 	});
 
 	// -----------------------------------------------------------------------
@@ -67,6 +70,7 @@ describe('Session lifecycle integration', () => {
 		daemon = new Daemon({
 			sessionId: 'lifecycle-full',
 			socketDir,
+			snapshotDir,
 			idleTimeout: 0,
 		});
 		await daemon.start();
@@ -103,7 +107,7 @@ describe('Session lifecycle integration', () => {
 
 		// Step 4: Client receives the response
 		const response = await responsePromise;
-		expect(response).toEqual({
+		expect(response).toMatchObject({
 			id: 1,
 			result: { success: true, snapshot: '- button "Clicked"' },
 		});
@@ -121,6 +125,7 @@ describe('Session lifecycle integration', () => {
 		daemon = new Daemon({
 			sessionId: 'lifecycle-cleanup',
 			socketDir,
+			snapshotDir,
 			idleTimeout: 0,
 		});
 		await daemon.start();
@@ -147,6 +152,7 @@ describe('Session lifecycle integration', () => {
 		daemon = new Daemon({
 			sessionId: 'lifecycle-stopall',
 			socketDir,
+			snapshotDir,
 			idleTimeout: 0,
 		});
 		await daemon.start();
@@ -172,6 +178,7 @@ describe('Session lifecycle integration', () => {
 		daemon = new Daemon({
 			sessionId: 'lifecycle-sequential',
 			socketDir,
+			snapshotDir,
 			idleTimeout: 0,
 		});
 		await daemon.start();
@@ -213,6 +220,7 @@ describe('Session lifecycle integration', () => {
 		daemon = new Daemon({
 			sessionId: 'lifecycle-states',
 			socketDir,
+			snapshotDir,
 			idleTimeout: 0,
 		});
 		await daemon.start();
@@ -231,9 +239,9 @@ describe('Session lifecycle integration', () => {
 		expect(session.state).toBe('paused');
 
 		// Cannot enqueue when paused
-		expect(() =>
-			session.enqueueCommand({ id: 1, action: 'click' }),
-		).toThrow(/paused/);
+		expect(() => session.enqueueCommand({ id: 1, action: 'click' })).toThrow(
+			/paused/,
+		);
 
 		// Valid: paused → running
 		session.transition('running');
@@ -255,6 +263,7 @@ describe('Session lifecycle integration', () => {
 		daemon = new Daemon({
 			sessionId: 'lifecycle-socket',
 			socketDir,
+			snapshotDir,
 			idleTimeout: 0,
 		});
 		await daemon.start();

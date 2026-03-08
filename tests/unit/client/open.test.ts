@@ -33,7 +33,9 @@ describe('resolveOpenSessionName', () => {
 
 	it('uses the resume value as the session name', () => {
 		expect(
-			resolveOpenSessionName(buildOpenCommand(undefined, { resume: 'saved-session' })),
+			resolveOpenSessionName(
+				buildOpenCommand(undefined, { resume: 'saved-session' }),
+			),
 		).toBe('saved-session');
 	});
 
@@ -69,6 +71,27 @@ describe('buildOpenDaemonArgs', () => {
 		expect(args).toContain('--config');
 		expect(args).toContain('cypress.config.ts');
 	});
+
+	it('includes --snapshot-dir when provided', () => {
+		const args = buildOpenDaemonArgs(
+			'demo',
+			buildOpenCommand('https://example.com', {
+				'snapshot-dir': '/tmp/my-snapshots',
+			}),
+		);
+
+		expect(args).toContain('--snapshot-dir');
+		expect(args).toContain('/tmp/my-snapshots');
+	});
+
+	it('does not include --snapshot-dir when not provided', () => {
+		const args = buildOpenDaemonArgs(
+			'demo',
+			buildOpenCommand('https://example.com'),
+		);
+
+		expect(args).not.toContain('--snapshot-dir');
+	});
 });
 
 describe('openSession', () => {
@@ -78,9 +101,13 @@ describe('openSession', () => {
 			result: { snapshot: '- main' },
 		} satisfies ClientResult);
 
-		const result = await openSession(buildOpenCommand('https://example.com'), 'demo', {
-			createSession: () => ({ sendCommand }),
-		});
+		const result = await openSession(
+			buildOpenCommand('https://example.com'),
+			'demo',
+			{
+				createSession: () => ({ sendCommand }),
+			},
+		);
 
 		expect(sendCommand).toHaveBeenCalledWith({
 			command: 'navigate',
@@ -91,7 +118,8 @@ describe('openSession', () => {
 	});
 
 	it('spawns the daemon and polls until the session is ready', async () => {
-		const sendCommand = vi.fn()
+		const sendCommand = vi
+			.fn()
 			.mockRejectedValueOnce(new ClientConnectionError('No session running'))
 			.mockRejectedValueOnce(
 				new ClientConnectionError('Cannot connect to daemon socket'),
@@ -103,12 +131,16 @@ describe('openSession', () => {
 		const fakeChild = new FakeChildProcess();
 		const spawnProcess = vi.fn().mockReturnValue(fakeChild);
 
-		const result = await openSession(buildOpenCommand('https://example.com'), 'demo', {
-			createSession: () => ({ sendCommand }),
-			spawnProcess: spawnProcess as unknown as typeof spawn,
-			sleep: async () => {},
-			startupTimeoutMs: 1_000,
-		});
+		const result = await openSession(
+			buildOpenCommand('https://example.com'),
+			'demo',
+			{
+				createSession: () => ({ sendCommand }),
+				spawnProcess: spawnProcess as unknown as typeof spawn,
+				sleep: async () => {},
+				startupTimeoutMs: 1_000,
+			},
+		);
 
 		expect(spawnProcess).toHaveBeenCalled();
 		expect(fakeChild.unref).toHaveBeenCalled();
@@ -124,9 +156,9 @@ describe('openSession', () => {
 		await expect(
 			openSession(buildOpenCommand('https://example.com'), 'demo', {
 				createSession: () => ({ sendCommand }),
-				spawnProcess: vi.fn().mockReturnValue(
-					fakeChild,
-				) as unknown as typeof spawn,
+				spawnProcess: vi
+					.fn()
+					.mockReturnValue(fakeChild) as unknown as typeof spawn,
 				sleep: async () => {},
 				startupTimeoutMs: 0,
 			}),

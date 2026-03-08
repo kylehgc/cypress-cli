@@ -19,9 +19,7 @@ import {
 	type QueuedCommand,
 	type CommandResult,
 } from '../../src/daemon/commandQueue.js';
-import {
-	createTaskHandlers,
-} from '../../src/daemon/taskHandler.js';
+import { createTaskHandlers } from '../../src/daemon/taskHandler.js';
 import type {
 	CommandMessage,
 	ProtocolMessage,
@@ -70,18 +68,23 @@ describe('Command queue flow integration', () => {
 
 			// Enqueue 3 commands before any are dequeued
 			const p1 = queue.enqueue({ id: 1, action: 'click', ref: 'e1' });
-			const p2 = queue.enqueue({ id: 2, action: 'type', ref: 'e2', text: 'hello' });
+			const p2 = queue.enqueue({
+				id: 2,
+				action: 'type',
+				ref: 'e2',
+				text: 'hello',
+			});
 			const p3 = queue.enqueue({ id: 3, action: 'snapshot' });
 
 			// Process them one at a time: getCommand → commandResult
-			const cmd1 = await getCommand() as QueuedCommand;
+			const cmd1 = (await getCommand()) as QueuedCommand;
 			expect(cmd1.id).toBe(1);
 			expect(cmd1.action).toBe('click');
 			commandResult({ success: true, snapshot: 'snap-1' });
 			const r1 = await p1;
 			expect(r1.snapshot).toBe('snap-1');
 
-			const cmd2 = await getCommand() as QueuedCommand;
+			const cmd2 = (await getCommand()) as QueuedCommand;
 			expect(cmd2.id).toBe(2);
 			expect(cmd2.action).toBe('type');
 			expect(cmd2.text).toBe('hello');
@@ -89,7 +92,7 @@ describe('Command queue flow integration', () => {
 			const r2 = await p2;
 			expect(r2.snapshot).toBe('snap-2');
 
-			const cmd3 = await getCommand() as QueuedCommand;
+			const cmd3 = (await getCommand()) as QueuedCommand;
 			expect(cmd3.id).toBe(3);
 			expect(cmd3.action).toBe('snapshot');
 			commandResult({ success: true, snapshot: 'snap-3' });
@@ -110,12 +113,12 @@ describe('Command queue flow integration', () => {
 			p2.then((r) => results.push(r));
 
 			// Process first
-			const cmd1 = await getCommand() as QueuedCommand;
+			const cmd1 = (await getCommand()) as QueuedCommand;
 			expect(cmd1.ref).toBe('btn-a');
 			commandResult({ success: true, snapshot: 'after-btn-a' });
 
 			// Process second
-			const cmd2 = await getCommand() as QueuedCommand;
+			const cmd2 = (await getCommand()) as QueuedCommand;
 			expect(cmd2.ref).toBe('btn-b');
 			commandResult({ success: true, snapshot: 'after-btn-b' });
 
@@ -167,10 +170,14 @@ describe('Command queue flow integration', () => {
 
 	describe('FIFO ordering through daemon socket', () => {
 		let socketDir: string;
+		let snapshotDir: string;
 		let daemon: Daemon;
 
 		beforeEach(async () => {
 			socketDir = await makeTempSocketDir();
+			snapshotDir = await fs.mkdtemp(
+				path.join(os.tmpdir(), 'cypress-cli-snap-'),
+			);
 		});
 
 		afterEach(async () => {
@@ -178,12 +185,16 @@ describe('Command queue flow integration', () => {
 				await daemon.stop();
 			}
 			await fs.rm(socketDir, { recursive: true, force: true }).catch(() => {});
+			await fs
+				.rm(snapshotDir, { recursive: true, force: true })
+				.catch(() => {});
 		});
 
 		it('commands from multiple clients are processed in arrival order', async () => {
 			daemon = new Daemon({
 				sessionId: 'fifo-socket',
 				socketDir,
+				snapshotDir,
 				idleTimeout: 0,
 			});
 			await daemon.start();
@@ -236,13 +247,13 @@ describe('Command queue flow integration', () => {
 
 			// Verify responses go to correct clients
 			const resp1 = await r1Promise;
-			expect(resp1).toEqual({
+			expect(resp1).toMatchObject({
 				id: 1,
 				result: { success: true, snapshot: 'after-e1' },
 			});
 
 			const resp2 = await r2Promise;
-			expect(resp2).toEqual({
+			expect(resp2).toMatchObject({
 				id: 2,
 				result: { success: true, snapshot: 'after-e2' },
 			});
