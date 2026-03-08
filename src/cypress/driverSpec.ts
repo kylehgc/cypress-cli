@@ -653,7 +653,7 @@ function enhanceCrossOriginError(error: string): string {
 			error +
 			'\n\nCross-origin recovery: The page navigated to a different origin. ' +
 			'Run "open <current-url>" to start a fresh session on the new URL. ' +
-			'If using Firefox, switch to Chrome or Electron which support cross-origin navigation.'
+			'To avoid this in future sessions, use Chrome or Electron instead of Firefox.'
 		);
 	}
 	return error;
