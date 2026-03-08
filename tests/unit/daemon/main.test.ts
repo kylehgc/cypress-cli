@@ -26,6 +26,22 @@ describe('daemon main', () => {
 			const opts = parseDaemonProcessArgs([]);
 			expect(opts.idleTimeout).toBeUndefined();
 		});
+
+		it('parses a valid session-inactivity-timeout value', () => {
+			const opts = parseDaemonProcessArgs(['--session-inactivity-timeout', '60000']);
+			expect(opts.sessionInactivityTimeout).toBe(60000);
+		});
+
+		it('throws for a non-numeric session-inactivity-timeout value', () => {
+			expect(() =>
+				parseDaemonProcessArgs(['--session-inactivity-timeout', 'abc']),
+			).toThrow(/Invalid --session-inactivity-timeout value/);
+		});
+
+		it('omits sessionInactivityTimeout when the flag is absent', () => {
+			const opts = parseDaemonProcessArgs([]);
+			expect(opts.sessionInactivityTimeout).toBeUndefined();
+		});
 	});
 
 	describe('seedInitialNavigateHistory', () => {
