@@ -2,6 +2,9 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import type { ParsedCommand } from './command.js';
+import type { ClientResult } from './session.js';
+
 /**
  * Result of installing bundled skills into the current project.
  */
@@ -58,5 +61,33 @@ export async function installSkills(
 
 	return {
 		installedPath: path.relative(cwd, targetDir),
+	};
+}
+
+/**
+ * Execute a client-local command that should not be forwarded to the daemon.
+ *
+ * @param parsedCommand - Parsed CLI command
+ * @returns A client result for local commands, or null if the command is not local
+ */
+export async function runLocalCommand(
+	parsedCommand: ParsedCommand,
+): Promise<ClientResult | null> {
+	if (parsedCommand.command !== 'install') {
+		return null;
+	}
+
+	if ((parsedCommand.options as Record<string, unknown>)['skills'] !== true) {
+		throw new Error(
+			'Invalid options for "install":\n  skills: Invalid literal value, expected true',
+		);
+	}
+
+	const installed = await installSkills();
+	return {
+		success: true,
+		result: {
+			installedPath: installed.installedPath,
+		},
 	};
 }

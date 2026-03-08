@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { installSkills } from '../../../src/client/install.js';
+import { installSkills, runLocalCommand } from '../../../src/client/install.js';
 
 async function makeTempDir(prefix: string): Promise<string> {
 	return await fs.mkdtemp(path.join(os.tmpdir(), prefix));
@@ -69,5 +69,27 @@ describe('installSkills', () => {
 		await expect(installSkills({ cwd, sourceDir: missingSourceDir })).rejects.toThrow(
 			'Bundled skills directory not found',
 		);
+	});
+});
+
+describe('runLocalCommand', () => {
+	it('returns null for non-local commands', async () => {
+		await expect(
+			runLocalCommand({
+				command: 'snapshot',
+				args: {},
+				options: {},
+			}),
+		).resolves.toBeNull();
+	});
+
+	it('rejects install without --skills', async () => {
+		await expect(
+			runLocalCommand({
+				command: 'install',
+				args: {},
+				options: {},
+			}),
+		).rejects.toThrow('Invalid options for "install"');
 	});
 });

@@ -18,7 +18,7 @@ import { commandRegistry, allCommands } from './commands.js';
 import { ClientSession, type ClientResult } from './session.js';
 import { ClientConnectionError } from './socketConnection.js';
 import { openSession } from './open.js';
-import { installSkills } from './install.js';
+import { runLocalCommand } from './install.js';
 import { createClientLogger } from '../shared/logger.js';
 
 /**
@@ -328,17 +328,11 @@ export async function run(argv: string[]): Promise<CliResult> {
 			};
 		}
 
-		if (parsedCommand.command === 'install') {
-			const installed = await installSkills();
+		const localResult = await runLocalCommand(parsedCommand);
+		if (localResult) {
 			return {
-				exitCode: EXIT_SUCCESS,
-				output: formatResult(
-					{
-						success: true,
-						result: { installedPath: installed.installedPath },
-					},
-					flags.json,
-				),
+				exitCode: localResult.success ? EXIT_SUCCESS : EXIT_COMMAND_ERROR,
+				output: formatResult(localResult, flags.json),
 			};
 		}
 

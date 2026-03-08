@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { splitArgv, startRepl } from '../../../src/client/repl.js';
 
+const { mockRunLocalCommand } = vi.hoisted(() => ({
+	mockRunLocalCommand: vi.fn(),
+}));
+
 // ---------------------------------------------------------------------------
 // Mock ClientSession so startRepl() never actually connects to a daemon
 // ---------------------------------------------------------------------------
@@ -21,6 +25,10 @@ vi.mock('../../../src/client/session.js', async (importOriginal) => {
 		})),
 	};
 });
+
+vi.mock('../../../src/client/install.js', () => ({
+	runLocalCommand: mockRunLocalCommand,
+}));
 
 // ---------------------------------------------------------------------------
 // Mock readline so we can control what lines the REPL receives
@@ -146,6 +154,7 @@ describe('startRepl', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockLines = [];
+		mockRunLocalCommand.mockResolvedValue(null);
 	});
 
 	/** Helper: creates fake input/output streams and captures output chunks. */
@@ -201,6 +210,31 @@ describe('startRepl', () => {
 
 		expect(mockSendCommand).toHaveBeenCalledOnce();
 		expect(outputChunks.some((c) => c.includes('OK'))).toBe(true);
+	});
+
+	it('runs install --skills locally without sending it to the daemon', async () => {
+		mockRunLocalCommand.mockResolvedValueOnce({
+			success: true,
+			result: {
+				installedPath: '.github/skills/cypress-cli',
+			},
+		});
+		mockLines = ['install --skills', 'exit'];
+		const { outputChunks, fakeOutput, fakeInput } = createStreams();
+
+		await startRepl({ input: fakeInput, output: fakeOutput });
+
+		expect(mockRunLocalCommand).toHaveBeenCalledWith({
+			command: 'install',
+			args: {},
+			options: { skills: true },
+		});
+		expect(mockSendCommand).not.toHaveBeenCalled();
+		expect(
+			outputChunks.some((c) =>
+				c.includes('Installed skills to: .github/skills/cypress-cli'),
+			),
+		).toBe(true);
 	});
 
 	it('writes formatted error when command throws', async () => {
