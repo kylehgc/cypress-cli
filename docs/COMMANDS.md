@@ -310,7 +310,13 @@ for tracking.
 
 ### 5. How to handle cross-origin redirects during an active session?
 
-**Current limitation**: Active sessions are not robust across origin changes yet.
-During issue #66 validation, opening `https://www.wikipedia.org/` and then
-interacting after the browser landed on `https://en.wikipedia.org/` caused an
-origin mismatch failure that broke the session. This is tracked in issue #68.
+The generated Cypress config sets `chromeWebSecurity: false`, which disables
+same-origin enforcement in Chromium browsers (Chrome, Electron). This allows
+the session to continue working after a cross-origin redirect — for example,
+`https://www.wikipedia.org/` redirecting to `https://en.wikipedia.org/`.
+
+**Firefox limitation**: Firefox ignores `chromeWebSecurity: false`. If a
+cross-origin redirect occurs in Firefox, the session will fail with an origin
+mismatch error. The error recovery mechanism will keep the session alive and
+include guidance to re-open the session on the final URL. Workaround: use
+Chrome or Electron, or start the session directly on the final URL.
