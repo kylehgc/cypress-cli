@@ -12,6 +12,10 @@ import {
 } from '../../../src/client/cli.js';
 import type { ClientResult } from '../../../src/client/session.js';
 
+const { mockRunLocalCommand } = vi.hoisted(() => ({
+	mockRunLocalCommand: vi.fn(),
+}));
+
 // ---------------------------------------------------------------------------
 // Mock ClientSession so `run()` never actually connects to a daemon
 // ---------------------------------------------------------------------------
@@ -26,6 +30,10 @@ vi.mock('../../../src/client/session.js', async (importOriginal) => {
 		})),
 	};
 });
+
+vi.mock('../../../src/client/install.js', () => ({
+	runLocalCommand: mockRunLocalCommand,
+}));
 
 // ---------------------------------------------------------------------------
 // parseGlobalFlags
@@ -129,6 +137,7 @@ describe('generateHelpText', () => {
 	it('includes positional argument syntax for commands', () => {
 		const help = generateHelpText();
 		expect(help).toContain('open [url]');
+		expect(help).toContain('install --skills');
 		expect(help).toContain('type <ref> <text>');
 		expect(help).toContain('assert <ref> <chainer> [value]');
 	});
@@ -268,6 +277,18 @@ describe('formatResult', () => {
 		expect(output).toBe('- main');
 		expect(output).not.toContain('Ran Cypress code');
 	});
+
+	it('returns installed skills path when present', () => {
+		const result: ClientResult = {
+			success: true,
+			result: {
+				installedPath: '.github/skills/cypress-cli',
+			},
+		};
+		expect(formatResult(result, false)).toBe(
+			'Installed skills to: .github/skills/cypress-cli',
+		);
+	});
 });
 
 // ---------------------------------------------------------------------------
@@ -298,6 +319,7 @@ describe('formatError', () => {
 describe('run', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockRunLocalCommand.mockResolvedValue(null);
 	});
 
 	it('returns help text with exit code 0 when no args provided', async () => {
@@ -344,5 +366,31 @@ describe('run', () => {
 		const parsed = JSON.parse(result.output);
 		expect(parsed.success).toBe(false);
 		expect(parsed.error).toBeDefined();
+	});
+
+	it('runs install --skills locally without using the daemon', async () => {
+		mockRunLocalCommand.mockResolvedValue({
+			success: true,
+			result: {
+				installedPath: '.github/skills/cypress-cli',
+			},
+		});
+
+		const result: CliResult = await run(['install', '--skills']);
+		expect(result.exitCode).toBe(EXIT_SUCCESS);
+		expect(result.output).toBe(
+			'Installed skills to: .github/skills/cypress-cli',
+		);
+		expect(mockRunLocalCommand).toHaveBeenCalledWith({
+			command: 'install',
+			args: {},
+			options: { skills: true },
+		});
+	});
+
+	it('returns validation error when install is missing --skills', async () => {
+		const result: CliResult = await run(['install']);
+		expect(result.exitCode).toBe(EXIT_VALIDATION_ERROR);
+		expect(result.output).toContain('Invalid options for "install"');
 	});
 });

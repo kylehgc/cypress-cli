@@ -13,6 +13,7 @@ import { parseCommand } from './command.js';
 import { commandRegistry } from './commands.js';
 import { ClientSession, type ClientSessionOptions } from './session.js';
 import { formatResult, formatError } from './cli.js';
+import { runLocalCommand } from './install.js';
 
 /**
  * Options for the REPL session.
@@ -80,7 +81,7 @@ export async function startRepl(options: ReplOptions = {}): Promise<void> {
 		// Parse the line as if it were CLI arguments, respecting shell-style quoting
 		const argv = splitArgv(trimmed);
 		const parsed = minimist(argv, {
-			boolean: ['force', 'multiple', 'headed', 'diff'],
+			boolean: ['force', 'multiple', 'headed', 'diff', 'skills'],
 			string: ['browser', 'config', 'file'],
 		});
 
@@ -96,7 +97,9 @@ export async function startRepl(options: ReplOptions = {}): Promise<void> {
 				commandRegistry,
 			);
 
-			const result = await session.sendCommand(parsedCommand);
+			const result =
+				(await runLocalCommand(parsedCommand)) ??
+				(await session.sendCommand(parsedCommand));
 			write(formatResult(result, asJson));
 		} catch (err) {
 			write(formatError(err, asJson));

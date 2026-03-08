@@ -28,6 +28,9 @@ The `method` is always `"run"` for command execution or `"stop"` for shutdown.
 The `args._` array contains the command name followed by positional arguments,
 matching minimist's parsing convention.
 
+`install --skills` is a client-local command. It does not connect to the daemon
+or require a running Cypress session.
+
 ## Command Categories
 
 ### Core
@@ -37,6 +40,7 @@ matching minimist's parsing convention.
 | `open`     | `cypress-cli open [url] [options]`                | Start or reuse a session, launch Cypress, and navigate to URL |
 | `stop`     | `cypress-cli stop`                                | Stop the current session                                      |
 | `status`   | `cypress-cli status`                              | Check if a session is running and return session metadata     |
+| `install`  | `cypress-cli install --skills`                    | Install bundled AI agent skills into `.github/skills/`        |
 | `snapshot` | `cypress-cli snapshot [--diff] [--filename path]` | Get current aria snapshot                                     |
 
 ### Navigation
@@ -173,6 +177,16 @@ export const snapshot = declareCommand({
 			.describe('Return incremental diff from last snapshot'),
 	}),
 });
+
+export const install = declareCommand({
+	name: 'install',
+	category: 'core',
+	description: 'Install bundled AI agent skills into the current project',
+	args: z.object({}),
+	options: z.object({
+		skills: z.literal(true).describe('Copy the packaged SKILL files'),
+	}),
+});
 ```
 
 ## Command ↔ Cypress API Mapping
@@ -246,6 +260,7 @@ type CommandResponse = {
 	cypressCommand?: string; // The Cypress command that was executed (for inline codegen)
 	snapshotFilePath?: string; // Relative path to snapshot YAML file on disk (snapshot/action commands)
 	filePath?: string; // Relative path to generated test file on disk (export command only)
+	installedPath?: string; // Relative path to installed skill directory (install command only)
 	status?: string; // Session status for status command
 	sessionId?: string;
 	url?: string;
