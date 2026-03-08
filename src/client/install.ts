@@ -57,6 +57,6 @@ export async function installSkills(
 	await fs.cp(sourceDir, targetDir, { recursive: true });
 
 	return {
-		installedPath: path.relative(cwd, targetDir) || '.',
+		installedPath: path.relative(cwd, targetDir),
 	};
 }
