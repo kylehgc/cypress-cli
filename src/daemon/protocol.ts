@@ -43,6 +43,7 @@ const responseMessageSchema = z.object({
 		error: z.string().optional(),
 		selector: z.string().optional(),
 		cypressCommand: z.string().optional(),
+		evalResult: z.string().optional(),
 		testFile: z.string().optional(),
 		filePath: z.string().optional(),
 		snapshotFilePath: z.string().optional(),

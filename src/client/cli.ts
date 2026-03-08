@@ -217,6 +217,11 @@ export function formatResult(result: ClientResult, asJson: boolean): string {
 		lines.push(`# Ran Cypress code:\n#   ${resultObj['cypressCommand']}`);
 	}
 
+	// Show eval result from run-code command
+	if (typeof resultObj?.['evalResult'] === 'string') {
+		lines.push(`# Result: ${resultObj['evalResult']}`);
+	}
+
 	// Show snapshot file path
 	if (typeof resultObj?.['snapshotFilePath'] === 'string') {
 		lines.push(`Snapshot saved to: ${resultObj['snapshotFilePath']}`);

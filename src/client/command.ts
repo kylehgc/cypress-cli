@@ -9,6 +9,7 @@ export type CommandCategory =
 	| 'interaction'
 	| 'keyboard'
 	| 'assertion'
+	| 'execution'
 	| 'export'
 	| 'wait';
 
@@ -139,7 +140,9 @@ export function parseCommand(
 	if (positionals.length > entry.positionals.length) {
 		const lastPositionalName = entry.positionals[entry.positionals.length - 1];
 		const allowJoinRemainder =
-			lastPositionalName === 'text' || lastPositionalName === 'value';
+			lastPositionalName === 'text' ||
+			lastPositionalName === 'value' ||
+			lastPositionalName === 'code';
 
 		if (allowJoinRemainder) {
 			const joinedRemaining = positionals

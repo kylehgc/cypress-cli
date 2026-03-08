@@ -40,6 +40,8 @@ export interface CommandResult {
 	cypressCommand?: string;
 	/** Error message if success is false */
 	error?: string;
+	/** Return value from run-code eval (stringified) */
+	evalResult?: string;
 }
 
 /**

@@ -42,6 +42,7 @@ interface DriverResult {
 	error?: string;
 	selector?: string;
 	cypressCommand?: string;
+	evalResult?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -126,6 +127,7 @@ const COMMANDS_REQUIRING_TEXT = new Set([
 	'select',
 	'navigate',
 	'press',
+	'run-code',
 ]);
 
 /**
@@ -153,6 +155,12 @@ let _pendingRecoveryError: string | undefined;
  * Counter for generating unique recovery test names.
  */
 let _recoveryCount = 0;
+
+/**
+ * Captures the return value of run-code's eval() call.
+ * Set inside executeCommand and read when building the result.
+ */
+let _evalResult: string | undefined;
 
 /**
  * Apply a chai-style chainer assertion manually.
@@ -457,6 +465,17 @@ function executeCommand(cmd: DriverCommand): void {
 		case 'waitfor':
 			resolveRef(cmd.ref!).should('exist');
 			break;
+		case 'run-code':
+			cy.window({ log: false }).then((win: Window) => {
+				const evalFn = (
+					win as Window & { eval: (code: string) => unknown }
+				).eval;
+				const result = evalFn.call(win, cmd.text!);
+				if (result !== undefined && result !== null) {
+					_evalResult = String(result);
+				}
+			});
+			break;
 		case 'snapshot':
 			// No-op: snapshot is always taken after command execution
 			break;
@@ -498,6 +517,7 @@ function pollForCommands(): void {
 
 			// Reset async error state before each command
 			_asyncCommandError = undefined;
+			_evalResult = undefined;
 
 			// Pre-validate ref if the command requires one. This check runs
 			// inside a cy.window() chain so we can access the element map.
@@ -623,6 +643,9 @@ function pollForCommands(): void {
 							snapshot: snapshotYaml,
 							selector,
 							cypressCommand,
+							...(_evalResult !== undefined && {
+								evalResult: _evalResult,
+							}),
 						};
 
 				cy.task('commandResult', result, { log: false }).then(() => {

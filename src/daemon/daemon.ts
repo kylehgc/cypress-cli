@@ -453,6 +453,9 @@ export class Daemon {
 							...(result.cypressCommand !== undefined && {
 								cypressCommand: result.cypressCommand,
 							}),
+							...(result.evalResult !== undefined && {
+								evalResult: result.evalResult,
+							}),
 							...(snapshotFile !== undefined && {
 								snapshotFilePath: snapshotFile,
 							}),
@@ -930,6 +933,7 @@ function buildQueuedCommand(
 			return withOptions({ id, action }, options);
 		case 'press':
 		case 'wait':
+		case 'run-code':
 			return withOptions(
 				{
 					id,

@@ -327,6 +327,20 @@ describe('driver spec command dispatch', () => {
 		expect(cmd.ref).toBe('e7');
 		expect(cmd.text).toBe('admin');
 	});
+
+	it('maps run-code action with code in text field', () => {
+		const cmd: QueuedCommand = { id: 1, action: 'run-code', text: 'document.title' };
+		expect(cmd.action).toBe('run-code');
+		expect(cmd.text).toBe('document.title');
+		expect(cmd.ref).toBeUndefined();
+	});
+
+	it('maps run-code action with multi-line code', () => {
+		const code = 'const x = 1;\nconst y = 2;\nx + y';
+		const cmd: QueuedCommand = { id: 1, action: 'run-code', text: code };
+		expect(cmd.action).toBe('run-code');
+		expect(cmd.text).toBe(code);
+	});
 });
 
 describe('driver spec result shape with selector/cypressCommand', () => {
@@ -436,5 +450,25 @@ describe('driver spec result shape with selector/cypressCommand', () => {
 		expect(cmdResult.success).toBe(true);
 		expect(cmdResult.selector).toBe('#email');
 		expect(cmdResult.cypressCommand).toBe("cy.get('#email').type('hello')");
+	});
+
+	it('propagates evalResult for run-code command', async () => {
+		const command: QueuedCommand = { id: 1, action: 'run-code', text: 'document.title' };
+		const resultPromise = queue.enqueue(command);
+		setTimeout(() => queue.dispose(), 200);
+
+		const executeCommand = vi.fn((): CommandResult => ({
+			success: true,
+			snapshot: '- heading "Test Page"',
+			cypressCommand: "cy.window().then((win) => win.eval('document.title'))",
+			evalResult: 'Test Page',
+		}));
+
+		await simulatePollingLoop(getCommand, reportResult, executeCommand);
+
+		const cmdResult = await resultPromise;
+		expect(cmdResult.success).toBe(true);
+		expect(cmdResult.evalResult).toBe('Test Page');
+		expect(cmdResult.cypressCommand).toBe("cy.window().then((win) => win.eval('document.title'))");
 	});
 });

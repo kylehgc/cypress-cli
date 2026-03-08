@@ -215,6 +215,10 @@ function _buildNonRefCommand(
 		}
 		case 'snapshot':
 			return '// snapshot (read-only)';
+		case 'run-code': {
+			const escapedCode = (text ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+			return `cy.window().then((win) => win.eval('${escapedCode}'))`;
+		}
 		default:
 			return `cy.${action}()`;
 	}

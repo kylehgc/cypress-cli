@@ -39,6 +39,7 @@ import {
 	undo,
 	wait,
 	waitfor,
+	runCode,
 } from '../../../src/client/commands.js';
 import { z } from 'zod';
 
@@ -76,12 +77,12 @@ describe('declareCommand', () => {
 });
 
 describe('command schemas', () => {
-	it('defines all 30 commands', () => {
-		expect(allCommands).toHaveLength(30);
+	it('defines all 31 commands', () => {
+		expect(allCommands).toHaveLength(31);
 	});
 
 	it('registers all commands in the registry', () => {
-		expect(commandRegistry.size).toBe(30);
+		expect(commandRegistry.size).toBe(31);
 	});
 
 	describe('categories', () => {
@@ -134,6 +135,10 @@ describe('command schemas', () => {
 		it('has wait commands', () => {
 			expect(wait.category).toBe('wait');
 			expect(waitfor.category).toBe('wait');
+		});
+
+		it('has execution commands', () => {
+			expect(runCode.category).toBe('execution');
 		});
 	});
 
@@ -268,6 +273,21 @@ describe('command schemas', () => {
 
 			const withMultiple = click.options.safeParse({ multiple: true });
 			expect(withMultiple.success).toBe(true);
+		});
+
+		it('run-code requires code', () => {
+			const good = runCode.args.safeParse({
+				code: 'document.title',
+			});
+			expect(good.success).toBe(true);
+
+			const multiLine = runCode.args.safeParse({
+				code: 'const x = 1;\nconst y = 2;\nx + y',
+			});
+			expect(multiLine.success).toBe(true);
+
+			const missing = runCode.args.safeParse({});
+			expect(missing.success).toBe(false);
 		});
 	});
 });
@@ -551,6 +571,30 @@ describe('parseCommand', () => {
 			commandRegistry,
 		);
 		expect(result.args).toEqual({ url: 'https://positional.com' });
+	});
+
+	it("parses 'run-code document.title' correctly", () => {
+		const result = parseCommand(
+			{ _: ['run-code', 'document.title'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'run-code',
+			args: { code: 'document.title' },
+			options: {},
+		});
+	});
+
+	it('parses run-code with multi-word code as joined string', () => {
+		const result = parseCommand(
+			{ _: ['run-code', 'const', 'x', '=', '1;', 'x'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'run-code',
+			args: { code: 'const x = 1; x' },
+			options: {},
+		});
 	});
 });
 

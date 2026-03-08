@@ -314,6 +314,28 @@ describe('selectorGenerator', () => {
 			expect(result).toBe('// snapshot (read-only)');
 		});
 
+		it('builds run-code command', () => {
+			const result = buildCypressCommand(
+				undefined,
+				'run-code',
+				'document.title',
+			);
+			expect(result).toBe(
+				"cy.window().then((win) => win.eval('document.title'))",
+			);
+		});
+
+		it('builds run-code command with single quotes escaped', () => {
+			const result = buildCypressCommand(
+				undefined,
+				'run-code',
+				"document.querySelector('h1').textContent",
+			);
+			expect(result).toBe(
+				"cy.window().then((win) => win.eval('document.querySelector(\\'h1\\').textContent'))",
+			);
+		});
+
 		it('handles unknown non-ref actions with fallback', () => {
 			const result = buildCypressCommand(undefined, 'unknownAction');
 			expect(result).toBe('cy.unknownAction()');

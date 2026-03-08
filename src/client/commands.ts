@@ -380,6 +380,20 @@ export const undo = declareCommand({
 });
 
 // ---------------------------------------------------------------------------
+// Execution commands
+// ---------------------------------------------------------------------------
+
+export const runCode = declareCommand({
+	name: 'run-code',
+	category: 'execution',
+	description: 'Execute arbitrary JavaScript in the browser page context',
+	args: z.object({
+		code: z.string().describe('JavaScript code to execute'),
+	}),
+	options: z.object({}),
+});
+
+// ---------------------------------------------------------------------------
 // Wait commands
 // ---------------------------------------------------------------------------
 
@@ -441,6 +455,7 @@ export const allCommands = [
 	export_,
 	history,
 	undo,
+	runCode,
 	wait,
 	waitfor,
 ] as const;
@@ -503,6 +518,9 @@ export function buildRegistry(): ReadonlyMap<string, CommandRegistryEntry> {
 	registry.set('export', { schema: export_, positionals: [] });
 	registry.set('history', { schema: history, positionals: [] });
 	registry.set('undo', { schema: undo, positionals: [] });
+
+	// Execution
+	registry.set('run-code', { schema: runCode, positionals: ['code'] });
 
 	// Wait
 	registry.set('wait', { schema: wait, positionals: ['ms'] });
