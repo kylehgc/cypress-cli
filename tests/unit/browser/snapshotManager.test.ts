@@ -6,6 +6,7 @@ import {
 	getSnapshotApi,
 	injectSnapshotIife,
 	takeSnapshotFromWindow,
+	resetPreviousSnapshot,
 } from '../../../src/browser/snapshotManager.js';
 import { ELEMENT_MAP_KEY, getElementMap } from '../../../src/browser/refMap.js';
 
@@ -14,6 +15,8 @@ describe('snapshotManager', () => {
 		// Clean up window globals between tests
 		delete (window as Record<string, unknown>)[SNAPSHOT_API_KEY];
 		delete (window as Record<string, unknown>)[ELEMENT_MAP_KEY];
+		// Reset diff state so tests don't leak into each other
+		resetPreviousSnapshot();
 	});
 
 	describe('constants', () => {
@@ -105,14 +108,14 @@ describe('snapshotManager', () => {
 		});
 
 		it('passes mode "ai" to generateAriaTree and renderAriaTree', () => {
-			const calls: { method: string; mode: string }[] = [];
+			const calls: { method: string; mode: string; hasPrevious: boolean }[] = [];
 			const mockApi = {
 				generateAriaTree: (_root: Element, opts: { mode: string }) => {
-					calls.push({ method: 'generateAriaTree', mode: opts.mode });
+					calls.push({ method: 'generateAriaTree', mode: opts.mode, hasPrevious: false });
 					return { root: {}, elements: new Map() };
 				},
-				renderAriaTree: (_snapshot: unknown, opts: { mode: string }) => {
-					calls.push({ method: 'renderAriaTree', mode: opts.mode });
+				renderAriaTree: (_snapshot: unknown, opts: { mode: string }, prev?: unknown) => {
+					calls.push({ method: 'renderAriaTree', mode: opts.mode, hasPrevious: prev !== undefined });
 					return '';
 				},
 			};
@@ -121,8 +124,106 @@ describe('snapshotManager', () => {
 			takeSnapshotFromWindow(window);
 
 			expect(calls).toHaveLength(2);
-			expect(calls[0]).toEqual({ method: 'generateAriaTree', mode: 'ai' });
-			expect(calls[1]).toEqual({ method: 'renderAriaTree', mode: 'ai' });
+			expect(calls[0]).toEqual({ method: 'generateAriaTree', mode: 'ai', hasPrevious: false });
+			expect(calls[1]).toEqual({ method: 'renderAriaTree', mode: 'ai', hasPrevious: false });
+		});
+
+		it('passes undefined as previousSnapshot on the first call', () => {
+			let receivedPrevious: unknown = 'NOT_CALLED';
+			const mockApi = {
+				generateAriaTree: () => ({ root: {}, elements: new Map() }),
+				renderAriaTree: (_snap: unknown, _opts: unknown, prev?: unknown) => {
+					receivedPrevious = prev;
+					return '- full tree';
+				},
+			};
+			(window as Record<string, unknown>)[SNAPSHOT_API_KEY] = mockApi;
+
+			const result = takeSnapshotFromWindow(window);
+			expect(result).toBe('- full tree');
+			expect(receivedPrevious).toBeUndefined();
+		});
+
+		it('passes previous snapshot on the second call', () => {
+			const previousArgs: unknown[] = [];
+			const snapshot1 = { root: { role: 'document' }, elements: new Map() };
+			const snapshot2 = { root: { role: 'document', changed: true }, elements: new Map() };
+			let callCount = 0;
+
+			const mockApi = {
+				generateAriaTree: () => {
+					callCount++;
+					return callCount === 1 ? snapshot1 : snapshot2;
+				},
+				renderAriaTree: (_snap: unknown, _opts: unknown, prev?: unknown) => {
+					previousArgs.push(prev);
+					return prev ? '- diff output' : '- full tree';
+				},
+			};
+			(window as Record<string, unknown>)[SNAPSHOT_API_KEY] = mockApi;
+
+			// First call: no previous
+			const first = takeSnapshotFromWindow(window);
+			expect(first).toBe('- full tree');
+			expect(previousArgs[0]).toBeUndefined();
+
+			// Second call: gets first snapshot as previous
+			const second = takeSnapshotFromWindow(window);
+			expect(second).toBe('- diff output');
+			expect(previousArgs[1]).toBe(snapshot1);
+		});
+
+		it('resetPreviousSnapshot clears stored state', () => {
+			const previousArgs: unknown[] = [];
+			const mockApi = {
+				generateAriaTree: () => ({ root: {}, elements: new Map() }),
+				renderAriaTree: (_snap: unknown, _opts: unknown, prev?: unknown) => {
+					previousArgs.push(prev);
+					return prev ? '- diff' : '- full';
+				},
+			};
+			(window as Record<string, unknown>)[SNAPSHOT_API_KEY] = mockApi;
+
+			// First call stores snapshot
+			takeSnapshotFromWindow(window);
+			expect(previousArgs[0]).toBeUndefined();
+
+			// Second call gets previous
+			takeSnapshotFromWindow(window);
+			expect(previousArgs[1]).toBeDefined();
+
+			// Reset and verify next call has no previous
+			resetPreviousSnapshot();
+			takeSnapshotFromWindow(window);
+			expect(previousArgs[2]).toBeUndefined();
+		});
+
+		it('discards previous snapshot when window changes', () => {
+			const previousArgs: unknown[] = [];
+			const mockApi = {
+				generateAriaTree: () => ({ root: {}, elements: new Map() }),
+				renderAriaTree: (_snap: unknown, _opts: unknown, prev?: unknown) => {
+					previousArgs.push(prev);
+					return prev ? '- diff' : '- full';
+				},
+			};
+			(window as Record<string, unknown>)[SNAPSHOT_API_KEY] = mockApi;
+
+			// First call on window A
+			takeSnapshotFromWindow(window);
+			expect(previousArgs[0]).toBeUndefined();
+
+			// Second call on same window — gets diff
+			takeSnapshotFromWindow(window);
+			expect(previousArgs[1]).toBeDefined();
+
+			// Create a different window object to simulate navigation
+			const newWin = { ...window, document: window.document } as unknown as Window;
+			(newWin as Record<string, unknown>)[SNAPSHOT_API_KEY] = mockApi;
+
+			// Call on new window — previous snapshot discarded (full tree)
+			takeSnapshotFromWindow(newWin);
+			expect(previousArgs[2]).toBeUndefined();
 		});
 	});
 });

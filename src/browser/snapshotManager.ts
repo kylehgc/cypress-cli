@@ -23,8 +23,24 @@ export interface AriaSnapshotApi {
 	renderAriaTree: (
 		snapshot: unknown,
 		options: { mode: string },
+		previousSnapshot?: unknown,
 	) => string;
 }
+
+/**
+ * The most recent AriaSnapshot object, stored between commands so that
+ * `renderAriaTree()` can produce incremental diffs.  Starts as `undefined`
+ * (first snapshot in a session returns a full tree).
+ *
+ * Keyed to `_lastWindow` so that a full-page navigation (which gives
+ * Cypress a new AUT `Window` and resets the IIFE's internal ref counter)
+ * automatically discards the stale previous snapshot instead of producing
+ * incorrect `[unchanged]` markers from ref collisions.
+ */
+let _previousSnapshot: unknown;
+
+/** The Window that `_previousSnapshot` was captured from. */
+let _lastWindow: WeakRef<Window> | undefined;
 
 /**
  * Retrieves the aria snapshot API from the given window object.
@@ -67,6 +83,11 @@ export function injectSnapshotIife(win: Window, iife: string): void {
 /**
  * Takes an aria snapshot of the given window and returns the YAML string.
  *
+ * On the first call (or after {@link resetPreviousSnapshot}), a full tree is
+ * returned.  On subsequent calls the previously captured snapshot is passed to
+ * `renderAriaTree()` so that only changed subtrees are rendered (unchanged
+ * subtrees collapse to `ref=eN [unchanged]`).
+ *
  * Stores the snapshot's element map on the window via `setElementMap()`
  * so that `resolveRefFromMap()` can look up DOM elements by ref.
  *
@@ -87,5 +108,31 @@ export function takeSnapshotFromWindow(win: Window): string {
 	// Store element map on window so resolveRefFromMap() can look up elements
 	setElementMap(win, snapshot.elements);
 
-	return api.renderAriaTree(snapshot, { mode: 'ai' });
+	// If the window changed (e.g. full-page navigation), discard the stale
+	// previous snapshot to avoid ref-collision false matches.
+	const sameWindow = _lastWindow?.deref() === win;
+	const previous = sameWindow ? _previousSnapshot : undefined;
+
+	const rendered = api.renderAriaTree(
+		snapshot,
+		{ mode: 'ai' },
+		previous,
+	);
+
+	// Store current snapshot and window for the next diff
+	_previousSnapshot = snapshot;
+	_lastWindow = new WeakRef(win);
+
+	return rendered;
+}
+
+/**
+ * Resets the stored previous snapshot so the next call to
+ * {@link takeSnapshotFromWindow} returns a full tree.
+ *
+ * Useful for testing and for starting fresh after a session reset.
+ */
+export function resetPreviousSnapshot(): void {
+	_previousSnapshot = undefined;
+	_lastWindow = undefined;
 }
