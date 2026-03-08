@@ -471,7 +471,7 @@ function executeCommand(cmd: DriverCommand): void {
 					win as Window & { eval: (code: string) => unknown }
 				).eval;
 				const result = evalFn.call(win, cmd.text!);
-				if (result !== undefined && result !== null) {
+				if (result !== undefined) {
 					_evalResult = String(result);
 				}
 			});
