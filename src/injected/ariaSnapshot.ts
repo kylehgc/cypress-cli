@@ -36,7 +36,8 @@ export type AriaSnapshot = {
   iframeRefs: string[];
 };
 
-type AriaRef = {
+// REMOVED: AriaRef — ref caching on DOM elements removed; refs are now assigned fresh per snapshot.
+type _AriaRef = {
   role: string;
   name: string;
   ref: string;
@@ -234,11 +235,7 @@ function computeAriaRef(ariaNode: AriaNode, options: InternalOptions) {
     return;
 
   // MODIFIED: Always assign a fresh ref since the counter resets per snapshot.
-  // Previously cached _ariaRef values on elements are stale after reset.
-  const element = ariaNodeElement(ariaNode);
-  const ariaRef: AriaRef = { role: ariaNode.role, name: ariaNode.name, ref: (options.refPrefix ?? '') + 'e' + (++lastRef) };
-  (element as any)._ariaRef = ariaRef;
-  ariaNode.ref = ariaRef.ref;
+  ariaNode.ref = (options.refPrefix ?? '') + 'e' + (++lastRef);
 }
 
 function toAriaNode(element: Element, options: InternalOptions): AriaNode | null {
