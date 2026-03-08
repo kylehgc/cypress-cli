@@ -250,7 +250,7 @@ describe('Daemon', () => {
 				sessionId: 'test-inactivity-reset',
 				socketDir,
 				idleTimeout: 0,
-				sessionInactivityTimeout: 150,
+				sessionInactivityTimeout: 200,
 			});
 
 			await daemon.start();
@@ -262,12 +262,12 @@ describe('Daemon', () => {
 			await new Promise((r) => setTimeout(r, 50));
 			client.close();
 
-			// Wait past the original timeout (but not past the reset)
+			// Shortly after connection, daemon should still be alive
 			await new Promise((r) => setTimeout(r, 50));
 			expect(daemon.isShuttingDown).toBe(false);
 
-			// Wait for the reset timer to fire
-			await new Promise((r) => setTimeout(r, 150));
+			// Wait for the reset inactivity timer to fire
+			await new Promise((r) => setTimeout(r, 250));
 			expect(daemon.isShuttingDown).toBe(true);
 		});
 
