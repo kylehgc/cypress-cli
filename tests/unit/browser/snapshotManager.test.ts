@@ -54,7 +54,10 @@ describe('snapshotManager', () => {
 		});
 
 		it('does not re-evaluate if API is already present', () => {
-			const original = { generateAriaTree: () => ({ root: null, elements: new Map() }), renderAriaTree: () => '' };
+			const original = {
+				generateAriaTree: () => ({ root: null, elements: new Map() }),
+				renderAriaTree: () => '',
+			};
 			(window as Record<string, unknown>)[SNAPSHOT_API_KEY] = original;
 
 			// This IIFE would overwrite the API if evaluated
@@ -62,9 +65,9 @@ describe('snapshotManager', () => {
 			injectSnapshotIife(window, iife);
 
 			// Should still be the original
-			expect(
-				(window as Record<string, unknown>)[SNAPSHOT_API_KEY],
-			).toBe(original);
+			expect((window as Record<string, unknown>)[SNAPSHOT_API_KEY]).toBe(
+				original,
+			);
 		});
 	});
 
@@ -108,14 +111,27 @@ describe('snapshotManager', () => {
 		});
 
 		it('passes mode "ai" to generateAriaTree and renderAriaTree', () => {
-			const calls: { method: string; mode: string; hasPrevious: boolean }[] = [];
+			const calls: { method: string; mode: string; hasPrevious: boolean }[] =
+				[];
 			const mockApi = {
 				generateAriaTree: (_root: Element, opts: { mode: string }) => {
-					calls.push({ method: 'generateAriaTree', mode: opts.mode, hasPrevious: false });
+					calls.push({
+						method: 'generateAriaTree',
+						mode: opts.mode,
+						hasPrevious: false,
+					});
 					return { root: {}, elements: new Map() };
 				},
-				renderAriaTree: (_snapshot: unknown, opts: { mode: string }, prev?: unknown) => {
-					calls.push({ method: 'renderAriaTree', mode: opts.mode, hasPrevious: prev !== undefined });
+				renderAriaTree: (
+					_snapshot: unknown,
+					opts: { mode: string },
+					prev?: unknown,
+				) => {
+					calls.push({
+						method: 'renderAriaTree',
+						mode: opts.mode,
+						hasPrevious: prev !== undefined,
+					});
 					return '';
 				},
 			};
@@ -124,8 +140,16 @@ describe('snapshotManager', () => {
 			takeSnapshotFromWindow(window);
 
 			expect(calls).toHaveLength(2);
-			expect(calls[0]).toEqual({ method: 'generateAriaTree', mode: 'ai', hasPrevious: false });
-			expect(calls[1]).toEqual({ method: 'renderAriaTree', mode: 'ai', hasPrevious: false });
+			expect(calls[0]).toEqual({
+				method: 'generateAriaTree',
+				mode: 'ai',
+				hasPrevious: false,
+			});
+			expect(calls[1]).toEqual({
+				method: 'renderAriaTree',
+				mode: 'ai',
+				hasPrevious: false,
+			});
 		});
 
 		it('passes undefined as previousSnapshot on the first call', () => {
@@ -147,7 +171,10 @@ describe('snapshotManager', () => {
 		it('passes previous snapshot on the second call', () => {
 			const previousArgs: unknown[] = [];
 			const snapshot1 = { root: { role: 'document' }, elements: new Map() };
-			const snapshot2 = { root: { role: 'document', changed: true }, elements: new Map() };
+			const snapshot2 = {
+				root: { role: 'document', changed: true },
+				elements: new Map(),
+			};
 			let callCount = 0;
 
 			const mockApi = {
@@ -218,12 +245,41 @@ describe('snapshotManager', () => {
 			expect(previousArgs[1]).toBeDefined();
 
 			// Create a different window object to simulate navigation
-			const newWin = { ...window, document: window.document } as unknown as Window;
+			const newWin = {
+				...window,
+				document: window.document,
+			} as unknown as Window;
 			(newWin as Record<string, unknown>)[SNAPSHOT_API_KEY] = mockApi;
 
 			// Call on new window — previous snapshot discarded (full tree)
 			takeSnapshotFromWindow(newWin);
 			expect(previousArgs[2]).toBeUndefined();
+		});
+
+		it('returns no-changes sentinel when diff renders empty', () => {
+			const snapshot1 = { root: { role: 'document' }, elements: new Map() };
+			const snapshot2 = { root: { role: 'document' }, elements: new Map() };
+			let callCount = 0;
+
+			const mockApi = {
+				generateAriaTree: () => {
+					callCount++;
+					return callCount === 1 ? snapshot1 : snapshot2;
+				},
+				renderAriaTree: (_snap: unknown, _opts: unknown, prev?: unknown) => {
+					// Simulate nothing changed: diff returns empty string
+					return prev ? '' : '- document';
+				},
+			};
+			(window as Record<string, unknown>)[SNAPSHOT_API_KEY] = mockApi;
+
+			// First call: full tree
+			const first = takeSnapshotFromWindow(window);
+			expect(first).toBe('- document');
+
+			// Second call: diff is empty → short sentinel instead of full tree
+			const second = takeSnapshotFromWindow(window);
+			expect(second).toBe('- [no changes]');
 		});
 	});
 });

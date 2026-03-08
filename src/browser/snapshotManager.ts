@@ -70,8 +70,7 @@ export function injectSnapshotIife(win: Window, iife: string): void {
 		// declaration for the global name. In strict-mode eval, `var` does not
 		// create a property on the global object. Wrap the IIFE in a function
 		// so we can capture the declared variable and assign it explicitly.
-		const wrapped =
-			`(function(){${iife}\n;return typeof __cypressCliAriaSnapshot!=='undefined'?__cypressCliAriaSnapshot:undefined})()`;
+		const wrapped = `(function(){${iife}\n;return typeof __cypressCliAriaSnapshot!=='undefined'?__cypressCliAriaSnapshot:undefined})()`;
 		const evalFn = (win as Window & { eval: (code: string) => unknown }).eval;
 		const result = evalFn.call(win, wrapped);
 		if (result) {
@@ -113,17 +112,19 @@ export function takeSnapshotFromWindow(win: Window): string {
 	const sameWindow = _lastWindow?.deref() === win;
 	const previous = sameWindow ? _previousSnapshot : undefined;
 
-	const rendered = api.renderAriaTree(
-		snapshot,
-		{ mode: 'ai' },
-		previous,
-	);
+	const rendered = api.renderAriaTree(snapshot, { mode: 'ai' }, previous);
+
+	// If the diff is empty (nothing changed since the previous snapshot),
+	// return a short sentinel so the caller (and LLM) knows the page is
+	// unchanged without re-sending the entire tree.
+	const result =
+		rendered || !previous ? rendered : '- [no changes]';
 
 	// Store current snapshot and window for the next diff
 	_previousSnapshot = snapshot;
 	_lastWindow = new WeakRef(win);
 
-	return rendered;
+	return result;
 }
 
 /**
