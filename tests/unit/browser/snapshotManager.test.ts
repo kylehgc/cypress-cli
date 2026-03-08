@@ -197,5 +197,33 @@ describe('snapshotManager', () => {
 			takeSnapshotFromWindow(window);
 			expect(previousArgs[2]).toBeUndefined();
 		});
+
+		it('discards previous snapshot when window changes', () => {
+			const previousArgs: unknown[] = [];
+			const mockApi = {
+				generateAriaTree: () => ({ root: {}, elements: new Map() }),
+				renderAriaTree: (_snap: unknown, _opts: unknown, prev?: unknown) => {
+					previousArgs.push(prev);
+					return prev ? '- diff' : '- full';
+				},
+			};
+			(window as Record<string, unknown>)[SNAPSHOT_API_KEY] = mockApi;
+
+			// First call on window A
+			takeSnapshotFromWindow(window);
+			expect(previousArgs[0]).toBeUndefined();
+
+			// Second call on same window — gets diff
+			takeSnapshotFromWindow(window);
+			expect(previousArgs[1]).toBeDefined();
+
+			// Create a different window object to simulate navigation
+			const newWin = { ...window, document: window.document } as unknown as Window;
+			(newWin as Record<string, unknown>)[SNAPSHOT_API_KEY] = mockApi;
+
+			// Call on new window — previous snapshot discarded (full tree)
+			takeSnapshotFromWindow(newWin);
+			expect(previousArgs[2]).toBeUndefined();
+		});
 	});
 });

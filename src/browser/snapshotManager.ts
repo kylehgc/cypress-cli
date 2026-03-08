@@ -31,8 +31,16 @@ export interface AriaSnapshotApi {
  * The most recent AriaSnapshot object, stored between commands so that
  * `renderAriaTree()` can produce incremental diffs.  Starts as `undefined`
  * (first snapshot in a session returns a full tree).
+ *
+ * Keyed to `_lastWindow` so that a full-page navigation (which gives
+ * Cypress a new AUT `Window` and resets the IIFE's internal ref counter)
+ * automatically discards the stale previous snapshot instead of producing
+ * incorrect `[unchanged]` markers from ref collisions.
  */
 let _previousSnapshot: unknown;
+
+/** The Window that `_previousSnapshot` was captured from. */
+let _lastWindow: WeakRef<Window> | undefined;
 
 /**
  * Retrieves the aria snapshot API from the given window object.
@@ -100,14 +108,20 @@ export function takeSnapshotFromWindow(win: Window): string {
 	// Store element map on window so resolveRefFromMap() can look up elements
 	setElementMap(win, snapshot.elements);
 
+	// If the window changed (e.g. full-page navigation), discard the stale
+	// previous snapshot to avoid ref-collision false matches.
+	const sameWindow = _lastWindow?.deref() === win;
+	const previous = sameWindow ? _previousSnapshot : undefined;
+
 	const rendered = api.renderAriaTree(
 		snapshot,
 		{ mode: 'ai' },
-		_previousSnapshot,
+		previous,
 	);
 
-	// Store current snapshot for the next diff
+	// Store current snapshot and window for the next diff
 	_previousSnapshot = snapshot;
+	_lastWindow = new WeakRef(win);
 
 	return rendered;
 }
@@ -120,4 +134,5 @@ export function takeSnapshotFromWindow(win: Window): string {
  */
 export function resetPreviousSnapshot(): void {
 	_previousSnapshot = undefined;
+	_lastWindow = undefined;
 }
