@@ -17,6 +17,7 @@ import {
 	open,
 	stop,
 	status,
+	install,
 	back,
 	forward,
 	reload,
@@ -75,12 +76,12 @@ describe('declareCommand', () => {
 });
 
 describe('command schemas', () => {
-	it('defines all 29 commands', () => {
-		expect(allCommands).toHaveLength(29);
+	it('defines all 30 commands', () => {
+		expect(allCommands).toHaveLength(30);
 	});
 
 	it('registers all commands in the registry', () => {
-		expect(commandRegistry.size).toBe(29);
+		expect(commandRegistry.size).toBe(30);
 	});
 
 	describe('categories', () => {
@@ -88,6 +89,7 @@ describe('command schemas', () => {
 			expect(open.category).toBe('core');
 			expect(stop.category).toBe('core');
 			expect(status.category).toBe('core');
+			expect(install.category).toBe('core');
 			expect(snapshot.category).toBe('core');
 		});
 
@@ -208,6 +210,14 @@ describe('command schemas', () => {
 
 			const withDir = open.options.safeParse({ 'snapshot-dir': '/tmp/snaps' });
 			expect(withDir.success).toBe(true);
+		});
+
+		it('install requires --skills', () => {
+			const missingSkills = install.options.safeParse({});
+			expect(missingSkills.success).toBe(false);
+
+			const withSkills = install.options.safeParse({ skills: true });
+			expect(withSkills.success).toBe(true);
 		});
 
 		it('wait requires ms as a number', () => {

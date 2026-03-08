@@ -18,6 +18,7 @@ import { commandRegistry, allCommands } from './commands.js';
 import { ClientSession, type ClientResult } from './session.js';
 import { ClientConnectionError } from './socketConnection.js';
 import { openSession } from './open.js';
+import { installSkills } from './install.js';
 import { createClientLogger } from '../shared/logger.js';
 
 /**
@@ -90,6 +91,7 @@ export function parseGlobalFlags(argv: string[]): {
 			'multiple',
 			'headed',
 			'diff',
+			'skills',
 		],
 		string: [
 			'session',
@@ -196,6 +198,10 @@ export function formatResult(result: ClientResult, asJson: boolean): string {
 			return `Wrote test file: ${resultObj['filePath']}`;
 		}
 		return String(resultObj['testFile']);
+	}
+
+	if (typeof resultObj?.['installedPath'] === 'string') {
+		return `Installed skills to: ${resultObj['installedPath']}`;
 	}
 
 	// Build output lines
@@ -322,6 +328,20 @@ export async function run(argv: string[]): Promise<CliResult> {
 			};
 		}
 
+		if (parsedCommand.command === 'install') {
+			const installed = await installSkills();
+			return {
+				exitCode: EXIT_SUCCESS,
+				output: formatResult(
+					{
+						success: true,
+						result: { installedPath: installed.installedPath },
+					},
+					flags.json,
+				),
+			};
+		}
+
 		const session = new ClientSession({ session: flags.session });
 
 		log.debug('Sending command to daemon', {
@@ -365,6 +385,10 @@ function getCommandUsage(commandName: string): string {
 	const entry = commandRegistry.get(commandName);
 	if (!entry) {
 		return commandName;
+	}
+
+	if (commandName === 'install') {
+		return 'install --skills';
 	}
 
 	if (!(entry.schema.args instanceof z.ZodObject)) {

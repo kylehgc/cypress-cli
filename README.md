@@ -19,6 +19,21 @@ npm install -g cypress-cli
 npx cypress-cli <command>
 ```
 
+### Install AI agent skills
+
+Install the bundled project skill into `.github/skills/cypress-cli` so coding
+agents can auto-discover it in your repository:
+
+```bash
+cypress-cli install --skills
+```
+
+If you are running the CLI locally through `npx`, use:
+
+```bash
+npx cypress-cli install --skills
+```
+
 ## Quick Start
 
 ```bash
@@ -58,7 +73,7 @@ cypress-cli repl
 
 | Category    | Commands                                                          |
 | ----------- | ----------------------------------------------------------------- |
-| Core        | `open`, `stop`, `status`, `snapshot`                              |
+| Core        | `open`, `stop`, `status`, `install`, `snapshot`                   |
 | Navigation  | `navigate`, `back`, `forward`, `reload`                           |
 | Interaction | `click`, `dblclick`, `rightclick`, `type`, `clear`, `select`      |
 |             | `check`, `uncheck`, `focus`, `blur`, `scrollto`, `hover`          |
@@ -86,6 +101,15 @@ Agent ← { snapshot: "- heading \"Settings\" [ref=e3]\n- textbox \"Name\" [ref=
 Agent → cypress-cli export --file settings.cy.ts
 Agent ← { success: true, file: "settings.cy.ts" }
 ```
+
+To install the packaged skill files into the current project, run:
+
+```bash
+cypress-cli install --skills
+```
+
+This copies the shipped `skills/cypress-cli/` directory into
+`.github/skills/cypress-cli/`, including the task-specific reference guides.
 
 ## How It Works
 

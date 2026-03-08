@@ -44,6 +44,16 @@ export const status = declareCommand({
 	options: z.object({}),
 });
 
+export const install = declareCommand({
+	name: 'install',
+	category: 'core',
+	description: 'Install bundled AI agent skills into the current project',
+	args: z.object({}),
+	options: z.object({
+		skills: z.literal(true).describe('Copy the packaged SKILL files'),
+	}),
+});
+
 export const snapshot = declareCommand({
 	name: 'snapshot',
 	category: 'core',
@@ -406,6 +416,7 @@ export const allCommands = [
 	open,
 	stop,
 	status,
+	install,
 	snapshot,
 	navigate,
 	back,
@@ -448,6 +459,7 @@ export function buildRegistry(): ReadonlyMap<string, CommandRegistryEntry> {
 	registry.set('open', { schema: open, positionals: ['url'] });
 	registry.set('stop', { schema: stop, positionals: [] });
 	registry.set('status', { schema: status, positionals: [] });
+	registry.set('install', { schema: install, positionals: [] });
 	registry.set('snapshot', { schema: snapshot, positionals: [] });
 
 	// Navigation
