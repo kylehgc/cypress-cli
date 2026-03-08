@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import type { ParsedCommand } from './command.js';
 import { ClientSession, DEFAULT_SESSION, type ClientResult } from './session.js';
 import { ClientConnectionError } from './socketConnection.js';
+import { cleanStaleSockets } from '../daemon/daemon.js';
 
 const DEFAULT_STARTUP_TIMEOUT_MS = 60_000;
 const STARTUP_POLL_INTERVAL_MS = 250;
@@ -122,6 +123,9 @@ export async function openSession(
 			return existingResult;
 		}
 	}
+
+	// Best-effort cleanup of stale sockets left by dead daemons
+	await cleanStaleSockets().catch(() => {});
 
 	const spawnProcess = dependencies.spawnProcess ?? spawn;
 	const child = spawnProcess(

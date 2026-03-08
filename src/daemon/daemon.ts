@@ -41,6 +41,14 @@ import { generateTestFile } from '../codegen/codegen.js';
 const DEFAULT_IDLE_TIMEOUT = 30_000;
 
 /**
+ * Default session inactivity timeout (in ms). The daemon auto-exits when
+ * no client sends a command within this window — even if a session is still
+ * nominally "running". This prevents detached daemons from being orphaned.
+ * 0 means no inactivity auto-exit.
+ */
+const DEFAULT_SESSION_INACTIVITY_TIMEOUT = 1_800_000; // 30 minutes
+
+/**
  * Subdirectory under the runtime dir for socket files.
  */
 const SOCKET_DIR_NAME = 'cypress-cli';
@@ -57,6 +65,12 @@ export interface DaemonOptions {
 	sessionId: string;
 	/** Idle timeout in ms. Daemon exits after this duration with no sessions. 0 = no auto-exit. */
 	idleTimeout?: number;
+	/**
+	 * Session inactivity timeout in ms. Daemon auto-exits when no client
+	 * command is received within this window, even if a session is still open.
+	 * 0 = no inactivity auto-exit.
+	 */
+	sessionInactivityTimeout?: number;
 	/** Override the socket directory path (for testing). */
 	socketDir?: string;
 }
@@ -76,6 +90,8 @@ export class Daemon {
 	private _socketDir: string;
 	private _idleTimeout: number;
 	private _idleTimer: ReturnType<typeof setTimeout> | null = null;
+	private _sessionInactivityTimeout: number;
+	private _inactivityTimer: ReturnType<typeof setTimeout> | null = null;
 	private _connections = new Set<SocketConnection>();
 	private _isShuttingDown = false;
 	private _stopPromise: Promise<void> | null = null;
@@ -83,6 +99,8 @@ export class Daemon {
 	constructor(options: DaemonOptions) {
 		this._sessions = new SessionMap();
 		this._idleTimeout = options.idleTimeout ?? DEFAULT_IDLE_TIMEOUT;
+		this._sessionInactivityTimeout =
+			options.sessionInactivityTimeout ?? DEFAULT_SESSION_INACTIVITY_TIMEOUT;
 		this._socketDir = options.socketDir ?? resolveSocketDir();
 		this._socketPath = path.join(this._socketDir, `${options.sessionId}.sock`);
 	}
@@ -142,6 +160,12 @@ export class Daemon {
 				this._idleTimer = null;
 			}
 
+			// Clear inactivity timer
+			if (this._inactivityTimer) {
+				clearTimeout(this._inactivityTimer);
+				this._inactivityTimer = null;
+			}
+
 			// Stop all sessions
 			this._sessions.stopAll();
 
@@ -183,6 +207,8 @@ export class Daemon {
 			clearTimeout(this._idleTimer);
 			this._idleTimer = null;
 		}
+		// Start or reset the inactivity timer
+		this._resetInactivityTimer();
 		return session;
 	}
 
@@ -198,6 +224,8 @@ export class Daemon {
 			clearTimeout(this._idleTimer);
 			this._idleTimer = null;
 		}
+		// Start or reset the inactivity timer
+		this._resetInactivityTimer();
 		return registered;
 	}
 
@@ -272,6 +300,7 @@ export class Daemon {
 	private _handleConnection(socket: net.Socket): void {
 		const conn = new SocketConnection(socket);
 		this._connections.add(conn);
+		this._touchActivity();
 
 		conn.onMessage((message: ProtocolMessage) => {
 			this._handleMessage(conn, message);
@@ -294,6 +323,7 @@ export class Daemon {
 		conn: SocketConnection,
 		message: ProtocolMessage,
 	): void {
+		this._touchActivity();
 		// Only handle command messages from clients
 		if (!('method' in message)) {
 			return;
@@ -635,6 +665,37 @@ export class Daemon {
 	}
 
 	// -----------------------------------------------------------------------
+	// Session inactivity timer
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Record client activity and reset the inactivity timer.
+	 * Called on every new connection and every incoming message.
+	 */
+	private _touchActivity(): void {
+		this._resetInactivityTimer();
+	}
+
+	/**
+	 * (Re)start the inactivity timer. When it fires, the daemon auto-exits
+	 * to prevent orphaned processes when the CLI client is gone.
+	 */
+	private _resetInactivityTimer(): void {
+		if (this._sessionInactivityTimeout <= 0) {
+			return;
+		}
+		if (this._inactivityTimer) {
+			clearTimeout(this._inactivityTimer);
+			this._inactivityTimer = null;
+		}
+		this._inactivityTimer = setTimeout(() => {
+			this.stop().catch(() => {
+				// Best-effort shutdown
+			});
+		}, this._sessionInactivityTimeout);
+	}
+
+	// -----------------------------------------------------------------------
 	// Socket file management
 	// -----------------------------------------------------------------------
 
@@ -917,6 +978,64 @@ export function resolveSocketDir(): string {
 	}
 	const tmpdir = process.env['TMPDIR'] || os.tmpdir();
 	return path.join(tmpdir, SOCKET_DIR_NAME);
+}
+
+/**
+ * Test whether something is listening on a Unix socket.
+ *
+ * @param socketPath - Absolute path to the socket file
+ * @returns `true` if a connection was established (socket is alive)
+ */
+export function isSocketAlive(socketPath: string): Promise<boolean> {
+	return new Promise<boolean>((resolve) => {
+		const client = net.createConnection(socketPath);
+		client.on('connect', () => {
+			client.destroy();
+			resolve(true);
+		});
+		client.on('error', () => {
+			resolve(false);
+		});
+	});
+}
+
+/**
+ * Scan the socket directory for stale `.sock` files left behind by dead
+ * daemons and remove them. Live sockets (where a daemon is still listening)
+ * are left untouched.
+ *
+ * @param socketDir - Override socket directory (for testing). Defaults to the
+ *   standard runtime directory.
+ * @returns Session IDs whose stale sockets were cleaned up
+ */
+export async function cleanStaleSockets(socketDir?: string): Promise<string[]> {
+	const dir = socketDir ?? resolveSocketDir();
+	const cleaned: string[] = [];
+
+	let entries: string[];
+	try {
+		entries = await fs.readdir(dir);
+	} catch {
+		// Directory may not exist yet — nothing to clean
+		return cleaned;
+	}
+
+	for (const entry of entries) {
+		if (!entry.endsWith('.sock')) continue;
+		const fullPath = path.join(dir, entry);
+
+		const alive = await isSocketAlive(fullPath);
+		if (!alive) {
+			try {
+				await fs.unlink(fullPath);
+				cleaned.push(entry.replace('.sock', ''));
+			} catch {
+				// Best-effort — ignore errors on individual files
+			}
+		}
+	}
+
+	return cleaned;
 }
 
 // ---------------------------------------------------------------------------
