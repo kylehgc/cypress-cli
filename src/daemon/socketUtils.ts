@@ -81,7 +81,7 @@ export async function ensureSocketAvailable(socketPath: string): Promise<void> {
  */
 export async function cleanStaleSockets(socketDir?: string): Promise<string[]> {
 	const dir = socketDir ?? resolveSocketDir();
-	const removed: string[] = [];
+	const cleaned: string[] = [];
 	try {
 		const entries = await fs.readdir(dir);
 		for (const entry of entries) {
@@ -91,14 +91,14 @@ export async function cleanStaleSockets(socketDir?: string): Promise<string[]> {
 			if (!alive) {
 				try {
 					await fs.unlink(socketPath);
-					removed.push(entry.replace(/\.sock$/, ''));
+					cleaned.push(entry.replace(/\.sock$/, ''));
 				} catch {
 					// Best-effort — ignore errors on individual files
 				}
 			}
 		}
-		return removed;
+		return cleaned;
 	} catch {
-		return removed;
+		return cleaned;
 	}
 }
