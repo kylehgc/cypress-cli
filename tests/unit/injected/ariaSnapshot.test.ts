@@ -102,6 +102,49 @@ describe('generateAriaTree + renderAriaTree', () => {
     expect(snapshot.elements.size).toBeGreaterThan(0);
   });
 
+  it('keeps stable refs for unchanged elements across snapshots', () => {
+    document.body.innerHTML = '<a href="#">Link</a><button>Btn</button>';
+    const snap1 = generateAriaTree(document.body, { mode: 'ai' });
+    const yaml1 = renderAriaTree(snap1, { mode: 'ai' });
+    const linkRef1 = yaml1.match(/link "Link" \[ref=(e\d+)\]/)![1];
+    const btnRef1 = yaml1.match(/button "Btn" \[ref=(e\d+)\]/)![1];
+
+    // Add a new element — existing refs should stay the same
+    const extra = document.createElement('button');
+    extra.textContent = 'New';
+    document.body.appendChild(extra);
+
+    const snap2 = generateAriaTree(document.body, { mode: 'ai' });
+    const yaml2 = renderAriaTree(snap2, { mode: 'ai' });
+    const linkRef2 = yaml2.match(/link "Link" \[ref=(e\d+)\]/)![1];
+    const btnRef2 = yaml2.match(/button "Btn" \[ref=(e\d+)\]/)![1];
+
+    expect(linkRef2).toBe(linkRef1);
+    expect(btnRef2).toBe(btnRef1);
+
+    // The new element should have a different ref
+    const newRef = yaml2.match(/button "New" \[ref=(e\d+)\]/)![1];
+    expect(newRef).not.toBe(linkRef1);
+    expect(newRef).not.toBe(btnRef1);
+  });
+
+  it('assigns a new ref when element name changes', () => {
+    document.body.innerHTML = '<button>Original</button>';
+    const snap1 = generateAriaTree(document.body, { mode: 'ai' });
+    const yaml1 = renderAriaTree(snap1, { mode: 'ai' });
+    const ref1 = yaml1.match(/button "Original" \[ref=(e\d+)\]/)![1];
+
+    // Change the button's text (accessible name)
+    document.querySelector('button')!.textContent = 'Changed';
+
+    const snap2 = generateAriaTree(document.body, { mode: 'ai' });
+    const yaml2 = renderAriaTree(snap2, { mode: 'ai' });
+    const ref2 = yaml2.match(/button "Changed" \[ref=(e\d+)\]/)![1];
+
+    // Name changed, so the element gets a new ref
+    expect(ref2).not.toBe(ref1);
+  });
+
   it('includes url prop for links', () => {
     document.body.innerHTML = '<a href="/about">About</a>';
     const snapshot = generateAriaTree(document.body, { mode: 'ai' });
@@ -213,36 +256,32 @@ describe('generateAriaTree + renderAriaTree', () => {
     expect(yaml).toContain('[unchanged]');
   });
 
-  it('resets ref counter on each generateAriaTree call', () => {
+  it('returns same refs for unchanged elements on repeated calls', () => {
     document.body.innerHTML = '<a href="#">Link</a><button>Btn</button>';
     const snap1 = generateAriaTree(document.body, { mode: 'ai' });
     const refs1 = [...snap1.elements.keys()];
 
-    // Second call on the same DOM should produce the same low-numbered refs
+    // Second call on the same DOM should produce the same refs (cached on elements)
     const snap2 = generateAriaTree(document.body, { mode: 'ai' });
     const refs2 = [...snap2.elements.keys()];
 
     expect(refs1).toEqual(refs2);
-    // All refs should be low-numbered (e1, e2, etc.)
-    for (const ref of refs1) {
-      const num = parseInt(ref.replace(/^e/, ''), 10);
-      expect(num).toBeLessThanOrEqual(refs1.length);
-    }
   });
 
-  it('produces consistent low-numbered refs across many snapshots', () => {
+  it('keeps stable refs across many snapshots without reassigning', () => {
     document.body.innerHTML = '<button>A</button><button>B</button><button>C</button>';
+    const firstSnap = generateAriaTree(document.body, { mode: 'ai' });
+    const firstRefs = [...firstSnap.elements.keys()];
+
     // Simulate many sequential snapshots (like a long REPL session)
     for (let i = 0; i < 50; i++) {
       generateAriaTree(document.body, { mode: 'ai' });
     }
-    const snap = generateAriaTree(document.body, { mode: 'ai' });
-    const refs = [...snap.elements.keys()];
-    // After 50+ calls, refs should still be low-numbered, not e150+
-    for (const ref of refs) {
-      const num = parseInt(ref.replace(/^e/, ''), 10);
-      expect(num).toBeLessThanOrEqual(refs.length);
-    }
+    const lastSnap = generateAriaTree(document.body, { mode: 'ai' });
+    const lastRefs = [...lastSnap.elements.keys()];
+
+    // Refs should be identical to the first snapshot since elements haven't changed
+    expect(lastRefs).toEqual(firstRefs);
   });
 });
 

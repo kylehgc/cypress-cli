@@ -36,8 +36,7 @@ export type AriaSnapshot = {
   iframeRefs: string[];
 };
 
-// REMOVED: AriaRef — ref caching on DOM elements removed; refs are now assigned fresh per snapshot.
-type _AriaRef = {
+type AriaRef = {
   role: string;
   name: string;
   ref: string;
@@ -86,9 +85,6 @@ function toInternalOptions(options: AriaTreeOptions): InternalOptions {
 }
 
 export function generateAriaTree(rootElement: Element, publicOptions: AriaTreeOptions): AriaSnapshot {
-  // MODIFIED: Reset ref counter so each snapshot gets clean e1-eN refs,
-  // preventing unbounded growth in long sessions.
-  lastRef = 0;
   const options = toInternalOptions(publicOptions);
   const visited = new Set<Node>();
 
@@ -234,8 +230,13 @@ function computeAriaRef(ariaNode: AriaNode, options: InternalOptions) {
   if (options.refs === 'interactable' && (!ariaNode.box.visible || !ariaNode.receivesPointerEvents))
     return;
 
-  // MODIFIED: Always assign a fresh ref since the counter resets per snapshot.
-  ariaNode.ref = (options.refPrefix ?? '') + 'e' + (++lastRef);
+  const element = ariaNodeElement(ariaNode);
+  let ariaRef = (element as any)._ariaRef as AriaRef | undefined;
+  if (!ariaRef || ariaRef.role !== ariaNode.role || ariaRef.name !== ariaNode.name) {
+    ariaRef = { role: ariaNode.role, name: ariaNode.name, ref: (options.refPrefix ?? '') + 'e' + (++lastRef) };
+    (element as any)._ariaRef = ariaRef;
+  }
+  ariaNode.ref = ariaRef.ref;
 }
 
 function toAriaNode(element: Element, options: InternalOptions): AriaNode | null {
