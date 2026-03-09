@@ -236,6 +236,34 @@ describe('selectorGenerator', () => {
 			const result = buildCypressCommand('#el', 'customAction');
 			expect(result).toBe("cy.get('#el').customAction()");
 		});
+
+		it('builds drag command with target selector', () => {
+			const result = buildCypressCommand('#source', 'drag', 'e5', undefined, {
+				_targetSelector: '#target',
+			});
+			expect(result).toBe(
+				[
+					"cy.get('#source').trigger('pointerdown', { which: 1 })",
+					"  .trigger('dragstart')",
+					"cy.get('#target').trigger('dragover').trigger('drop')",
+					"cy.get('#source').trigger('dragend').trigger('pointerup')",
+				].join(';\n'),
+			);
+		});
+
+		it('builds drag command with fallback when no target selector', () => {
+			const result = buildCypressCommand('#source', 'drag', 'e5');
+			expect(result).toBe(
+				'// drag #source \u2192 target (missing target selector)',
+			);
+		});
+
+		it('escapes quotes in drag target selector', () => {
+			const result = buildCypressCommand('#source', 'drag', 'e5', undefined, {
+				_targetSelector: "[data-cy='drop']",
+			});
+			expect(result).toContain("cy.get('[data-cy=\\'drop\\']')");
+		});
 	});
 
 	describe('buildCypressCommand (non-ref commands)', () => {
@@ -260,6 +288,11 @@ describe('selectorGenerator', () => {
 		it('builds back command', () => {
 			const result = buildCypressCommand(undefined, 'back');
 			expect(result).toBe("cy.go('back')");
+		});
+
+		it('builds non-ref drag with fallback comment', () => {
+			const result = buildCypressCommand(undefined, 'drag');
+			expect(result).toBe('// drag (missing target selector)');
 		});
 
 		it('builds forward command', () => {

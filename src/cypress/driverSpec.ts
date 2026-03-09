@@ -741,12 +741,27 @@ function pollForCommands(): void {
 					try {
 						selector = generateSelector(element);
 						const chainer = cmd.options?.['chainer'] as string | undefined;
+						const codegenOptions = { ...cmd.options };
+
+						// For drag, resolve the target element selector too
+						if (cmd.action === 'drag' && cmd.text) {
+							try {
+								const targetEl = resolveRefFromMap(win, cmd.text);
+								if (targetEl?.isConnected) {
+									codegenOptions['_targetSelector'] =
+										generateSelector(targetEl);
+								}
+							} catch {
+								// Best-effort: target selector for codegen only
+							}
+						}
+
 						cypressCommand = buildCypressCommand(
 							selector,
 							cmd.action,
 							cmd.text,
 							chainer,
-							cmd.options,
+							codegenOptions,
 						);
 					} catch {
 						// Codegen metadata is best-effort; command execution can continue.

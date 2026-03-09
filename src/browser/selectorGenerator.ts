@@ -184,8 +184,23 @@ export function buildCypressCommand(
 				.replace(/'/g, "\\'");
 			return `${getExpr}.selectFile('${escapedFile}')`;
 		}
-		case 'drag':
-			return `// drag ${selector ?? 'source'} → (see test for manual drag)`;
+		case 'drag': {
+			const targetSelector = options?.['_targetSelector'] as
+				| string
+				| undefined;
+			if (targetSelector) {
+				const escapedTarget = targetSelector
+					.replace(/\\/g, '\\\\')
+					.replace(/'/g, "\\'");
+				return [
+					`${getExpr}.trigger('pointerdown', { which: 1 })`,
+					`  .trigger('dragstart')`,
+					`cy.get('${escapedTarget}').trigger('dragover').trigger('drop')`,
+					`${getExpr}.trigger('dragend').trigger('pointerup')`,
+				].join(';\n');
+			}
+			return `// drag ${selector ?? 'source'} → target (missing target selector)`;
+		}
 		default:
 			return `${getExpr}.${action}()`;
 	}
@@ -316,8 +331,23 @@ function _buildNonRefCommand(
 			}
 			return 'cy.screenshot()';
 		}
-		case 'drag':
-			return '// drag (manual trigger chain)';
+		case 'drag': {
+			const targetSelector = options?.['_targetSelector'] as
+				| string
+				| undefined;
+			if (targetSelector) {
+				const escapedTarget = targetSelector
+					.replace(/\\/g, '\\\\')
+					.replace(/'/g, "\\'");
+				return [
+					"cy.get('source').trigger('pointerdown', { which: 1 })",
+					`  .trigger('dragstart')`,
+					`cy.get('${escapedTarget}').trigger('dragover').trigger('drop')`,
+					"cy.get('source').trigger('dragend').trigger('pointerup')",
+				].join(';\n');
+			}
+			return '// drag (missing target selector)';
+		}
 		case 'upload':
 			return '// upload (requires cy.selectFile with element ref)';
 		default:
