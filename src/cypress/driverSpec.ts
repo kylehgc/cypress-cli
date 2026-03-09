@@ -269,6 +269,30 @@ let _pendingRecoveryError: string | undefined;
 let _recoveryCount = 0;
 
 /**
+ * Safely serialize a value to JSON. Handles circular references,
+ * BigInt, DOM nodes, functions, symbols, and undefined.
+ */
+function safeJsonSerialize(value: unknown): string {
+	if (value === undefined) return 'undefined';
+	if (value === null) return 'null';
+	if (typeof value === 'function') return `[Function: ${value.name || 'anonymous'}]`;
+	if (typeof value === 'symbol') return value.toString();
+	if (typeof value === 'bigint') return `${value.toString()}n`;
+	try {
+		return JSON.stringify(value, (_key, v) => {
+			if (typeof v === 'bigint') return `${v.toString()}n`;
+			if (typeof v === 'function') return `[Function: ${v.name || 'anonymous'}]`;
+			if (typeof v === 'symbol') return v.toString();
+			if (v instanceof HTMLElement) return `[HTMLElement: <${v.tagName.toLowerCase()}>]`;
+			if (v instanceof Node) return `[Node: ${v.nodeName}]`;
+			return v;
+		});
+	} catch {
+		return String(value);
+	}
+}
+
+/**
  * Captures the return value of run-code's eval() call.
  * Set inside executeCommand and read when building the result.
  */
@@ -607,25 +631,33 @@ function executeCommand(cmd: DriverCommand): void {
 			if (cmd.ref) {
 				resolveRef(cmd.ref).then(($el) => {
 					cy.window({ log: false }).then((win: Window) => {
-						const evalFn = (
-							win as Window & { eval: (code: string) => unknown }
-						).eval;
-						const element = $el[0];
-						const fn = evalFn.call(win, `(${cmd.text!})`);
-						const result =
-							typeof fn === 'function' ? fn(element) : fn;
-						_evalResult =
-							result === undefined ? 'undefined' : JSON.stringify(result);
+						try {
+							const evalFn = (
+								win as Window & { eval: (code: string) => unknown }
+							).eval;
+							const element = $el[0];
+							const fn = evalFn.call(win, `(${cmd.text!})`);
+							const result =
+								typeof fn === 'function' ? fn(element) : fn;
+							_evalResult = safeJsonSerialize(result);
+						} catch (e) {
+							_asyncCommandError =
+								e instanceof Error ? e.message : String(e);
+						}
 					});
 				});
 			} else {
 				cy.window({ log: false }).then((win: Window) => {
-					const evalFn = (
-						win as Window & { eval: (code: string) => unknown }
-					).eval;
-					const result = evalFn.call(win, cmd.text!);
-					_evalResult =
-						result === undefined ? 'undefined' : JSON.stringify(result);
+					try {
+						const evalFn = (
+							win as Window & { eval: (code: string) => unknown }
+						).eval;
+						const result = evalFn.call(win, cmd.text!);
+						_evalResult = safeJsonSerialize(result);
+					} catch (e) {
+						_asyncCommandError =
+							e instanceof Error ? e.message : String(e);
+					}
 				});
 			}
 			break;
