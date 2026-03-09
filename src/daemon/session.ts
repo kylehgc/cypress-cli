@@ -73,6 +73,20 @@ export interface SerializedSession {
 	history: SerializedHistory;
 }
 
+/**
+ * An active intercept route mock tracked by the daemon.
+ */
+export interface InterceptEntry {
+	/** URL pattern (glob) passed to cy.intercept() */
+	pattern: string;
+	/** Mock response status code */
+	statusCode?: number;
+	/** Mock response body (raw string — JSON or plain text) */
+	body?: string;
+	/** Mock response Content-Type header */
+	contentType?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Session class
 // ---------------------------------------------------------------------------
@@ -91,6 +105,7 @@ export class Session {
 	private _config: SessionConfig;
 	private _createdAt: number;
 	private _history: CommandHistory;
+	private _intercepts: InterceptEntry[] = [];
 
 	constructor(config: SessionConfig) {
 		this._config = Object.freeze({ ...config });
@@ -193,6 +208,48 @@ export class Session {
 	 */
 	undoHistory(): HistoryEntry | null {
 		return this._history.undo();
+	}
+
+	// -----------------------------------------------------------------------
+	// Intercept registry
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Register an intercept route mock.
+	 * Replaces an existing entry with the same pattern.
+	 */
+	addIntercept(entry: InterceptEntry): void {
+		const idx = this._intercepts.findIndex((e) => e.pattern === entry.pattern);
+		if (idx >= 0) {
+			this._intercepts[idx] = entry;
+		} else {
+			this._intercepts.push(entry);
+		}
+	}
+
+	/**
+	 * Remove an intercept by pattern. If no pattern, remove all.
+	 *
+	 * @returns The removed entries
+	 */
+	removeIntercept(pattern?: string): InterceptEntry[] {
+		if (pattern === undefined) {
+			const removed = [...this._intercepts];
+			this._intercepts = [];
+			return removed;
+		}
+		const idx = this._intercepts.findIndex((e) => e.pattern === pattern);
+		if (idx >= 0) {
+			return this._intercepts.splice(idx, 1);
+		}
+		return [];
+	}
+
+	/**
+	 * All currently active intercept route mocks.
+	 */
+	get intercepts(): readonly InterceptEntry[] {
+		return this._intercepts;
 	}
 
 	// -----------------------------------------------------------------------

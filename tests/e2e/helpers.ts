@@ -60,7 +60,17 @@ export async function startFixtureServer(): Promise<{
 }> {
 	return new Promise((resolve) => {
 		const server = http.createServer(async (req, res) => {
-			const urlPath = req.url === '/' ? '/simple.html' : req.url ?? '/';
+			const urlPath = req.url === '/' ? '/simple.html' : (req.url ?? '/');
+
+			// API endpoints for network testing
+			if (urlPath === '/api/users') {
+				res.writeHead(200, { 'Content-Type': 'application/json' });
+				res.end(
+					JSON.stringify({ users: [{ name: 'Alice' }, { name: 'Bob' }] }),
+				);
+				return;
+			}
+
 			const filePath = path.join(FIXTURES_DIR, urlPath);
 
 			try {
@@ -144,7 +154,9 @@ export interface E2EContext {
  * @param fixturePage - The fixture page to visit initially (e.g. '/simple.html')
  * @returns An E2E context with command-sending helpers
  */
-export async function setupE2E(fixturePage: string = '/simple.html'): Promise<E2EContext> {
+export async function setupE2E(
+	fixturePage: string = '/simple.html',
+): Promise<E2EContext> {
 	// 1. Start fixture server
 	const { server, port } = await startFixtureServer();
 	const baseUrl = `http://127.0.0.1:${port}`;
@@ -292,7 +304,9 @@ export async function setupE2E(fixturePage: string = '/simple.html'): Promise<E2
  */
 export function getSnapshot(response: DaemonMessage): string {
 	if ('error' in response) {
-		throw new Error(`Expected success response, got error: ${(response as ErrorMessage).error}`);
+		throw new Error(
+			`Expected success response, got error: ${(response as ErrorMessage).error}`,
+		);
 	}
 	return (response as ResponseMessage).result.snapshot ?? '';
 }
@@ -321,6 +335,18 @@ export function isSuccess(response: DaemonMessage): boolean {
  * Check if a response is an error.
  */
 export function isError(response: DaemonMessage): boolean {
-	return 'error' in response ||
-		('result' in response && !(response as ResponseMessage).result.success);
+	return (
+		'error' in response ||
+		('result' in response && !(response as ResponseMessage).result.success)
+	);
+}
+
+/**
+ * Extract the evalResult string from a successful response.
+ */
+export function getEvalResult(response: DaemonMessage): string | undefined {
+	if ('result' in response) {
+		return (response as ResponseMessage).result.evalResult;
+	}
+	return undefined;
 }

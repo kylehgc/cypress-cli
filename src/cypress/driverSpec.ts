@@ -55,6 +55,57 @@ interface DriverResult {
 const GET_COMMAND_TIMEOUT = 120_000;
 
 // ---------------------------------------------------------------------------
+// Network monitoring state
+// ---------------------------------------------------------------------------
+
+/**
+ * A captured network request entry populated by the passive network monitor.
+ * Stored in `_networkLog` and returned by the `network` command.
+ */
+interface NetworkEntry {
+	url: string;
+	method: string;
+	status: number;
+	contentType: string;
+	size: number;
+	timestamp: string;
+}
+
+/**
+ * Buffer of network requests captured by the passive intercept.
+ * Grows for the lifetime of the session — the LLM agent reads it via
+ * the `network` command as a pull-based inspection mechanism.
+ */
+const _networkLog: NetworkEntry[] = [];
+
+/**
+ * Map of active intercept route patterns to their static response config.
+ * Used by `unintercept` to know which patterns to replace with passthrough,
+ * and by error recovery to replay intercepts in the new test context.
+ */
+const _activeRoutes = new Map<string, Record<string, unknown>>();
+
+/**
+ * Registers a passive `cy.intercept('**')` to capture all network requests.
+ * Called once at session start, before the first cy.visit().
+ */
+function registerPassiveNetworkMonitor(): void {
+	cy.intercept('**', (req) => {
+		req.on('response', (res) => {
+			_networkLog.push({
+				url: req.url,
+				method: req.method,
+				status: res.statusCode,
+				contentType: (res.headers['content-type'] as string | undefined) ?? '',
+				size: res.body ? String(res.body).length : 0,
+				timestamp: new Date().toISOString(),
+			});
+		});
+		req.continue();
+	});
+}
+
+// ---------------------------------------------------------------------------
 // Ref resolution
 // ---------------------------------------------------------------------------
 
@@ -130,6 +181,7 @@ const COMMANDS_REQUIRING_TEXT = new Set([
 	'navigate',
 	'press',
 	'run-code',
+	'intercept',
 ]);
 
 /**
@@ -469,9 +521,8 @@ function executeCommand(cmd: DriverCommand): void {
 			break;
 		case 'run-code':
 			cy.window({ log: false }).then((win: Window) => {
-				const evalFn = (
-					win as Window & { eval: (code: string) => unknown }
-				).eval;
+				const evalFn = (win as Window & { eval: (code: string) => unknown })
+					.eval;
 				const result = evalFn.call(win, cmd.text!);
 				if (result !== undefined) {
 					_evalResult = String(result);
@@ -481,6 +532,67 @@ function executeCommand(cmd: DriverCommand): void {
 		case 'snapshot':
 			// No-op: snapshot is always taken after command execution
 			break;
+		case 'network':
+			// Return captured network requests as JSON
+			_evalResult = JSON.stringify(_networkLog, null, 2);
+			break;
+		case 'intercept': {
+			const pattern = cmd.text!;
+			const statusCode =
+				cmd.options?.['status'] !== undefined
+					? Number(cmd.options['status'])
+					: undefined;
+			const body = cmd.options?.['body'] as string | undefined;
+			const contentType = cmd.options?.['content-type'] as string | undefined;
+
+			const staticResponse: Record<string, unknown> = {};
+			if (statusCode !== undefined) {
+				staticResponse['statusCode'] = statusCode;
+			}
+			if (body !== undefined) {
+				try {
+					staticResponse['body'] = JSON.parse(body);
+				} catch {
+					// Not valid JSON — use the raw string as the response body
+					staticResponse['body'] = body;
+				}
+			}
+			if (contentType !== undefined) {
+				staticResponse['headers'] = { 'content-type': contentType };
+			}
+
+			if (Object.keys(staticResponse).length > 0) {
+				cy.intercept(pattern, staticResponse);
+			} else {
+				// Intercept without mock response — just monitor
+				cy.intercept(pattern);
+			}
+			_activeRoutes.set(pattern, staticResponse);
+			_evalResult = `Intercept registered for "${pattern}"`;
+			break;
+		}
+		case 'unintercept': {
+			const pattern = cmd.text;
+			if (pattern) {
+				// Replace specific intercept with passthrough
+				cy.intercept(pattern, (req) => {
+					req.continue();
+				});
+				_activeRoutes.delete(pattern);
+				_evalResult = `Intercept removed for "${pattern}"`;
+			} else {
+				// Remove all intercepts by replacing with passthrough
+				for (const p of _activeRoutes.keys()) {
+					cy.intercept(p, (req) => {
+						req.continue();
+					});
+				}
+				const count = _activeRoutes.size;
+				_activeRoutes.clear();
+				_evalResult = `All ${count} intercept(s) removed`;
+			}
+			break;
+		}
 		default:
 			throw new Error(`Unknown command action: ${cmd.action}`);
 	}
@@ -556,6 +668,7 @@ function pollForCommands(): void {
 							cmd.action,
 							cmd.text,
 							chainer,
+							cmd.options,
 						);
 					} catch {
 						// Codegen metadata is best-effort; command execution can continue.
@@ -568,6 +681,7 @@ function pollForCommands(): void {
 					cmd.action,
 					cmd.text,
 					chainer,
+					cmd.options,
 				);
 			}
 
@@ -749,6 +863,17 @@ function enqueueRecoveryTest(currentTest: unknown): void {
 			error ?? 'Unknown error (session recovered)',
 		);
 
+		// Re-register passive network monitor and replay active routes
+		// (all cy.intercept() registrations are lost on test boundary).
+		registerPassiveNetworkMonitor();
+		for (const [pattern, staticResponse] of _activeRoutes) {
+			if (Object.keys(staticResponse).length > 0) {
+				cy.intercept(pattern, staticResponse);
+			} else {
+				cy.intercept(pattern);
+			}
+		}
+
 		// Re-inject snapshot lib and take a fresh full snapshot so the
 		// error response shows the complete page state for context.
 		injectSnapshotLib();
@@ -809,6 +934,11 @@ describe('cypress-cli', function () {
 
 	it('driver', () => {
 		const url = (Cypress.env('CYPRESS_CLI_URL') as string | undefined) || '/';
+
+		// Register passive network monitor before visiting the page
+		// so all requests (including the initial page load) are captured.
+		registerPassiveNetworkMonitor();
+
 		cy.visit(url);
 
 		// Inject aria snapshot IIFE

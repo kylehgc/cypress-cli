@@ -22,7 +22,7 @@ import {
 	type ResponseMessage,
 	type ErrorMessage,
 } from './protocol.js';
-import { SessionMap, Session, type SessionConfig } from './session.js';
+import { SessionMap, Session, type SessionConfig, type InterceptEntry } from './session.js';
 import type { QueuedCommand, CommandResult } from './commandQueue.js';
 import { generateTestFile } from '../codegen/codegen.js';
 
@@ -389,6 +389,11 @@ export class Daemon {
 			return;
 		}
 
+		if (action === 'intercept-list') {
+			this._handleInterceptList(conn, message);
+			return;
+		}
+
 		let command: QueuedCommand;
 		try {
 			command = buildQueuedCommand(message.id, message.params.args);
@@ -426,6 +431,11 @@ export class Daemon {
 
 					// Record in history
 					session.recordHistory(command, result);
+
+					// Track intercept state in daemon registry
+					if (result.success) {
+						this._trackInterceptState(session, command);
+					}
 
 					// Write snapshot to file if present
 					let snapshotFile: string | undefined;
@@ -641,6 +651,62 @@ export class Daemon {
 				error: err instanceof Error ? err.message : String(err),
 			};
 			conn.send(errorMsg);
+		}
+	}
+
+	/**
+	 * Handle the "intercept-list" command: return all active route mocks.
+	 * This is a daemon-local command — it does not go through Cypress.
+	 */
+	private _handleInterceptList(
+		conn: SocketConnection,
+		message: CommandMessage,
+	): void {
+		const session = this._findRunningSession();
+		if (!session) {
+			const errorMsg: ErrorMessage = {
+				id: message.id,
+				error: 'No session running. Run `cypress-cli open <url>` to start one.',
+			};
+			conn.send(errorMsg);
+			return;
+		}
+
+		const intercepts = session.intercepts;
+		const response: ResponseMessage = {
+			id: message.id,
+			result: {
+				success: true,
+				evalResult: JSON.stringify(intercepts, null, 2),
+			},
+		};
+		conn.send(response);
+	}
+
+	/**
+	 * Track intercept/unintercept state in the session registry.
+	 * Called after a successful command execution.
+	 */
+	private _trackInterceptState(
+		session: Session,
+		command: QueuedCommand,
+	): void {
+		if (command.action === 'intercept' && command.text) {
+			const entry: InterceptEntry = {
+				pattern: command.text,
+				...(command.options?.['status'] !== undefined && {
+					statusCode: Number(command.options['status']),
+				}),
+				...(typeof command.options?.['body'] === 'string' && {
+					body: command.options['body'] as string,
+				}),
+				...(typeof command.options?.['content-type'] === 'string' && {
+					contentType: command.options['content-type'] as string,
+				}),
+			};
+			session.addIntercept(entry);
+		} else if (command.action === 'unintercept') {
+			session.removeIntercept(command.text || undefined);
 		}
 	}
 
@@ -993,6 +1059,32 @@ function buildQueuedCommand(
 				},
 			);
 		}
+		case 'network':
+			return withOptions({ id, action }, options);
+		case 'intercept':
+			// Pattern is the first positional, stored in `text` for the driver
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && {
+						text: positionals[0],
+					}),
+				},
+				options,
+			);
+		case 'unintercept':
+			// Optional pattern is the first positional, stored in `text`
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && {
+						text: positionals[0],
+					}),
+				},
+				options,
+			);
 		default:
 			return withOptions(
 				{

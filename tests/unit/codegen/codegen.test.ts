@@ -5,7 +5,10 @@ import {
 	buildHistory,
 } from '../../../src/codegen/codegen.js';
 import { renderTestFile } from '../../../src/codegen/templateEngine.js';
-import type { QueuedCommand, CommandResult } from '../../../src/daemon/commandQueue.js';
+import type {
+	QueuedCommand,
+	CommandResult,
+} from '../../../src/daemon/commandQueue.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -38,8 +41,12 @@ describe('templateEngine', () => {
 	describe('renderTestFile', () => {
 		it('wraps commands in describe/it structure', () => {
 			const output = renderTestFile(["cy.get('#btn').click()"]);
-			expect(output).toContain("describe('cypress-cli generated test', () => {");
-			expect(output).toContain("it('should complete the recorded flow', () => {");
+			expect(output).toContain(
+				"describe('cypress-cli generated test', () => {",
+			);
+			expect(output).toContain(
+				"it('should complete the recorded flow', () => {",
+			);
 			expect(output).toContain("cy.get('#btn').click();");
 			expect(output).toContain('});');
 		});
@@ -50,13 +57,17 @@ describe('templateEngine', () => {
 		});
 
 		it('uses custom it name', () => {
-			const output = renderTestFile([], { itName: 'fills and submits the form' });
+			const output = renderTestFile([], {
+				itName: 'fills and submits the form',
+			});
 			expect(output).toContain("it('fills and submits the form', () => {");
 		});
 
 		it('renders empty body for no commands', () => {
 			const output = renderTestFile([]);
-			expect(output).toContain("it('should complete the recorded flow', () => {");
+			expect(output).toContain(
+				"it('should complete the recorded flow', () => {",
+			);
 			expect(output).toContain('});');
 			// No command lines between it() and closing })
 			expect(output).not.toContain('\t\tcy.');
@@ -70,7 +81,9 @@ describe('templateEngine', () => {
 			];
 			const output = renderTestFile(commands);
 			const visitIndex = output.indexOf("cy.visit('/login')");
-			const typeIndex = output.indexOf("cy.get('#email').type('user@test.com')");
+			const typeIndex = output.indexOf(
+				"cy.get('#email').type('user@test.com')",
+			);
 			const clickIndex = output.indexOf("cy.get('#submit').click()");
 			expect(visitIndex).toBeLessThan(typeIndex);
 			expect(typeIndex).toBeLessThan(clickIndex);
@@ -92,13 +105,19 @@ describe('templateEngine', () => {
 		});
 
 		it('adds triple-slash directive for ts format', () => {
-			const output = renderTestFile(["cy.get('#btn').click()"], { format: 'ts' });
+			const output = renderTestFile(["cy.get('#btn').click()"], {
+				format: 'ts',
+			});
 			expect(output).toContain('/// <reference types="cypress" />');
-			expect(output).toContain("describe('cypress-cli generated test', () => {");
+			expect(output).toContain(
+				"describe('cypress-cli generated test', () => {",
+			);
 		});
 
 		it('does not add triple-slash directive for js format', () => {
-			const output = renderTestFile(["cy.get('#btn').click()"], { format: 'js' });
+			const output = renderTestFile(["cy.get('#btn').click()"], {
+				format: 'js',
+			});
 			expect(output).not.toContain('/// <reference types="cypress" />');
 		});
 
@@ -221,13 +240,15 @@ describe('codegen', () => {
 		it('exports single click as valid Cypress test', () => {
 			const history = [
 				makeEntry(1, 'click', {
-					cypressCommand: "cy.get('[data-cy=\"login\"]').click()",
+					cypressCommand: 'cy.get(\'[data-cy="login"]\').click()',
 					selector: '[data-cy="login"]',
 				}),
 			];
 			const output = generateTestFile(history);
-			expect(output).toContain("describe('cypress-cli generated test', () => {");
-			expect(output).toContain("cy.get('[data-cy=\"login\"]').click();");
+			expect(output).toContain(
+				"describe('cypress-cli generated test', () => {",
+			);
+			expect(output).toContain('cy.get(\'[data-cy="login"]\').click();');
 		});
 
 		it('exports navigate + interactions as ordered test', () => {
@@ -235,14 +256,25 @@ describe('codegen', () => {
 				makeEntry(1, 'navigate', {
 					cypressCommand: "cy.visit('/login')",
 				}),
-				makeEntry(2, 'type', {
-					cypressCommand: "cy.get('[data-cy=\"email\"]').type('user@test.com')",
-					selector: '[data-cy="email"]',
-				}, { ref: 'e1', text: 'user@test.com' }),
-				makeEntry(3, 'click', {
-					cypressCommand: "cy.get('[data-cy=\"submit\"]').click()",
-					selector: '[data-cy="submit"]',
-				}, { ref: 'e3' }),
+				makeEntry(
+					2,
+					'type',
+					{
+						cypressCommand:
+							"cy.get('[data-cy=\"email\"]').type('user@test.com')",
+						selector: '[data-cy="email"]',
+					},
+					{ ref: 'e1', text: 'user@test.com' },
+				),
+				makeEntry(
+					3,
+					'click',
+					{
+						cypressCommand: 'cy.get(\'[data-cy="submit"]\').click()',
+						selector: '[data-cy="submit"]',
+					},
+					{ ref: 'e3' },
+				),
 				makeEntry(4, 'assert', {
 					cypressCommand: "cy.url().should('include', '/dashboard')",
 				}),
@@ -253,9 +285,15 @@ describe('codegen', () => {
 
 			expect(commandLines).toHaveLength(4);
 			expect(commandLines[0]).toContain("cy.visit('/login')");
-			expect(commandLines[1]).toContain("cy.get('[data-cy=\"email\"]').type('user@test.com')");
-			expect(commandLines[2]).toContain("cy.get('[data-cy=\"submit\"]').click()");
-			expect(commandLines[3]).toContain("cy.url().should('include', '/dashboard')");
+			expect(commandLines[1]).toContain(
+				"cy.get('[data-cy=\"email\"]').type('user@test.com')",
+			);
+			expect(commandLines[2]).toContain(
+				'cy.get(\'[data-cy="submit"]\').click()',
+			);
+			expect(commandLines[3]).toContain(
+				"cy.url().should('include', '/dashboard')",
+			);
 		});
 
 		it('exports with describe/it structure', () => {
@@ -265,14 +303,19 @@ describe('codegen', () => {
 				}),
 			];
 			const output = generateTestFile(history);
-			expect(output).toContain("describe('cypress-cli generated test', () => {");
-			expect(output).toContain("it('should complete the recorded flow', () => {");
+			expect(output).toContain(
+				"describe('cypress-cli generated test', () => {",
+			);
+			expect(output).toContain(
+				"it('should complete the recorded flow', () => {",
+			);
 		});
 
 		it('exports assertions as .should() calls', () => {
 			const history = [
 				makeEntry(1, 'assert', {
-					cypressCommand: "cy.get('[data-cy=\"heading\"]').should('have.text', 'Hello')",
+					cypressCommand:
+						"cy.get('[data-cy=\"heading\"]').should('have.text', 'Hello')",
 					selector: '[data-cy="heading"]',
 				}),
 			];
@@ -287,12 +330,22 @@ describe('codegen', () => {
 				makeEntry(1, 'navigate', {
 					cypressCommand: "cy.visit('/login')",
 				}),
-				makeEntry(2, 'type', {
-					cypressCommand: "cy.get('#email').type('user@test.com')",
-				}, { ref: 'e1', text: 'user@test.com' }),
-				makeEntry(3, 'click', {
-					cypressCommand: "cy.get('#submit').click()",
-				}, { ref: 'e3' }),
+				makeEntry(
+					2,
+					'type',
+					{
+						cypressCommand: "cy.get('#email').type('user@test.com')",
+					},
+					{ ref: 'e1', text: 'user@test.com' },
+				),
+				makeEntry(
+					3,
+					'click',
+					{
+						cypressCommand: "cy.get('#submit').click()",
+					},
+					{ ref: 'e3' },
+				),
 			];
 			const output = generateTestFile(history);
 			const lines = output.split('\n');
@@ -350,8 +403,12 @@ describe('codegen', () => {
 
 		it('handles empty history', () => {
 			const output = generateTestFile([]);
-			expect(output).toContain("describe('cypress-cli generated test', () => {");
-			expect(output).toContain("it('should complete the recorded flow', () => {");
+			expect(output).toContain(
+				"describe('cypress-cli generated test', () => {",
+			);
+			expect(output).toContain(
+				"it('should complete the recorded flow', () => {",
+			);
 			// No command lines
 			expect(output).not.toContain('\t\tcy.');
 		});
@@ -434,6 +491,78 @@ describe('codegen', () => {
 			];
 			const output = generateTestFile(history, { format: 'js' });
 			expect(output).not.toContain('/// <reference types="cypress" />');
+		});
+
+		it('includes intercept commands in export', () => {
+			const history = [
+				makeEntry(1, 'navigate', {
+					cypressCommand: "cy.visit('/app')",
+				}),
+				makeEntry(
+					2,
+					'intercept',
+					{
+						cypressCommand:
+							"cy.intercept('**/api/users', { statusCode: 200, body: {\"users\":[]}, headers: { 'content-type': 'application/json' } })",
+					},
+					{ text: '**/api/users' },
+				),
+				makeEntry(3, 'click', {
+					cypressCommand: "cy.get('#load-btn').click()",
+					selector: '#load-btn',
+				}),
+			];
+			const output = generateTestFile(history);
+			const lines = output.split('\n');
+			const commandLines = lines.filter((l) => l.trim().startsWith('cy.'));
+			expect(commandLines).toHaveLength(3);
+			expect(commandLines[0]).toContain("cy.visit('/app')");
+			expect(commandLines[1]).toContain("cy.intercept('**/api/users'");
+			expect(commandLines[1]).toContain('statusCode: 200');
+			expect(commandLines[2]).toContain("cy.get('#load-btn').click()");
+		});
+
+		it('filters out network commands from export', () => {
+			const history = [
+				makeEntry(1, 'navigate', {
+					cypressCommand: "cy.visit('/app')",
+				}),
+				makeEntry(2, 'network', {
+					cypressCommand: '// network requests (read-only)',
+				}),
+				makeEntry(3, 'click', {
+					cypressCommand: "cy.get('#btn').click()",
+				}),
+			];
+			const output = generateTestFile(history);
+			const lines = output.split('\n');
+			const commandLines = lines.filter((l) => l.trim().startsWith('cy.'));
+			expect(commandLines).toHaveLength(2);
+			expect(output).not.toContain('network');
+		});
+
+		it('includes unintercept as comment in export', () => {
+			const history = [
+				makeEntry(
+					1,
+					'intercept',
+					{
+						cypressCommand: "cy.intercept('**/api/**')",
+					},
+					{ text: '**/api/**' },
+				),
+				makeEntry(
+					2,
+					'unintercept',
+					{
+						cypressCommand: "// cy.intercept('**/api/**', passthrough)",
+					},
+					{ text: '**/api/**' },
+				),
+			];
+			const output = generateTestFile(history);
+			expect(output).toContain("cy.intercept('**/api/**');");
+			expect(output).toContain("// cy.intercept('**/api/**', passthrough);");
 		});
 	});
 });

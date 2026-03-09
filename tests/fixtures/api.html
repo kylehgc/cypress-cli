@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>API Page</title>
+</head>
+
+<body>
+  <main>
+    <h1>API Test Page</h1>
+    <p id="status">Ready</p>
+    <button id="btn-load" onclick="loadUsers()">Load Users</button>
+    <div id="user-list"></div>
+  </main>
+
+  <script>
+    async function loadUsers() {
+      document.getElementById('status').textContent = 'Loading...';
+      try {
+        const res = await fetch('/api/users');
+        const data = await res.json();
+        const list = document.getElementById('user-list');
+        list.innerHTML = data.users
+          .map(function (u) { return '<p class="user">' + u.name + '</p>'; })
+          .join('');
+        document.getElementById('status').textContent =
+          'Loaded ' + data.users.length + ' users';
+      } catch (err) {
+        document.getElementById('status').textContent = 'Error: ' + err.message;
+      }
+    }
+  </script>
+</body>
+
+</html>
