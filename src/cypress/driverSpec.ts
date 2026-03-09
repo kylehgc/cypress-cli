@@ -1156,6 +1156,12 @@ describe('cypress-cli', function () {
 		Cypress.removeAllListeners('test:before:after:run:async');
 	});
 
+	// Prevent uncaught application errors from crashing the REPL session.
+	// SPAs frequently throw unhandled promise rejections (e.g. failed API
+	// calls, analytics errors) that are irrelevant to the interactive
+	// session. Returning false keeps the test alive.
+	Cypress.on('uncaught:exception', () => false);
+
 	it('driver', () => {
 		const url = (Cypress.env('CYPRESS_CLI_URL') as string | undefined) || '/';
 
