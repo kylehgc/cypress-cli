@@ -420,6 +420,58 @@ export const waitfor = declareCommand({
 });
 
 // ---------------------------------------------------------------------------
+// Network commands
+// ---------------------------------------------------------------------------
+
+export const network = declareCommand({
+	name: 'network',
+	category: 'network',
+	description: 'List network requests captured since page load',
+	args: z.object({}),
+	options: z.object({}),
+});
+
+export const intercept = declareCommand({
+	name: 'intercept',
+	category: 'network',
+	description: 'Mock network requests matching a URL pattern',
+	args: z.object({
+		pattern: z
+			.string()
+			.describe('URL pattern to intercept (e.g., "**/api/**")'),
+	}),
+	options: z.object({
+		status: z.coerce.number().optional().describe('Mock response status code'),
+		body: z.string().optional().describe('Mock response body (JSON string)'),
+		'content-type': z
+			.string()
+			.optional()
+			.describe('Mock response Content-Type header'),
+	}),
+});
+
+export const interceptList = declareCommand({
+	name: 'intercept-list',
+	category: 'network',
+	description: 'List active intercept route mocks',
+	args: z.object({}),
+	options: z.object({}),
+});
+
+export const unintercept = declareCommand({
+	name: 'unintercept',
+	category: 'network',
+	description: 'Remove intercept route mock(s)',
+	args: z.object({
+		pattern: z
+			.string()
+			.optional()
+			.describe('URL pattern to remove; omit to remove all'),
+	}),
+	options: z.object({}),
+});
+
+// ---------------------------------------------------------------------------
 // Command registry
 // ---------------------------------------------------------------------------
 
@@ -458,6 +510,10 @@ export const allCommands = [
 	runCode,
 	wait,
 	waitfor,
+	network,
+	intercept,
+	interceptList,
+	unintercept,
 ] as const;
 
 /**
@@ -525,6 +581,18 @@ export function buildRegistry(): ReadonlyMap<string, CommandRegistryEntry> {
 	// Wait
 	registry.set('wait', { schema: wait, positionals: ['ms'] });
 	registry.set('waitfor', { schema: waitfor, positionals: ['ref'] });
+
+	// Network
+	registry.set('network', { schema: network, positionals: [] });
+	registry.set('intercept', { schema: intercept, positionals: ['pattern'] });
+	registry.set('intercept-list', {
+		schema: interceptList,
+		positionals: [],
+	});
+	registry.set('unintercept', {
+		schema: unintercept,
+		positionals: ['pattern'],
+	});
 
 	return registry;
 }

@@ -219,6 +219,19 @@ function _buildNonRefCommand(
 			const escapedCode = (text ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 			return `cy.window().then((win) => win.eval('${escapedCode}'))`;
 		}
+		case 'intercept': {
+			const escapedPattern = (text ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+			return `cy.intercept('${escapedPattern}')`;
+		}
+		case 'unintercept': {
+			if (text) {
+				const escapedPattern = text.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+				return `// cy.intercept('${escapedPattern}', passthrough)`;
+			}
+			return '// remove all intercepts';
+		}
+		case 'network':
+			return '// network requests (read-only)';
 		default:
 			return `cy.${action}()`;
 	}

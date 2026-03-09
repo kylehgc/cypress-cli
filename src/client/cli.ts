@@ -105,6 +105,8 @@ export function parseGlobalFlags(argv: string[]): {
 			'baseUrl',
 			'snapshot-dir',
 			'filename',
+			'body',
+			'content-type',
 		],
 		alias: {
 			s: 'session',

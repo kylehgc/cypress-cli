@@ -282,3 +282,76 @@ describe('SessionMap', () => {
 		expect(map.size).toBe(0);
 	});
 });
+
+// ---------------------------------------------------------------------------
+// Session: intercept registry
+// ---------------------------------------------------------------------------
+
+describe('Session intercept registry', () => {
+	let session: Session;
+
+	beforeEach(() => {
+		session = new Session({ id: 'test-session', url: 'http://localhost:3000' });
+	});
+
+	it('starts with empty intercepts', () => {
+		expect(session.intercepts).toHaveLength(0);
+	});
+
+	it('adds an intercept entry', () => {
+		session.addIntercept({ pattern: '**/api/**', statusCode: 200 });
+		expect(session.intercepts).toHaveLength(1);
+		expect(session.intercepts[0]).toEqual({
+			pattern: '**/api/**',
+			statusCode: 200,
+		});
+	});
+
+	it('replaces an existing intercept with the same pattern', () => {
+		session.addIntercept({ pattern: '**/api/**', statusCode: 200 });
+		session.addIntercept({
+			pattern: '**/api/**',
+			statusCode: 404,
+			body: '{"error":"not found"}',
+		});
+		expect(session.intercepts).toHaveLength(1);
+		expect(session.intercepts[0].statusCode).toBe(404);
+		expect(session.intercepts[0].body).toBe('{"error":"not found"}');
+	});
+
+	it('adds multiple intercepts with different patterns', () => {
+		session.addIntercept({ pattern: '**/api/users' });
+		session.addIntercept({
+			pattern: '**/api/posts',
+			statusCode: 500,
+		});
+		expect(session.intercepts).toHaveLength(2);
+	});
+
+	it('removes a specific intercept by pattern', () => {
+		session.addIntercept({ pattern: '**/api/users' });
+		session.addIntercept({ pattern: '**/api/posts' });
+
+		const removed = session.removeIntercept('**/api/users');
+		expect(removed).toHaveLength(1);
+		expect(removed[0].pattern).toBe('**/api/users');
+		expect(session.intercepts).toHaveLength(1);
+		expect(session.intercepts[0].pattern).toBe('**/api/posts');
+	});
+
+	it('removes all intercepts when no pattern is given', () => {
+		session.addIntercept({ pattern: '**/api/users' });
+		session.addIntercept({ pattern: '**/api/posts' });
+
+		const removed = session.removeIntercept();
+		expect(removed).toHaveLength(2);
+		expect(session.intercepts).toHaveLength(0);
+	});
+
+	it('returns empty array when removing non-existent pattern', () => {
+		session.addIntercept({ pattern: '**/api/users' });
+		const removed = session.removeIntercept('**/not-found/**');
+		expect(removed).toHaveLength(0);
+		expect(session.intercepts).toHaveLength(1);
+	});
+});

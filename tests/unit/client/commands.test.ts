@@ -40,6 +40,10 @@ import {
 	wait,
 	waitfor,
 	runCode,
+	network,
+	intercept,
+	interceptList,
+	unintercept,
 } from '../../../src/client/commands.js';
 import { z } from 'zod';
 
@@ -77,12 +81,12 @@ describe('declareCommand', () => {
 });
 
 describe('command schemas', () => {
-	it('defines all 31 commands', () => {
-		expect(allCommands).toHaveLength(31);
+	it('defines all 35 commands', () => {
+		expect(allCommands).toHaveLength(35);
 	});
 
 	it('registers all commands in the registry', () => {
-		expect(commandRegistry.size).toBe(31);
+		expect(commandRegistry.size).toBe(35);
 	});
 
 	describe('categories', () => {
@@ -139,6 +143,13 @@ describe('command schemas', () => {
 
 		it('has execution commands', () => {
 			expect(runCode.category).toBe('execution');
+		});
+
+		it('has network commands', () => {
+			expect(network.category).toBe('network');
+			expect(intercept.category).toBe('network');
+			expect(interceptList.category).toBe('network');
+			expect(unintercept.category).toBe('network');
 		});
 	});
 
@@ -288,6 +299,59 @@ describe('command schemas', () => {
 
 			const missing = runCode.args.safeParse({});
 			expect(missing.success).toBe(false);
+		});
+
+		it('network requires no args', () => {
+			const good = network.args.safeParse({});
+			expect(good.success).toBe(true);
+		});
+
+		it('intercept requires pattern', () => {
+			const good = intercept.args.safeParse({ pattern: '**/api/**' });
+			expect(good.success).toBe(true);
+
+			const missing = intercept.args.safeParse({});
+			expect(missing.success).toBe(false);
+		});
+
+		it('intercept options are optional', () => {
+			const noOptions = intercept.options.safeParse({});
+			expect(noOptions.success).toBe(true);
+
+			const withStatus = intercept.options.safeParse({ status: 200 });
+			expect(withStatus.success).toBe(true);
+
+			const withBody = intercept.options.safeParse({
+				body: '{"message":"ok"}',
+			});
+			expect(withBody.success).toBe(true);
+
+			const withContentType = intercept.options.safeParse({
+				'content-type': 'application/json',
+			});
+			expect(withContentType.success).toBe(true);
+
+			const withAll = intercept.options.safeParse({
+				status: 404,
+				body: '{"error":"not found"}',
+				'content-type': 'application/json',
+			});
+			expect(withAll.success).toBe(true);
+		});
+
+		it('intercept-list requires no args', () => {
+			const good = interceptList.args.safeParse({});
+			expect(good.success).toBe(true);
+		});
+
+		it('unintercept has optional pattern', () => {
+			const noPattern = unintercept.args.safeParse({});
+			expect(noPattern.success).toBe(true);
+
+			const withPattern = unintercept.args.safeParse({
+				pattern: '**/api/**',
+			});
+			expect(withPattern.success).toBe(true);
 		});
 	});
 });
@@ -593,6 +657,78 @@ describe('parseCommand', () => {
 		expect(result).toEqual({
 			command: 'run-code',
 			args: { code: 'const x = 1; x' },
+			options: {},
+		});
+	});
+
+	it("parses 'network' correctly", () => {
+		const result = parseCommand({ _: ['network'] }, commandRegistry);
+		expect(result).toEqual({
+			command: 'network',
+			args: {},
+			options: {},
+		});
+	});
+
+	it("parses 'intercept **/api/**' correctly", () => {
+		const result = parseCommand(
+			{ _: ['intercept', '**/api/**'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'intercept',
+			args: { pattern: '**/api/**' },
+			options: {},
+		});
+	});
+
+	it("parses 'intercept **/api/** --status 200 --body {\"ok\":true}' correctly", () => {
+		const result = parseCommand(
+			{
+				_: ['intercept', '**/api/**'],
+				status: 200,
+				body: '{"ok":true}',
+				'content-type': 'application/json',
+			},
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'intercept',
+			args: { pattern: '**/api/**' },
+			options: {
+				status: 200,
+				body: '{"ok":true}',
+				'content-type': 'application/json',
+			},
+		});
+	});
+
+	it("parses 'intercept-list' correctly", () => {
+		const result = parseCommand({ _: ['intercept-list'] }, commandRegistry);
+		expect(result).toEqual({
+			command: 'intercept-list',
+			args: {},
+			options: {},
+		});
+	});
+
+	it("parses 'unintercept' without pattern correctly", () => {
+		const result = parseCommand({ _: ['unintercept'] }, commandRegistry);
+		expect(result).toEqual({
+			command: 'unintercept',
+			args: {},
+			options: {},
+		});
+	});
+
+	it("parses 'unintercept **/api/**' with pattern correctly", () => {
+		const result = parseCommand(
+			{ _: ['unintercept', '**/api/**'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'unintercept',
+			args: { pattern: '**/api/**' },
 			options: {},
 		});
 	});
