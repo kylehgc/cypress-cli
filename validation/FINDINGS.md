@@ -6,11 +6,8 @@
 
 ## Results
 
-Two rounds of LLM-driven validation were run against 4 real public websites.
-Round 1 found 4 bugs and 4 friction points. All were fixed, then Round 2
-confirmed the fixes.
-
-### Round 2 (latest)
+LLM-driven validation was run against 4 real public websites. An LLM agent
+read each scenario, executed the commands, and verified outcomes.
 
 | Scenario | Site              | Steps | Passed | Failed | Workarounds | Skipped |
 | -------- | ----------------- | ----- | ------ | ------ | ----------- | ------- |
@@ -29,38 +26,6 @@ confirmed the fixes.
    found it via `--help`. This is a discoverability issue, not a code issue.
 2. `hover` fires `trigger('mouseover')` but CSS `:hover` pseudo-class doesn't
    persist for snapshot capture — this is a fundamental Cypress/DOM limitation.
-
-### Round 1 (initial — all issues now fixed)
-
-| Scenario | Site              | Steps | Passed | Failed | Workarounds |
-| -------- | ----------------- | ----- | ------ | ------ | ----------- |
-| 1        | TodoMVC           | 13    | 11     | 0      | 2           |
-| 2        | SauceDemo         | 23    | 16     | 2      | 5           |
-| 3        | The Internet      | 34    | 28     | 3      | 3           |
-| 4        | RealWorld Conduit | 26    | 21     | 1      | 4           |
-
-**Total**: 96 steps, 76 passed, 4 failed, 14 workarounds
-**Success rate**: 79% first-try → **88% after fixes** (Round 2)
-
----
-
-## Bugs Found and Fixed
-
-| Bug | Severity | Description | Fix |
-| --- | -------- | ----------- | --- |
-| BUG-1 | HIGH | Numeric string coercion — `'2'` parsed as number, rejected by zod | Arg parser preserves string types |
-| BUG-2 | MEDIUM | `select` fails on custom `<div>` combobox wrappers | Still open — only affects non-native `<select>` elements |
-| BUG-3 | MEDIUM | `dialog-dismiss` crashes on pages without `window.prompt` | Guarded the prompt stub setup |
-| BUG-4 | LOW | `press Escape` generates invalid `{Escape}` sequence | Key name mapping: `Escape→esc`, `ArrowUp→upArrow`, etc. |
-
-## Friction Points Found and Fixed
-
-| Issue | Severity | Description | Fix |
-| ----- | -------- | ----------- | --- |
-| FRICTION-1 | HIGH | Refs shifted on every DOM change | WeakRef-based stable ref tracking |
-| FRICTION-2 | MEDIUM | SPA navigation needs explicit waits | `intercept` + `waitforresponse` commands |
-| FRICTION-3 | MEDIUM | Diff snapshots hid stale refs | Fixed by FRICTION-1 (stable refs don't go stale) |
-| FRICTION-4 | LOW | Export included failed commands | `buildHistory` filters out `success: false` |
 
 ---
 
