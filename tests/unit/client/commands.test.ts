@@ -962,6 +962,54 @@ describe('parseCommand', () => {
 			options: {},
 		});
 	});
+
+	it('coerces numeric positional args to strings for type command', () => {
+		// minimist parses `type e5 2` as { _: ['type', 'e5', 2] } (number)
+		const result = parseCommand(
+			{ _: ['type', 'e5', 2 as unknown as string] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'type',
+			args: { ref: 'e5', text: '2' },
+			options: {},
+		});
+	});
+
+	it('coerces numeric positional args to strings for fill command', () => {
+		// minimist parses `fill e5 90210` as { _: ['fill', 'e5', 90210] }
+		const result = parseCommand(
+			{ _: ['fill', 'e5', 90210 as unknown as string] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'fill',
+			args: { ref: 'e5', text: '90210' },
+			options: {},
+		});
+	});
+
+	it('coerces numeric positional args to strings for assert command', () => {
+		// minimist parses `assert e5 have.text 2` as { _: ['assert', 'e5', 'have.text', 2] }
+		const result = parseCommand(
+			{ _: ['assert', 'e5', 'have.text', 2 as unknown as string] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'assert',
+			args: { ref: 'e5', chainer: 'have.text', value: '2' },
+			options: {},
+		});
+	});
+
+	it('coerces numeric named flags to strings', () => {
+		// `open --url 8080` would give { _: ['open'], url: 8080 }
+		const result = parseCommand(
+			{ _: ['open'], url: 8080 as unknown as string },
+			commandRegistry,
+		);
+		expect(result.args).toEqual({ url: '8080' });
+	});
 });
 
 describe('buildRegistry', () => {

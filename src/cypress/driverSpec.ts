@@ -198,6 +198,23 @@ const COMMANDS_REQUIRING_TEXT = new Set([
 let _asyncCommandError: string | undefined;
 
 /**
+ * Maps standard DOM key names to Cypress special-key names.
+ * Keys not in this map are passed through as-is (e.g. 'Enter' → 'enter' already works).
+ * @see https://docs.cypress.io/api/commands/type#Arguments
+ */
+const KEY_MAP: Record<string, string> = {
+	Escape: 'esc',
+	ArrowUp: 'upArrow',
+	ArrowDown: 'downArrow',
+	ArrowLeft: 'leftArrow',
+	ArrowRight: 'rightArrow',
+	Delete: 'del',
+	' ': 'space',
+	PageUp: 'pageUp',
+	PageDown: 'pageDown',
+};
+
+/**
  * Reference to the currently registered Cypress.once('fail') handler, if any.
  * Used to clean up the handler when no error occurs, preventing it from
  * leaking into subsequent commands or snapshot-taking.
@@ -464,7 +481,18 @@ function executeCommand(cmd: DriverCommand): void {
 			resolveRef(cmd.ref!).uncheck(options);
 			break;
 		case 'select':
-			resolveRef(cmd.ref!).select(cmd.text!, options);
+			resolveRef(cmd.ref!).then(($el) => {
+				if ($el.is('select')) {
+					cy.wrap($el).select(cmd.text!, options);
+				} else {
+					const $childSelect = $el.find('select');
+					if ($childSelect.length > 0) {
+						cy.wrap($childSelect.first()).select(cmd.text!, options);
+					} else {
+						cy.wrap($el).select(cmd.text!, options);
+					}
+				}
+			});
 			break;
 		case 'focus':
 			resolveRef(cmd.ref!).focus();
@@ -498,9 +526,11 @@ function executeCommand(cmd: DriverCommand): void {
 		case 'reload':
 			cy.reload();
 			break;
-		case 'press':
-			cy.get('body').type(`{${cmd.text}}`, { log: false });
+		case 'press': {
+			const cypressKey = KEY_MAP[cmd.text!] ?? cmd.text;
+			cy.get('body').type(`{${cypressKey}}`, { log: false });
 			break;
+		}
 		case 'assert': {
 			const chainer = cmd.options?.['chainer'] as string;
 			resolveRef(cmd.ref!).then(($el) => {
@@ -622,6 +652,7 @@ function executeCommand(cmd: DriverCommand): void {
 		}
 		case 'dialog-dismiss':
 			Cypress.once('window:confirm', () => false);
+			Cypress.once('window:alert', () => false);
 			_evalResult = 'Dialog will be dismissed';
 			break;
 		case 'resize': {
