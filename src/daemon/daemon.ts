@@ -967,7 +967,7 @@ function inferExportFormat(options: Record<string, unknown>): 'js' | 'ts' {
 	return 'ts';
 }
 
-function buildQueuedCommand(
+export function buildQueuedCommand(
 	id: number,
 	args: CommandMessage['params']['args'],
 ): QueuedCommand {
