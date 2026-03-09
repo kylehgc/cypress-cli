@@ -49,3 +49,19 @@ export function takeSnapshot(): Cypress.Chainable<string> {
 		return takeSnapshotFromWindow(win);
 	});
 }
+
+/**
+ * Takes a full (non-diff) aria snapshot of the current page.
+ *
+ * Unlike {@link takeSnapshot}, this always returns the complete aria tree
+ * regardless of any previously captured snapshot. Used by the explicit
+ * `snapshot` command and the initial page load so that the CLI/LLM always
+ * sees the full page structure.
+ *
+ * @returns A Cypress chainable that yields the full YAML snapshot string
+ */
+export function takeFullSnapshot(): Cypress.Chainable<string> {
+	return cy.window({ log: false }).then((win: Window) => {
+		return takeSnapshotFromWindow(win, true);
+	});
+}

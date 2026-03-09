@@ -154,12 +154,24 @@ describe('formatResult', () => {
 		expect(JSON.parse(output)).toEqual({ success: true });
 	});
 
-	it('returns snapshot text when available', () => {
+	it('returns page metadata and snapshot file path (never inline YAML)', () => {
 		const result: ClientResult = {
 			success: true,
-			result: { snapshot: '- button "Submit"' },
+			result: {
+				snapshot: '- button "Submit"',
+				snapshotFilePath: '.cypress-cli/page-2026-03-07.yml',
+				url: 'http://localhost:3000',
+				title: 'Home',
+			},
 		};
-		expect(formatResult(result, false)).toBe('- button "Submit"');
+		const output = formatResult(result, false);
+		expect(output).toContain('### Page');
+		expect(output).toContain('- Page URL: http://localhost:3000');
+		expect(output).toContain('- Page Title: Home');
+		expect(output).toContain('### Snapshot');
+		expect(output).toContain('[Snapshot](.cypress-cli/page-2026-03-07.yml)');
+		// Must NOT contain inline snapshot YAML
+		expect(output).not.toContain('- button "Submit"');
 	});
 
 	it('returns "OK" for success with no extra data', () => {
@@ -175,26 +187,35 @@ describe('formatResult', () => {
 		expect(formatResult(result, false)).toBe('Error: Element not found');
 	});
 
-	it('includes the snapshot when a failed command returns one', () => {
+	it('includes snapshot file path (not inline YAML) when a failed command returns one', () => {
 		const result: ClientResult = {
 			success: false,
 			error: 'Element not found',
-			result: { snapshot: '- button "Retry"' },
+			result: {
+				snapshot: '- button "Retry"',
+				snapshotFilePath: '.cypress-cli/page-err.yml',
+				url: 'http://localhost:3000',
+				title: 'Home',
+			},
 		};
 		const output = formatResult(result, false);
 		expect(output).toContain('Error: Element not found');
-		expect(output).toContain('Current snapshot:');
-		expect(output).toContain('- button "Retry"');
+		expect(output).toContain('### Page');
+		expect(output).toContain('- Page URL: http://localhost:3000');
+		expect(output).toContain('[Snapshot](.cypress-cli/page-err.yml)');
+		// Must NOT contain inline YAML
+		expect(output).not.toContain('- button "Retry"');
 	});
 
-	it('returns key-value pairs for non-snapshot results', () => {
+	it('shows page metadata as key-value when only url/title present without snapshot file', () => {
 		const result: ClientResult = {
 			success: true,
 			result: { url: 'http://localhost:3000', title: 'Home' },
 		};
 		const output = formatResult(result, false);
-		expect(output).toContain('url: http://localhost:3000');
-		expect(output).toContain('title: Home');
+		expect(output).toContain('### Page');
+		expect(output).toContain('- Page URL: http://localhost:3000');
+		expect(output).toContain('- Page Title: Home');
 	});
 
 	it('returns raw exported test source when testFile is present', () => {
@@ -220,21 +241,26 @@ describe('formatResult', () => {
 		);
 	});
 
-	it('displays cypressCommand after snapshot', () => {
+	it('displays cypressCommand with snapshot file path', () => {
 		const result: ClientResult = {
 			success: true,
 			result: {
 				snapshot: '- button "Submit"',
+				snapshotFilePath: '.cypress-cli/page.yml',
 				cypressCommand: "cy.get('#btn').click()",
+				url: 'http://localhost:3000',
+				title: 'Home',
 			},
 		};
 		const output = formatResult(result, false);
-		expect(output).toContain('- button "Submit"');
 		expect(output).toContain('# Ran Cypress code:');
 		expect(output).toContain("cy.get('#btn').click()");
+		expect(output).toContain('[Snapshot](.cypress-cli/page.yml)');
+		// Must NOT contain inline YAML
+		expect(output).not.toContain('- button "Submit"');
 	});
 
-	it('displays snapshot file path', () => {
+	it('displays snapshot file path as markdown link', () => {
 		const result: ClientResult = {
 			success: true,
 			result: {
@@ -243,27 +269,36 @@ describe('formatResult', () => {
 			},
 		};
 		const output = formatResult(result, false);
-		expect(output).toContain('Snapshot saved to:');
-		expect(output).toContain('.cypress-cli/page-2026-03-07T19-22-42-679Z.yml');
+		expect(output).toContain('### Snapshot');
+		expect(output).toContain(
+			'[Snapshot](.cypress-cli/page-2026-03-07T19-22-42-679Z.yml)',
+		);
+		// Must NOT contain inline YAML
+		expect(output).not.toContain('- heading "Title"');
 	});
 
-	it('displays snapshot, cypressCommand, and snapshotFilePath together', () => {
+	it('displays page metadata, cypressCommand, and snapshotFilePath together', () => {
 		const result: ClientResult = {
 			success: true,
 			result: {
 				snapshot: '- button "Go"',
 				cypressCommand: "cy.get('#go').click()",
 				snapshotFilePath: '.cypress-cli/page-2026-03-07.yml',
+				url: 'http://localhost:3000/page',
+				title: 'Page',
 			},
 		};
 		const output = formatResult(result, false);
-		const lines = output.split('\n');
-		// Snapshot comes first
-		expect(lines[0]).toBe('- button "Go"');
+		// Page metadata comes first
+		expect(output).toContain('### Page');
+		expect(output).toContain('- Page URL: http://localhost:3000/page');
+		expect(output).toContain('- Page Title: Page');
 		// Then generated code comment
 		expect(output).toContain("cy.get('#go').click()");
-		// Then file path
-		expect(output).toContain('.cypress-cli/page-2026-03-07.yml');
+		// Then snapshot file path
+		expect(output).toContain('[Snapshot](.cypress-cli/page-2026-03-07.yml)');
+		// Must NOT contain inline YAML
+		expect(output).not.toContain('- button "Go"');
 	});
 
 	it('does not show cypressCommand for snapshot-only commands (no code)', () => {
@@ -271,11 +306,12 @@ describe('formatResult', () => {
 			success: true,
 			result: {
 				snapshot: '- main',
+				snapshotFilePath: '.cypress-cli/page.yml',
 			},
 		};
 		const output = formatResult(result, false);
-		expect(output).toBe('- main');
 		expect(output).not.toContain('Ran Cypress code');
+		expect(output).toContain('[Snapshot](.cypress-cli/page.yml)');
 	});
 
 	it('returns installed skills path when present', () => {

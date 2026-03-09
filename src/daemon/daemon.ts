@@ -459,6 +459,12 @@ export class Daemon {
 							...(snapshotFile !== undefined && {
 								snapshotFilePath: snapshotFile,
 							}),
+							...(result.url !== undefined && {
+								url: result.url,
+							}),
+							...(result.title !== undefined && {
+								title: result.title,
+							}),
 						},
 					};
 					conn.send(response);

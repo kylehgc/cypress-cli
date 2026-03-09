@@ -42,6 +42,10 @@ export interface CommandResult {
 	error?: string;
 	/** Return value from run-code eval (stringified) */
 	evalResult?: string;
+	/** Current page URL after command execution */
+	url?: string;
+	/** Current page title after command execution */
+	title?: string;
 }
 
 /**

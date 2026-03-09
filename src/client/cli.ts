@@ -181,13 +181,21 @@ export function formatResult(result: ClientResult, asJson: boolean): string {
 
 	if (!result.success) {
 		const resultObj = result.result as Record<string, unknown> | undefined;
-		const snapshot =
-			typeof resultObj?.['snapshot'] === 'string'
-				? resultObj['snapshot']
-				: undefined;
 		const lines = [`Error: ${result.error ?? 'Unknown error'}`];
-		if (snapshot) {
-			lines.push('', 'Current snapshot:', snapshot);
+
+		// Show page metadata if available
+		if (typeof resultObj?.['url'] === 'string') {
+			lines.push('', '### Page');
+			lines.push(`- Page URL: ${resultObj['url']}`);
+			if (typeof resultObj['title'] === 'string') {
+				lines.push(`- Page Title: ${resultObj['title']}`);
+			}
+		}
+
+		// Show snapshot file path (never inline YAML)
+		if (typeof resultObj?.['snapshotFilePath'] === 'string') {
+			lines.push('', '### Snapshot');
+			lines.push(`[Snapshot](${resultObj['snapshotFilePath']})`);
 		}
 		return lines.join('\n');
 	}
@@ -204,15 +212,19 @@ export function formatResult(result: ClientResult, asJson: boolean): string {
 		return `Installed skills to: ${resultObj['installedPath']}`;
 	}
 
-	// Build output lines
+	// Build output lines — page metadata + snapshot file path (never inline YAML)
 	const lines: string[] = [];
 
-	// If there's a snapshot, show it prominently
-	if (typeof resultObj?.['snapshot'] === 'string') {
-		lines.push(String(resultObj['snapshot']));
+	// Show page metadata (URL and title)
+	if (typeof resultObj?.['url'] === 'string') {
+		lines.push('### Page');
+		lines.push(`- Page URL: ${resultObj['url']}`);
+		if (typeof resultObj['title'] === 'string') {
+			lines.push(`- Page Title: ${resultObj['title']}`);
+		}
 	}
 
-	// Show generated Cypress command after the snapshot
+	// Show generated Cypress command
 	if (typeof resultObj?.['cypressCommand'] === 'string') {
 		lines.push(`# Ran Cypress code:\n#   ${resultObj['cypressCommand']}`);
 	}
@@ -222,9 +234,10 @@ export function formatResult(result: ClientResult, asJson: boolean): string {
 		lines.push(`# Result: ${resultObj['evalResult']}`);
 	}
 
-	// Show snapshot file path
+	// Show snapshot file path (never inline YAML)
 	if (typeof resultObj?.['snapshotFilePath'] === 'string') {
-		lines.push(`Snapshot saved to: ${resultObj['snapshotFilePath']}`);
+		lines.push('### Snapshot');
+		lines.push(`[Snapshot](${resultObj['snapshotFilePath']})`);
 	}
 
 	if (lines.length > 0) {
@@ -235,6 +248,7 @@ export function formatResult(result: ClientResult, asJson: boolean): string {
 	if (resultObj) {
 		const rest = { ...resultObj };
 		delete rest.success;
+		delete rest.snapshot;
 		if (Object.keys(rest).length > 0) {
 			return Object.entries(rest)
 				.map(([key, value]) => `${key}: ${String(value)}`)

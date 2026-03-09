@@ -13,7 +13,7 @@
 
 // MODIFIED: Use extensionless imports for the Cypress driver bundling pipeline
 // (this spec is excluded from tsc and bundled by esbuild into dist/cypress/driverSpec.js)
-import { injectSnapshotLib, takeSnapshot } from './support';
+import { injectSnapshotLib, takeSnapshot, takeFullSnapshot } from './support';
 import { resolveRefFromMap } from '../browser/refMap';
 import {
 	generateSelector,
@@ -43,6 +43,8 @@ interface DriverResult {
 	selector?: string;
 	cypressCommand?: string;
 	evalResult?: string;
+	url?: string;
+	title?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -627,29 +629,52 @@ function pollForCommands(): void {
 			// Re-inject snapshot lib (in case of navigation)
 			injectSnapshotLib();
 
-			// Take post-command snapshot and report result
-			takeSnapshot().then((snapshotYaml: string) => {
+			// Take post-command snapshot and report result.
+			// Snapshot, navigation commands (navigate, back, forward, reload)
+			// return a full tree because the page content may have changed
+			// entirely. Other action commands return an incremental diff
+			// showing what the action changed.
+			const FULL_TREE_COMMANDS = new Set([
+				'snapshot',
+				'navigate',
+				'back',
+				'forward',
+				'reload',
+			]);
+			const snap = FULL_TREE_COMMANDS.has(cmd.action!)
+				? takeFullSnapshot()
+				: takeSnapshot();
+			snap.then((snapshotYaml: string) => {
 				// Pick up any async error from assertion commands or ref validation
 				const error = _asyncCommandError;
 
-				const result: DriverResult = error
-					? {
-							success: false,
-							error,
-							snapshot: snapshotYaml,
-						}
-					: {
-							success: true,
-							snapshot: snapshotYaml,
-							selector,
-							cypressCommand,
-							...(_evalResult !== undefined && {
-								evalResult: _evalResult,
-							}),
-						};
+				// Capture current page URL and title for the result metadata
+				cy.url({ log: false }).then((pageUrl: string) => {
+					cy.title({ log: false }).then((pageTitle: string) => {
+						const result: DriverResult = error
+							? {
+									success: false,
+									error,
+									snapshot: snapshotYaml,
+									url: pageUrl,
+									title: pageTitle,
+								}
+							: {
+									success: true,
+									snapshot: snapshotYaml,
+									selector,
+									cypressCommand,
+									url: pageUrl,
+									title: pageTitle,
+									...(_evalResult !== undefined && {
+										evalResult: _evalResult,
+									}),
+								};
 
-				cy.task('commandResult', result, { log: false }).then(() => {
-					pollForCommands();
+						cy.task('commandResult', result, { log: false }).then(() => {
+							pollForCommands();
+						});
+					});
 				});
 			});
 		},
@@ -724,16 +749,23 @@ function enqueueRecoveryTest(currentTest: unknown): void {
 			error ?? 'Unknown error (session recovered)',
 		);
 
-		// Re-inject snapshot lib and take a fresh snapshot
+		// Re-inject snapshot lib and take a fresh full snapshot so the
+		// error response shows the complete page state for context.
 		injectSnapshotLib();
-		takeSnapshot().then((snapshotYaml: string) => {
-			const result: DriverResult = {
-				success: false,
-				error: errorMessage,
-				snapshot: snapshotYaml,
-			};
-			cy.task('commandResult', result, { log: false }).then(() => {
-				pollForCommands();
+		takeFullSnapshot().then((snapshotYaml: string) => {
+			cy.url({ log: false }).then((pageUrl: string) => {
+				cy.title({ log: false }).then((pageTitle: string) => {
+					const result: DriverResult = {
+						success: false,
+						error: errorMessage,
+						snapshot: snapshotYaml,
+						url: pageUrl,
+						title: pageTitle,
+					};
+					cy.task('commandResult', result, { log: false }).then(() => {
+						pollForCommands();
+					});
+				});
 			});
 		});
 	};
@@ -782,17 +814,25 @@ describe('cypress-cli', function () {
 		// Inject aria snapshot IIFE
 		injectSnapshotLib();
 
-		// Take initial snapshot and report it, then enter REPL loop
-		takeSnapshot().then((snapshotYaml: string) => {
-			const initialResult: DriverResult = {
-				success: true,
-				snapshot: snapshotYaml,
-			};
-			return cy
-				.task('commandResult', initialResult, { log: false })
-				.then(() => {
-					pollForCommands();
+		// Take initial snapshot and report it, then enter REPL loop.
+		// Use the full-tree variant so the first result seen by a client
+		// (if it arrives in time) contains the complete page structure.
+		takeFullSnapshot().then((snapshotYaml: string) => {
+			cy.url({ log: false }).then((pageUrl: string) => {
+				cy.title({ log: false }).then((pageTitle: string) => {
+					const initialResult: DriverResult = {
+						success: true,
+						snapshot: snapshotYaml,
+						url: pageUrl,
+						title: pageTitle,
+					};
+					return cy
+						.task('commandResult', initialResult, { log: false })
+						.then(() => {
+							pollForCommands();
+						});
 				});
+			});
 		});
 	});
 });

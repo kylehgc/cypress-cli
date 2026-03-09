@@ -281,5 +281,60 @@ describe('snapshotManager', () => {
 			const second = takeSnapshotFromWindow(window);
 			expect(second).toBe('- [no changes]');
 		});
+
+		it('returns full tree when fullTree=true even after previous snapshot', () => {
+			const previousArgs: unknown[] = [];
+			const mockApi = {
+				generateAriaTree: () => ({ root: {}, elements: new Map() }),
+				renderAriaTree: (_snap: unknown, _opts: unknown, prev?: unknown) => {
+					previousArgs.push(prev);
+					return prev ? '- diff' : '- full';
+				},
+			};
+			(window as Record<string, unknown>)[SNAPSHOT_API_KEY] = mockApi;
+
+			// First call stores snapshot
+			takeSnapshotFromWindow(window);
+			expect(previousArgs[0]).toBeUndefined();
+
+			// Second call with fullTree=true: ignores previous snapshot
+			const result = takeSnapshotFromWindow(window, true);
+			expect(result).toBe('- full');
+			expect(previousArgs[1]).toBeUndefined();
+		});
+
+		it('stores previous snapshot after fullTree=true so next diff works', () => {
+			const previousArgs: unknown[] = [];
+			const snapshot1 = { root: { a: 1 }, elements: new Map() };
+			const snapshot2 = { root: { b: 2 }, elements: new Map() };
+			const snapshot3 = { root: { c: 3 }, elements: new Map() };
+			let callCount = 0;
+
+			const mockApi = {
+				generateAriaTree: () => {
+					callCount++;
+					if (callCount === 1) return snapshot1;
+					if (callCount === 2) return snapshot2;
+					return snapshot3;
+				},
+				renderAriaTree: (_snap: unknown, _opts: unknown, prev?: unknown) => {
+					previousArgs.push(prev);
+					return prev ? '- diff' : '- full';
+				},
+			};
+			(window as Record<string, unknown>)[SNAPSHOT_API_KEY] = mockApi;
+
+			// First call: normal (full tree, sets _previousSnapshot = snapshot1)
+			takeSnapshotFromWindow(window);
+			expect(previousArgs[0]).toBeUndefined();
+
+			// Second call: fullTree=true (full tree, sets _previousSnapshot = snapshot2)
+			takeSnapshotFromWindow(window, true);
+			expect(previousArgs[1]).toBeUndefined();
+
+			// Third call: normal diff against snapshot2 (not snapshot1)
+			takeSnapshotFromWindow(window);
+			expect(previousArgs[2]).toBe(snapshot2);
+		});
 	});
 });

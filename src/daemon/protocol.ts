@@ -40,6 +40,7 @@ const responseMessageSchema = z.object({
 		browser: z.string().optional(),
 		headed: z.boolean().optional(),
 		snapshot: z.string().optional(),
+		title: z.string().optional(),
 		error: z.string().optional(),
 		selector: z.string().optional(),
 		cypressCommand: z.string().optional(),

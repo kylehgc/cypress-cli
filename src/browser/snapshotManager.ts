@@ -91,9 +91,13 @@ export function injectSnapshotIife(win: Window, iife: string): void {
  * so that `resolveRefFromMap()` can look up DOM elements by ref.
  *
  * @param win - The window object to snapshot
+ * @param fullTree - When true, ignore the previous snapshot and return the
+ *   full aria tree. Used by the explicit `snapshot` command so the CLI/LLM
+ *   always sees the complete page. The captured snapshot is still stored so
+ *   subsequent action-command diffs compare against this point.
  * @returns The YAML snapshot string, or a fallback if the API is not available
  */
-export function takeSnapshotFromWindow(win: Window): string {
+export function takeSnapshotFromWindow(win: Window, fullTree = false): string {
 	const api = getSnapshotApi(win);
 
 	if (!api) {
@@ -110,15 +114,18 @@ export function takeSnapshotFromWindow(win: Window): string {
 	// If the window changed (e.g. full-page navigation), discard the stale
 	// previous snapshot to avoid ref-collision false matches.
 	const sameWindow = _lastWindow?.deref() === win;
-	const previous = sameWindow ? _previousSnapshot : undefined;
+	const previous = fullTree
+		? undefined
+		: sameWindow
+			? _previousSnapshot
+			: undefined;
 
 	const rendered = api.renderAriaTree(snapshot, { mode: 'ai' }, previous);
 
 	// If the diff is empty (nothing changed since the previous snapshot),
 	// return a short sentinel so the caller (and LLM) knows the page is
 	// unchanged without re-sending the entire tree.
-	const result =
-		rendered || !previous ? rendered : '- [no changes]';
+	const result = rendered || !previous ? rendered : '- [no changes]';
 
 	// Store current snapshot and window for the next diff
 	_previousSnapshot = snapshot;
