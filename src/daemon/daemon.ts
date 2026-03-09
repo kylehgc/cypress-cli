@@ -1037,13 +1037,12 @@ function buildQueuedCommand(
 			const exprParts = hasTrailingRef
 				? positionals.slice(0, -1)
 				: positionals;
+			const exprText = joinText(exprParts);
 			return withOptions(
 				{
 					id,
 					action,
-					...(joinText(exprParts) !== undefined && {
-						text: joinText(exprParts),
-					}),
+					...(exprText !== undefined && { text: exprText }),
 					...(hasTrailingRef && { ref: lastToken }),
 				},
 				options,
