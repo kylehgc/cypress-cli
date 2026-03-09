@@ -13,7 +13,6 @@
 import net from 'node:net';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import os from 'node:os';
 
 import { SocketConnection } from './connection.js';
 import {
@@ -22,14 +21,25 @@ import {
 	type ResponseMessage,
 	type ErrorMessage,
 } from './protocol.js';
-import {
-	SessionMap,
-	Session,
-	type SessionConfig,
-	type InterceptEntry,
-} from './session.js';
+import { SessionMap, Session, type SessionConfig } from './session.js';
 import type { QueuedCommand, CommandResult } from './commandQueue.js';
-import { generateTestFile } from '../codegen/codegen.js';
+import { buildQueuedCommand } from './commandBuilder.js';
+import {
+	handleStatus,
+	handleHistory,
+	handleUndo,
+	handleExport,
+	handleInterceptList,
+	trackInterceptState,
+	checkInterceptDrift,
+} from './handlers.js';
+import { writeSnapshotFile } from './snapshotFiles.js';
+import {
+	resolveSocketDir,
+	ensureSocketAvailable,
+	removeSocketFile,
+} from './socketUtils.js';
+import { DaemonError } from './errors.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -48,11 +58,6 @@ const DEFAULT_IDLE_TIMEOUT = 30_000;
  * 0 means no inactivity auto-exit.
  */
 const DEFAULT_SESSION_INACTIVITY_TIMEOUT = 0; // disabled by default
-
-/**
- * Subdirectory under the runtime dir for socket files.
- */
-const SOCKET_DIR_NAME = 'cypress-cli';
 
 // ---------------------------------------------------------------------------
 // Daemon configuration
@@ -127,7 +132,7 @@ export class Daemon {
 		await fs.mkdir(this._socketDir, { recursive: true, mode: 0o700 });
 
 		// Clean up stale socket file if present
-		await this._cleanStaleSocket();
+		await ensureSocketAvailable(this._socketPath);
 
 		return new Promise<void>((resolve, reject) => {
 			this._server = net.createServer((socket) => {
@@ -190,7 +195,7 @@ export class Daemon {
 			}
 
 			// Remove socket file
-			await this._removeSocketFile();
+			await removeSocketFile(this._socketPath);
 		})();
 
 		return this._stopPromise;
@@ -375,27 +380,27 @@ export class Daemon {
 
 		// Handle daemon-local commands that don't need Cypress round-trip
 		if (action === 'history') {
-			this._handleHistory(conn, message);
+			handleHistory(conn, message, this._findRunningSession());
 			return;
 		}
 
 		if (action === 'undo') {
-			this._handleUndo(conn, message);
+			handleUndo(conn, message, this._findRunningSession());
 			return;
 		}
 
 		if (action === 'status') {
-			this._handleStatus(conn, message);
+			handleStatus(conn, message, this._findPrimarySession());
 			return;
 		}
 
 		if (action === 'export') {
-			this._handleExport(conn, message);
+			void handleExport(conn, message, this._findRunningSession());
 			return;
 		}
 
 		if (action === 'intercept-list') {
-			this._handleInterceptList(conn, message);
+			handleInterceptList(conn, message, this._findRunningSession());
 			return;
 		}
 
@@ -448,7 +453,8 @@ export class Daemon {
 					// Write snapshot to file if present
 					let snapshotFile: string | undefined;
 					if (result.snapshot) {
-						snapshotFile = await this._writeSnapshotFile(
+						snapshotFile = await writeSnapshotFile(
+							this._snapshotDir,
 							result.snapshot,
 							snapshotFilename,
 						);
@@ -507,256 +513,6 @@ export class Daemon {
 	}
 
 	/**
-	 * Handle the "status" command: report whether a session is running.
-	 * This is a daemon-local command — it does not go through Cypress.
-	 */
-	private _handleStatus(conn: SocketConnection, message: CommandMessage): void {
-		const session = this._findPrimarySession();
-		const response: ResponseMessage = {
-			id: message.id,
-			result: {
-				success: true,
-				...(session
-					? {
-							status: session.state,
-							sessionId: session.id,
-							url: session.config.url,
-							browser: session.config.browser,
-							headed: session.config.headed,
-						}
-					: {
-							status: 'stopped',
-						}),
-			},
-		};
-		conn.send(response);
-	}
-
-	/**
-	 * Handle the "history" command: return all executed commands with timestamps.
-	 * This is a daemon-local command — it does not go through Cypress.
-	 */
-	private _handleHistory(
-		conn: SocketConnection,
-		message: CommandMessage,
-	): void {
-		const session = this._findRunningSession();
-		if (!session) {
-			const errorMsg: ErrorMessage = {
-				id: message.id,
-				error: 'No session running. Run `cypress-cli open <url>` to start one.',
-			};
-			conn.send(errorMsg);
-			return;
-		}
-
-		const entries = session.history.entries;
-		const formatted = entries.map((entry) => ({
-			index: entry.index,
-			action: entry.command.action,
-			ref: entry.command.ref,
-			text: entry.command.text,
-			executedAt: entry.executedAt,
-			success: entry.result.success,
-			active: entry.index < session.history.undoIndex,
-		}));
-
-		const response: ResponseMessage = {
-			id: message.id,
-			result: {
-				success: true,
-				snapshot: JSON.stringify(formatted),
-			},
-		};
-		conn.send(response);
-	}
-
-	/**
-	 * Handle the "undo" command: remove the last command from export history.
-	 * This is a daemon-local command — it does not go through Cypress.
-	 */
-	private _handleUndo(conn: SocketConnection, message: CommandMessage): void {
-		const session = this._findRunningSession();
-		if (!session) {
-			const errorMsg: ErrorMessage = {
-				id: message.id,
-				error: 'No session running. Run `cypress-cli open <url>` to start one.',
-			};
-			conn.send(errorMsg);
-			return;
-		}
-
-		const undone = session.undoHistory();
-		if (!undone) {
-			const errorMsg: ErrorMessage = {
-				id: message.id,
-				error: 'Cannot undo: history is empty. Execute a command first.',
-			};
-			conn.send(errorMsg);
-			return;
-		}
-
-		const response: ResponseMessage = {
-			id: message.id,
-			result: {
-				success: true,
-				snapshot: `Undone: ${undone.command.action}${undone.command.ref ? ' ' + undone.command.ref : ''}`,
-			},
-		};
-		conn.send(response);
-	}
-
-	/**
-	 * Handle the "export" daemon-local command: generate a Cypress test file
-	 * from the session's command history without round-tripping through Cypress.
-	 */
-	private async _handleExport(
-		conn: SocketConnection,
-		message: CommandMessage,
-	): Promise<void> {
-		const session = this._findRunningSession();
-		if (!session) {
-			const errorMsg: ErrorMessage = {
-				id: message.id,
-				error: 'No session running. Run `cypress-cli open <url>` to start one.',
-			};
-			conn.send(errorMsg);
-			return;
-		}
-
-		const options = stripPositionals(message.params.args);
-
-		try {
-			const format = inferExportFormat(options);
-			const testFile = generateTestFile(session.commandHistory, {
-				describeName: options.describe as string | undefined,
-				itName: options.it as string | undefined,
-				format,
-				baseUrl: options.baseUrl as string | undefined,
-			});
-			const filePath =
-				typeof options.file === 'string' && options.file.length > 0
-					? options.file
-					: undefined;
-
-			if (filePath) {
-				await fs.mkdir(path.dirname(filePath), { recursive: true });
-				await fs.writeFile(filePath, testFile, 'utf-8');
-			}
-
-			const response: ResponseMessage = {
-				id: message.id,
-				result: {
-					success: true,
-					testFile,
-					...(filePath !== undefined && { filePath }),
-				},
-			};
-			conn.send(response);
-		} catch (err) {
-			const errorMsg: ErrorMessage = {
-				id: message.id,
-				error: err instanceof Error ? err.message : String(err),
-			};
-			conn.send(errorMsg);
-		}
-	}
-
-	/**
-	 * Handle the "intercept-list" command: return all active route mocks.
-	 * This is a daemon-local command — it does not go through Cypress.
-	 */
-	private _handleInterceptList(
-		conn: SocketConnection,
-		message: CommandMessage,
-	): void {
-		const session = this._findRunningSession();
-		if (!session) {
-			const errorMsg: ErrorMessage = {
-				id: message.id,
-				error: 'No session running. Run `cypress-cli open <url>` to start one.',
-			};
-			conn.send(errorMsg);
-			return;
-		}
-
-		const intercepts = session.intercepts;
-		const response: ResponseMessage = {
-			id: message.id,
-			result: {
-				success: true,
-				evalResult: JSON.stringify(intercepts, null, 2),
-			},
-		};
-		conn.send(response);
-	}
-
-	/**
-	 * Track intercept/unintercept state in the session registry.
-	 * Called after a successful command execution.
-	 */
-	private _trackInterceptState(session: Session, command: QueuedCommand): void {
-		if (command.action === 'intercept' && command.text) {
-			const entry: InterceptEntry = {
-				pattern: command.text,
-				...(command.options?.['status'] !== undefined && {
-					statusCode: Number(command.options['status']),
-				}),
-				...(typeof command.options?.['body'] === 'string' && {
-					body: command.options['body'] as string,
-				}),
-				...(typeof command.options?.['content-type'] === 'string' && {
-					contentType: command.options['content-type'] as string,
-				}),
-			};
-			session.addIntercept(entry);
-		} else if (command.action === 'unintercept') {
-			session.removeIntercept(command.text || undefined);
-		}
-	}
-
-	/**
-	 * Check for drift between the daemon's intercept registry and the
-	 * driver's actual active route count reported in evalResult.
-	 *
-	 * Only runs for the commands that intentionally report `activeRouteCount`
-	 * in their response: `network`, `intercept`, and `unintercept`. Guarding
-	 * by action prevents false positives when an arbitrary `eval` command
-	 * happens to return an object with an `activeRouteCount` key.
-	 */
-	private _checkInterceptDrift(
-		session: Session,
-		command: QueuedCommand,
-		result: CommandResult,
-	): void {
-		const DRIFT_TRACKED_ACTIONS = new Set(['network', 'intercept', 'unintercept']);
-		if (!DRIFT_TRACKED_ACTIONS.has(command.action)) return;
-
-		if (!result.evalResult) return;
-
-		try {
-			const parsed = JSON.parse(result.evalResult) as Record<string, unknown>;
-			const driverCount = parsed['activeRouteCount'];
-			if (typeof driverCount !== 'number') return;
-
-			const daemonCount = session.intercepts.length;
-			if (driverCount !== daemonCount) {
-				// Drift detected — if driver has fewer routes than daemon,
-				// remove excess daemon entries (most likely cause: socket
-				// drop during unintercept lost the confirmation).
-				if (driverCount === 0 && daemonCount > 0) {
-					session.removeIntercept();
-				}
-				// Note: if driver has MORE routes than daemon, we cannot
-				// reconstruct the missing entries without querying the
-				// driver. This is a safety net, not full reconciliation.
-			}
-		} catch {
-			// evalResult is not JSON or doesn't have the expected shape — ignore
-		}
-	}
-
-	/**
 	 * Handle a "stop" command: stop the session and shut down.
 	 */
 	private _handleStop(conn: SocketConnection, message: CommandMessage): void {
@@ -791,48 +547,16 @@ export class Daemon {
 		return firstId ? this._sessions.get(firstId) : undefined;
 	}
 
-	// -----------------------------------------------------------------------
-	// Snapshot file output
-	// -----------------------------------------------------------------------
+	private _trackInterceptState(session: Session, command: QueuedCommand): void {
+		trackInterceptState(session, command);
+	}
 
-	/**
-	 * Write a snapshot YAML string to a file in the snapshot directory.
-	 *
-	 * @param snapshot - The YAML snapshot content
-	 * @param filename - Optional explicit filename; if not provided, generates
-	 *   `page-<ISO-timestamp>.yml`
-	 * @returns The relative file path of the written snapshot
-	 */
-	private async _writeSnapshotFile(
-		snapshot: string,
-		filename?: string,
-	): Promise<string> {
-		const baseDir = path.resolve(this._snapshotDir);
-		const name =
-			filename ?? `page-${new Date().toISOString().replace(/[:.]/g, '-')}.yml`;
-
-		// Reject absolute paths in filename to prevent escaping snapshotDir
-		if (path.isAbsolute(name)) {
-			throw new Error(
-				`Invalid snapshot filename "${name}": absolute paths are not allowed`,
-			);
-		}
-
-		const filePath = path.resolve(baseDir, name);
-
-		// Reject path traversal (e.g. "../outside/file.yml") using path.relative
-		// to avoid platform-specific separator normalization issues.
-		const relative = path.relative(baseDir, filePath);
-		if (relative.startsWith('..') || path.isAbsolute(relative)) {
-			throw new Error(
-				`Invalid snapshot filename "${name}": path traversal is not allowed`,
-			);
-		}
-
-		// Ensure the directory for the resolved path exists (handles nested filenames)
-		await fs.mkdir(path.dirname(filePath), { recursive: true });
-		await fs.writeFile(filePath, snapshot, 'utf-8');
-		return path.relative(process.cwd(), filePath);
+	private _checkInterceptDrift(
+		session: Session,
+		command: QueuedCommand,
+		result: CommandResult,
+	): void {
+		checkInterceptDrift(session, command, result);
 	}
 
 	// -----------------------------------------------------------------------
@@ -884,525 +608,8 @@ export class Daemon {
 		}, this._sessionInactivityTimeout);
 	}
 
-	// -----------------------------------------------------------------------
-	// Socket file management
-	// -----------------------------------------------------------------------
-
-	/**
-	 * Remove a stale socket file if it exists and no process is listening.
-	 */
-	private async _cleanStaleSocket(): Promise<void> {
-		try {
-			await fs.access(this._socketPath);
-			// Socket file exists — try to connect to see if it's stale
-			const isAlive = await this._isSocketAlive();
-			if (isAlive) {
-				throw new DaemonError(
-					`Another daemon is already listening on ${this._socketPath}. ` +
-						'Stop it first with `cypress-cli stop`.',
-				);
-			}
-			// Stale socket — remove it
-			await fs.unlink(this._socketPath);
-		} catch (err) {
-			if (err instanceof DaemonError) {
-				throw err;
-			}
-			// Only ignore "file not found" — rethrow permission/filesystem errors
-			const nodeErr = err as NodeJS.ErrnoException;
-			if (nodeErr.code === 'ENOENT') {
-				return;
-			}
-			throw err;
-		}
-	}
-
-	/**
-	 * Check if something is already listening on the socket path.
-	 */
-	private _isSocketAlive(): Promise<boolean> {
-		return new Promise<boolean>((resolve) => {
-			const client = net.createConnection(this._socketPath);
-			client.on('connect', () => {
-				client.destroy();
-				resolve(true);
-			});
-			client.on('error', () => {
-				resolve(false);
-			});
-		});
-	}
-
-	/**
-	 * Remove the socket file. Best-effort — ignores errors if file doesn't exist.
-	 */
-	private async _removeSocketFile(): Promise<void> {
-		try {
-			await fs.unlink(this._socketPath);
-		} catch (err) {
-			const nodeErr = err as NodeJS.ErrnoException;
-			if (nodeErr.code === 'ENOENT') {
-				// Socket file may not exist — that's fine
-				return;
-			}
-			throw err;
-		}
-	}
 }
 
-function inferExportFormat(options: Record<string, unknown>): 'js' | 'ts' {
-	if (options.format === 'js' || options.format === 'ts') {
-		return options.format;
-	}
-
-	if (typeof options.file === 'string') {
-		if (options.file.endsWith('.ts')) {
-			return 'ts';
-		}
-		if (options.file.endsWith('.js')) {
-			return 'js';
-		}
-	}
-
-	return 'ts';
-}
-
-export function buildQueuedCommand(
-	id: number,
-	args: CommandMessage['params']['args'],
-): QueuedCommand {
-	const [action, ...positionals] = args._;
-	const options = stripPositionals(args);
-
-	switch (action) {
-		case 'click':
-		case 'dblclick':
-		case 'rightclick':
-		case 'clear':
-		case 'check':
-		case 'uncheck':
-		case 'focus':
-		case 'blur':
-		case 'hover':
-		case 'waitfor':
-			return withOptions(
-				{
-					id,
-					action,
-					...(positionals[0] !== undefined && { ref: positionals[0] }),
-				},
-				options,
-			);
-		case 'type':
-			return withOptions(
-				{
-					id,
-					action,
-					...(positionals[0] !== undefined && { ref: positionals[0] }),
-					...(joinText(positionals.slice(1)) !== undefined && {
-						text: joinText(positionals.slice(1)),
-					}),
-				},
-				options,
-			);
-		case 'fill':
-			return withOptions(
-				{
-					id,
-					action,
-					...(positionals[0] !== undefined && { ref: positionals[0] }),
-					...(joinText(positionals.slice(1)) !== undefined && {
-						text: joinText(positionals.slice(1)),
-					}),
-				},
-				options,
-			);
-		case 'select':
-			return withOptions(
-				{
-					id,
-					action,
-					...(positionals[0] !== undefined && { ref: positionals[0] }),
-					...(joinText(positionals.slice(1)) !== undefined && {
-						text: joinText(positionals.slice(1)),
-					}),
-				},
-				options,
-			);
-		case 'scrollto':
-			if (positionals[0] && looksLikeRef(positionals[0])) {
-				return withOptions({ id, action, ref: positionals[0] }, options);
-			}
-			return withOptions(
-				{
-					id,
-					action,
-					...(joinText(positionals) !== undefined && {
-						text: joinText(positionals),
-					}),
-				},
-				options,
-			);
-		case 'navigate': {
-			const navigateText = joinText(stripPlaceholder(positionals));
-			return withOptions(
-				{
-					id,
-					action,
-					...(navigateText !== undefined && {
-						text: navigateText,
-					}),
-				},
-				options,
-			);
-		}
-		case 'back':
-		case 'forward':
-		case 'reload':
-		case 'snapshot':
-			return withOptions({ id, action }, options);
-		case 'press':
-		case 'wait':
-		case 'run-code':
-			return withOptions(
-				{
-					id,
-					action,
-					...(joinText(positionals) !== undefined && {
-						text: joinText(positionals),
-					}),
-				},
-				options,
-			);
-		case 'eval': {
-			const lastToken = positionals[positionals.length - 1];
-			const hasTrailingRef =
-				positionals.length >= 2 &&
-				lastToken !== undefined &&
-				looksLikeRef(lastToken);
-			const exprParts = hasTrailingRef ? positionals.slice(0, -1) : positionals;
-			const exprText = joinText(exprParts);
-			return withOptions(
-				{
-					id,
-					action,
-					...(exprText !== undefined && { text: exprText }),
-					...(hasTrailingRef && { ref: lastToken }),
-				},
-				options,
-			);
-		}
-		case 'assert': {
-			const legacyChainer =
-				typeof options['chainer'] === 'string' ? options['chainer'] : undefined;
-			const [ref, second, ...rest] = positionals;
-			const chainer = legacyChainer ?? second;
-			const valueParts = legacyChainer ? [second, ...rest] : rest;
-			return withOptions(
-				{
-					id,
-					action,
-					...(ref !== undefined && { ref }),
-					...(joinText(valueParts) !== undefined && {
-						text: joinText(valueParts),
-					}),
-				},
-				{
-					...options,
-					...(chainer !== undefined && { chainer }),
-				},
-			);
-		}
-		case 'asserturl':
-		case 'asserttitle': {
-			const legacyChainer =
-				typeof options['chainer'] === 'string' ? options['chainer'] : undefined;
-			const normalized = stripPlaceholder(positionals);
-			const [second, ...rest] = normalized;
-			const chainer = legacyChainer ?? second;
-			const valueParts = legacyChainer ? normalized : rest;
-			return withOptions(
-				{
-					id,
-					action,
-					...(joinText(valueParts) !== undefined && {
-						text: joinText(valueParts),
-					}),
-				},
-				{
-					...options,
-					...(chainer !== undefined && { chainer }),
-				},
-			);
-		}
-		case 'network':
-		case 'cookie-list':
-		case 'cookie-clear':
-			return withOptions({ id, action }, options);
-		case 'intercept':
-			// Pattern is the first positional, stored in `text` for the driver
-			return withOptions(
-				{
-					id,
-					action,
-					...(positionals[0] !== undefined && {
-						text: positionals[0],
-					}),
-				},
-				options,
-			);
-		case 'unintercept':
-			// Optional pattern is the first positional, stored in `text`
-			return withOptions(
-				{
-					id,
-					action,
-					...(positionals[0] !== undefined && {
-						text: positionals[0],
-					}),
-				},
-				options,
-			);
-		case 'waitforresponse':
-			// Pattern is the first positional, stored in `text`
-			return withOptions(
-				{
-					id,
-					action,
-					...(positionals[0] !== undefined && {
-						text: positionals[0],
-					}),
-				},
-				options,
-			);
-		case 'cookie-get':
-		case 'cookie-delete':
-			return withOptions(
-				{
-					id,
-					action,
-					...(positionals[0] !== undefined && {
-						text: positionals[0],
-					}),
-				},
-				options,
-			);
-		case 'cookie-set':
-			return withOptions(
-				{
-					id,
-					action,
-					...(positionals[0] !== undefined && {
-						text: positionals[0],
-					}),
-				},
-				{
-					...options,
-					...(joinText(positionals.slice(1)) !== undefined && {
-						value: joinText(positionals.slice(1)),
-					}),
-				},
-			);
-		case 'dialog-accept':
-			return withOptions(
-				{
-					id,
-					action,
-					...(joinText(positionals) !== undefined && {
-						text: joinText(positionals),
-					}),
-				},
-				options,
-			);
-		case 'dialog-dismiss':
-			return withOptions({ id, action }, options);
-		case 'resize':
-			return withOptions(
-				{ id, action },
-				{
-					...options,
-					...(positionals[0] !== undefined && {
-						width: positionals[0],
-					}),
-					...(positionals[1] !== undefined && {
-						height: positionals[1],
-					}),
-				},
-			);
-		case 'screenshot':
-			return withOptions(
-				{
-					id,
-					action,
-					...(positionals[0] !== undefined && { ref: positionals[0] }),
-				},
-				options,
-			);
-		case 'drag':
-			return withOptions(
-				{
-					id,
-					action,
-					...(positionals[0] !== undefined && { ref: positionals[0] }),
-					...(positionals[1] !== undefined && { text: positionals[1] }),
-				},
-				options,
-			);
-		case 'upload': {
-			const filePath = joinText(positionals.slice(1));
-			if (filePath !== undefined) {
-				const resolved = path.resolve(filePath);
-				const cwd = process.cwd();
-				if (!resolved.startsWith(cwd + path.sep) && resolved !== cwd) {
-					throw new Error(
-						`Upload path "${filePath}" resolves outside the working directory. ` +
-							'Use a relative path within the project.',
-					);
-				}
-			}
-			return withOptions(
-				{
-					id,
-					action,
-					...(positionals[0] !== undefined && { ref: positionals[0] }),
-					...(filePath !== undefined && { text: filePath }),
-				},
-				options,
-			);
-		}
-		default:
-			return withOptions(
-				{
-					id,
-					action,
-					...(positionals[0] !== undefined && { ref: positionals[0] }),
-					...(joinText(positionals.slice(1)) !== undefined && {
-						text: joinText(positionals.slice(1)),
-					}),
-				},
-				options,
-			);
-	}
-}
-
-function stripPositionals(
-	args: CommandMessage['params']['args'],
-): Record<string, unknown> {
-	return Object.fromEntries(
-		Object.entries(args).filter(([key]) => key !== '_'),
-	);
-}
-
-function withOptions(
-	command: QueuedCommand,
-	options: Record<string, unknown>,
-): QueuedCommand {
-	return Object.keys(options).length > 0
-		? {
-				...command,
-				options,
-			}
-		: command;
-}
-
-function joinText(parts: string[]): string | undefined {
-	const text = parts.join(' ').trim();
-	return text.length > 0 ? text : undefined;
-}
-
-function stripPlaceholder(parts: string[]): string[] {
-	return parts[0] === '_' ? parts.slice(1) : parts;
-}
-
-function looksLikeRef(value: string): boolean {
-	return /^e\d+$/.test(value);
-}
-
-// ---------------------------------------------------------------------------
-// Utilities
-// ---------------------------------------------------------------------------
-
-/**
- * Resolve the directory for socket files.
- * Prefers $XDG_RUNTIME_DIR, falls back to $TMPDIR, then os.tmpdir().
- */
-export function resolveSocketDir(): string {
-	const runtime = process.env['XDG_RUNTIME_DIR'];
-	if (runtime) {
-		return path.join(runtime, SOCKET_DIR_NAME);
-	}
-	const tmpdir = process.env['TMPDIR'] || os.tmpdir();
-	return path.join(tmpdir, SOCKET_DIR_NAME);
-}
-
-/**
- * Test whether something is listening on a Unix socket.
- *
- * @param socketPath - Absolute path to the socket file
- * @returns `true` if a connection was established (socket is alive)
- */
-export function isSocketAlive(socketPath: string): Promise<boolean> {
-	return new Promise<boolean>((resolve) => {
-		const client = net.createConnection(socketPath);
-		client.on('connect', () => {
-			client.destroy();
-			resolve(true);
-		});
-		client.on('error', () => {
-			resolve(false);
-		});
-	});
-}
-
-/**
- * Scan the socket directory for stale `.sock` files left behind by dead
- * daemons and remove them. Live sockets (where a daemon is still listening)
- * are left untouched.
- *
- * @param socketDir - Override socket directory (for testing). Defaults to the
- *   standard runtime directory.
- * @returns Session IDs whose stale sockets were cleaned up
- */
-export async function cleanStaleSockets(socketDir?: string): Promise<string[]> {
-	const dir = socketDir ?? resolveSocketDir();
-	const cleaned: string[] = [];
-
-	let entries: string[];
-	try {
-		entries = await fs.readdir(dir);
-	} catch {
-		// Directory may not exist yet — nothing to clean
-		return cleaned;
-	}
-
-	for (const entry of entries) {
-		if (!entry.endsWith('.sock')) continue;
-		const fullPath = path.join(dir, entry);
-
-		const alive = await isSocketAlive(fullPath);
-		if (!alive) {
-			try {
-				await fs.unlink(fullPath);
-				cleaned.push(entry.replace('.sock', ''));
-			} catch {
-				// Best-effort — ignore errors on individual files
-			}
-		}
-	}
-
-	return cleaned;
-}
-
-// ---------------------------------------------------------------------------
-// Errors
-// ---------------------------------------------------------------------------
-
-/**
- * Error thrown when a daemon operation fails.
- */
-export class DaemonError extends Error {
-	constructor(message: string) {
-		super(message);
-		this.name = 'DaemonError';
-	}
-}
+export { buildQueuedCommand } from './commandBuilder.js';
+export { resolveSocketDir, isSocketAlive, cleanStaleSockets } from './socketUtils.js';
+export { DaemonError } from './errors.js';
