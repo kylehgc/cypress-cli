@@ -187,6 +187,7 @@ const COMMANDS_REQUIRING_TEXT = new Set([
 	'run-code',
 	'intercept',
 	'upload',
+	'drag',
 ]);
 
 /**
@@ -603,8 +604,8 @@ function executeCommand(cmd: DriverCommand): void {
 		}
 		case 'dialog-accept': {
 			const promptText = cmd.text;
-			cy.on('window:confirm', () => true);
-			cy.on('window:alert', () => true);
+			Cypress.once('window:confirm', () => true);
+			Cypress.once('window:alert', () => true);
 			if (promptText !== undefined) {
 				cy.window({ log: false }).then((win: Window) => {
 					const origPrompt = win.prompt;
@@ -620,7 +621,7 @@ function executeCommand(cmd: DriverCommand): void {
 			break;
 		}
 		case 'dialog-dismiss':
-			cy.on('window:confirm', () => false);
+			Cypress.once('window:confirm', () => false);
 			_evalResult = 'Dialog will be dismissed';
 			break;
 		case 'resize': {
@@ -638,29 +639,31 @@ function executeCommand(cmd: DriverCommand): void {
 			} else {
 				cy.screenshot(filename);
 			}
-			_evalResult = `Screenshot saved: ${filename}.png`;
+			_evalResult = `Screenshot saved: ${filename}`;
 			break;
 		}
 		case 'drag': {
 			const endRef = cmd.text!;
+			const force = Boolean(options['force']);
 			resolveRef(cmd.ref!).then(($source) => {
 				cy.window({ log: false }).then((win: Window) => {
-					const endElement = resolveRefFromMap(win, endRef);
+					const endElement = validateRef(win, endRef);
+					if (!endElement) return;
 					const targetRect = endElement.getBoundingClientRect();
 					cy.wrap($source)
-						.trigger('pointerdown', { which: 1, force: true })
-						.trigger('dragstart', { force: true })
+						.trigger('pointerdown', { which: 1, force })
+						.trigger('dragstart', { force })
 						.trigger('mousemove', {
 							clientX: targetRect.left + targetRect.width / 2,
 							clientY: targetRect.top + targetRect.height / 2,
-							force: true,
+							force,
 						});
 					cy.wrap(endElement)
-						.trigger('dragover', { force: true })
-						.trigger('drop', { force: true });
+						.trigger('dragover', { force })
+						.trigger('drop', { force });
 					cy.wrap($source)
-						.trigger('dragend', { force: true })
-						.trigger('pointerup', { force: true });
+						.trigger('dragend', { force })
+						.trigger('pointerup', { force });
 				});
 			});
 			break;

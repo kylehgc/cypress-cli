@@ -1130,8 +1130,7 @@ function buildQueuedCommand(
 				{
 					id,
 					action,
-					...(positionals[0] !== undefined &&
-						looksLikeRef(positionals[0]) && { ref: positionals[0] }),
+					...(positionals[0] !== undefined && { ref: positionals[0] }),
 				},
 				options,
 			);
@@ -1145,18 +1144,28 @@ function buildQueuedCommand(
 				},
 				options,
 			);
-		case 'upload':
+		case 'upload': {
+			const filePath = joinText(positionals.slice(1));
+			if (filePath !== undefined) {
+				const resolved = path.resolve(filePath);
+				const cwd = process.cwd();
+				if (!resolved.startsWith(cwd + path.sep) && resolved !== cwd) {
+					throw new Error(
+						`Upload path "${filePath}" resolves outside the working directory. ` +
+							'Use a relative path within the project.',
+					);
+				}
+			}
 			return withOptions(
 				{
 					id,
 					action,
 					...(positionals[0] !== undefined && { ref: positionals[0] }),
-					...(joinText(positionals.slice(1)) !== undefined && {
-						text: joinText(positionals.slice(1)),
-					}),
+					...(filePath !== undefined && { text: filePath }),
 				},
 				options,
 			);
+		}
 		default:
 			return withOptions(
 				{

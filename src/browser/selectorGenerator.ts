@@ -281,12 +281,28 @@ function _buildNonRefCommand(
 		}
 		case 'network':
 			return '// network requests (read-only)';
-		case 'dialog-accept':
-			return text
-				? `cy.on('window:confirm', () => true) // prompt: '${(text ?? '').replace(/'/g, "\\'")}'`
-				: "cy.on('window:confirm', () => true)";
+		case 'dialog-accept': {
+			if (text) {
+				const escapedPrompt = (text ?? '')
+					.replace(/\\/g, '\\\\')
+					.replace(/'/g, "\\'");
+				return [
+					"cy.once('window:confirm', () => true)",
+					"cy.once('window:alert', () => true)",
+					`cy.window().then((win) => cy.stub(win, 'prompt').returns('${escapedPrompt}'))`,
+				].join(';\n');
+			}
+			return [
+				"cy.once('window:confirm', () => true)",
+				"cy.once('window:alert', () => true)",
+			].join(';\n');
+		}
 		case 'dialog-dismiss':
-			return "cy.on('window:confirm', () => false)";
+			return [
+				"cy.once('window:confirm', () => false)",
+				"cy.once('window:alert', () => false)",
+				"cy.window().then((win) => cy.stub(win, 'prompt').returns(null))",
+			].join(';\n');
 		case 'resize': {
 			const w = Number(options?.['width'] ?? 0);
 			const h = Number(options?.['height'] ?? 0);
