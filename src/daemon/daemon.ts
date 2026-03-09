@@ -443,7 +443,7 @@ export class Daemon {
 					}
 
 					// Detect intercept state drift between daemon and driver
-					this._checkInterceptDrift(session, result);
+					this._checkInterceptDrift(session, command, result);
 
 					// Write snapshot to file if present
 					let snapshotFile: string | undefined;
@@ -719,12 +719,19 @@ export class Daemon {
 	 * Check for drift between the daemon's intercept registry and the
 	 * driver's actual active route count reported in evalResult.
 	 *
-	 * When the driver reports `activeRouteCount` (via network, intercept,
-	 * or unintercept responses), the daemon compares it with its local
-	 * registry. If they diverge, the daemon resets its stale registry
-	 * entries to avoid phantom intercepts.
+	 * Only runs for the commands that intentionally report `activeRouteCount`
+	 * in their response: `network`, `intercept`, and `unintercept`. Guarding
+	 * by action prevents false positives when an arbitrary `eval` command
+	 * happens to return an object with an `activeRouteCount` key.
 	 */
-	private _checkInterceptDrift(session: Session, result: CommandResult): void {
+	private _checkInterceptDrift(
+		session: Session,
+		command: QueuedCommand,
+		result: CommandResult,
+	): void {
+		const DRIFT_TRACKED_ACTIONS = new Set(['network', 'intercept', 'unintercept']);
+		if (!DRIFT_TRACKED_ACTIONS.has(command.action)) return;
+
 		if (!result.evalResult) return;
 
 		try {
