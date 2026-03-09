@@ -139,6 +139,12 @@ export function buildCypressCommand(
 				.replace(/'/g, "\\'");
 			return `${getExpr}.type('${escapedText}')`;
 		}
+		case 'fill': {
+			const escapedText = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `${getExpr}.clear().type('${escapedText}')`;
+		}
 		case 'select': {
 			const escapedText = (text ?? '')
 				.replace(/\\/g, '\\\\')
@@ -164,6 +170,22 @@ export function buildCypressCommand(
 		}
 		case 'waitfor':
 			return `${getExpr}.should('exist')`;
+		case 'screenshot': {
+			const fname = options?.['filename'] as string | undefined;
+			if (fname) {
+				const escapedFname = fname.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+				return `${getExpr}.screenshot('${escapedFname}')`;
+			}
+			return `${getExpr}.screenshot()`;
+		}
+		case 'upload': {
+			const escapedFile = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `${getExpr}.selectFile('${escapedFile}')`;
+		}
+		case 'drag':
+			return `// drag ${selector ?? 'source'} → (see test for manual drag)`;
 		default:
 			return `${getExpr}.${action}()`;
 	}
@@ -259,6 +281,29 @@ function _buildNonRefCommand(
 		}
 		case 'network':
 			return '// network requests (read-only)';
+		case 'dialog-accept':
+			return text
+				? `cy.on('window:confirm', () => true) // prompt: '${(text ?? '').replace(/'/g, "\\'")}'`
+				: "cy.on('window:confirm', () => true)";
+		case 'dialog-dismiss':
+			return "cy.on('window:confirm', () => false)";
+		case 'resize': {
+			const w = Number(options?.['width'] ?? 0);
+			const h = Number(options?.['height'] ?? 0);
+			return `cy.viewport(${w}, ${h})`;
+		}
+		case 'screenshot': {
+			const fname = options?.['filename'] as string | undefined;
+			if (fname) {
+				const escapedFname = fname.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+				return `cy.screenshot('${escapedFname}')`;
+			}
+			return 'cy.screenshot()';
+		}
+		case 'drag':
+			return '// drag (manual trigger chain)';
+		case 'upload':
+			return '// upload (requires cy.selectFile with element ref)';
 		default:
 			return `cy.${action}()`;
 	}

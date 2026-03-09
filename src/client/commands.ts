@@ -288,6 +288,22 @@ export const hover = declareCommand({
 	}),
 });
 
+export const fill = declareCommand({
+	name: 'fill',
+	category: 'interaction',
+	description: 'Clear and type text into an element (clear + type)',
+	args: z.object({
+		ref: z.string().describe('Element ref from aria snapshot'),
+		text: z.string().describe('Text to fill'),
+	}),
+	options: z.object({
+		force: z
+			.boolean()
+			.optional()
+			.describe('Force fill, disabling actionability checks'),
+	}),
+});
+
 // ---------------------------------------------------------------------------
 // Keyboard commands
 // ---------------------------------------------------------------------------
@@ -298,6 +314,43 @@ export const press = declareCommand({
 	description: 'Press a key',
 	args: z.object({
 		key: z.string().describe('Key to press (e.g., "Enter", "Escape", "Tab")'),
+	}),
+	options: z.object({}),
+});
+
+// ---------------------------------------------------------------------------
+// Dialog commands
+// ---------------------------------------------------------------------------
+
+export const dialogAccept = declareCommand({
+	name: 'dialog-accept',
+	category: 'interaction',
+	description: 'Accept the next browser dialog (alert, confirm, prompt)',
+	args: z.object({
+		text: z.string().optional().describe('Text to enter in a prompt dialog'),
+	}),
+	options: z.object({}),
+});
+
+export const dialogDismiss = declareCommand({
+	name: 'dialog-dismiss',
+	category: 'interaction',
+	description: 'Dismiss the next browser dialog (confirm)',
+	args: z.object({}),
+	options: z.object({}),
+});
+
+// ---------------------------------------------------------------------------
+// Viewport commands
+// ---------------------------------------------------------------------------
+
+export const resize = declareCommand({
+	name: 'resize',
+	category: 'interaction',
+	description: 'Change the browser viewport dimensions',
+	args: z.object({
+		width: z.coerce.number().describe('Viewport width in pixels'),
+		height: z.coerce.number().describe('Viewport height in pixels'),
 	}),
 	options: z.object({}),
 });
@@ -472,6 +525,62 @@ export const unintercept = declareCommand({
 });
 
 // ---------------------------------------------------------------------------
+// Screenshot command
+// ---------------------------------------------------------------------------
+
+export const screenshot = declareCommand({
+	name: 'screenshot',
+	category: 'core',
+	description: 'Capture a screenshot of the page or an element',
+	args: z.object({
+		ref: z.string().optional().describe('Element ref for element screenshot'),
+	}),
+	options: z.object({
+		filename: z.string().optional().describe('Output filename'),
+	}),
+});
+
+// ---------------------------------------------------------------------------
+// Drag command
+// ---------------------------------------------------------------------------
+
+export const drag = declareCommand({
+	name: 'drag',
+	category: 'interaction',
+	description: 'Drag an element to another element',
+	args: z.object({
+		startRef: z.string().describe('Element ref to drag from'),
+		endRef: z.string().describe('Element ref to drop onto'),
+	}),
+	options: z.object({
+		force: z
+			.boolean()
+			.optional()
+			.describe('Force drag, disabling actionability checks'),
+	}),
+});
+
+// ---------------------------------------------------------------------------
+// Upload command
+// ---------------------------------------------------------------------------
+
+export const upload = declareCommand({
+	name: 'upload',
+	category: 'interaction',
+	description: 'Upload a file to a file input element',
+	args: z.object({
+		ref: z.string().describe('Element ref of file input'),
+		file: z.string().describe('Path to file to upload'),
+	}),
+	options: z.object({
+		force: z
+			.boolean()
+			.optional()
+			.describe('Force upload, disabling actionability checks'),
+	}),
+});
+
+// ---------------------------------------------------------------------------
 // Command registry
 // ---------------------------------------------------------------------------
 
@@ -500,6 +609,7 @@ export const allCommands = [
 	blur,
 	scrollto,
 	hover,
+	fill,
 	press,
 	assert_,
 	asserturl,
@@ -514,6 +624,12 @@ export const allCommands = [
 	intercept,
 	interceptList,
 	unintercept,
+	screenshot,
+	drag,
+	upload,
+	dialogAccept,
+	dialogDismiss,
+	resize,
 ] as const;
 
 /**
@@ -552,6 +668,23 @@ export function buildRegistry(): ReadonlyMap<string, CommandRegistryEntry> {
 	registry.set('blur', { schema: blur, positionals: ['ref'] });
 	registry.set('scrollto', { schema: scrollto, positionals: ['target'] });
 	registry.set('hover', { schema: hover, positionals: ['ref'] });
+	registry.set('fill', { schema: fill, positionals: ['ref', 'text'] });
+
+	// Dialog
+	registry.set('dialog-accept', {
+		schema: dialogAccept,
+		positionals: ['text'],
+	});
+	registry.set('dialog-dismiss', {
+		schema: dialogDismiss,
+		positionals: [],
+	});
+
+	// Viewport
+	registry.set('resize', {
+		schema: resize,
+		positionals: ['width', 'height'],
+	});
 
 	// Keyboard
 	registry.set('press', { schema: press, positionals: ['key'] });
@@ -593,6 +726,30 @@ export function buildRegistry(): ReadonlyMap<string, CommandRegistryEntry> {
 		schema: unintercept,
 		positionals: ['pattern'],
 	});
+
+	// Screenshot
+	registry.set('screenshot', {
+		schema: screenshot,
+		positionals: ['ref'],
+	});
+
+	// Drag
+	registry.set('drag', {
+		schema: drag,
+		positionals: ['startRef', 'endRef'],
+	});
+
+	// Upload
+	registry.set('upload', {
+		schema: upload,
+		positionals: ['ref', 'file'],
+	});
+
+	// Aliases (playwright-cli naming compatibility)
+	registry.set('close', { schema: stop, positionals: [] });
+	registry.set('goto', { schema: navigate, positionals: ['url'] });
+	registry.set('go-back', { schema: back, positionals: [] });
+	registry.set('go-forward', { schema: forward, positionals: [] });
 
 	return registry;
 }
