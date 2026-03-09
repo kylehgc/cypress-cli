@@ -749,6 +749,25 @@ function pollForCommands(): void {
 						// Codegen metadata is best-effort; command execution can continue.
 					}
 				});
+			} else if (cmd.action && cmd.ref) {
+				// Commands with an optional ref (e.g. screenshot): resolve the
+				// element for codegen but don't validate as strictly.
+				cy.window({ log: false }).then((win: Window) => {
+					const element = validateRef(win, cmd.ref!);
+					if (!element) return;
+					try {
+						selector = generateSelector(element);
+						cypressCommand = buildCypressCommand(
+							selector,
+							cmd.action!,
+							cmd.text,
+							undefined,
+							cmd.options,
+						);
+					} catch {
+						// Codegen metadata is best-effort
+					}
+				});
 			} else if (cmd.action) {
 				const chainer = cmd.options?.['chainer'] as string | undefined;
 				cypressCommand = buildCypressCommand(

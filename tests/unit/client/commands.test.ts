@@ -400,7 +400,10 @@ describe('command schemas', () => {
 			expect(good.success).toBe(true);
 
 			// z.coerce.number() coerces strings
-			const fromStrings = resize.args.safeParse({ width: '1024', height: '768' });
+			const fromStrings = resize.args.safeParse({
+				width: '1024',
+				height: '768',
+			});
 			expect(fromStrings.success).toBe(true);
 			if (fromStrings.success) {
 				expect(fromStrings.data.width).toBe(1024);
@@ -418,7 +421,9 @@ describe('command schemas', () => {
 			const withRef = screenshot.args.safeParse({ ref: 'e5' });
 			expect(withRef.success).toBe(true);
 
-			const withFilename = screenshot.options.safeParse({ filename: 'test.png' });
+			const withFilename = screenshot.options.safeParse({
+				filename: 'test.png',
+			});
 			expect(withFilename.success).toBe(true);
 		});
 
@@ -772,7 +777,7 @@ describe('parseCommand', () => {
 		});
 	});
 
-	it("parses 'intercept **/api/** --status 200 --body {\"ok\":true}' correctly", () => {
+	it('parses \'intercept **/api/** --status 200 --body {"ok":true}\' correctly', () => {
 		const result = parseCommand(
 			{
 				_: ['intercept', '**/api/**'],
@@ -836,10 +841,7 @@ describe('parseCommand', () => {
 	});
 
 	it("parses 'dialog-accept' without text", () => {
-		const result = parseCommand(
-			{ _: ['dialog-accept'] },
-			commandRegistry,
-		);
+		const result = parseCommand({ _: ['dialog-accept'] }, commandRegistry);
 		expect(result).toEqual({
 			command: 'dialog-accept',
 			args: {},
@@ -860,10 +862,7 @@ describe('parseCommand', () => {
 	});
 
 	it("parses 'dialog-dismiss' correctly", () => {
-		const result = parseCommand(
-			{ _: ['dialog-dismiss'] },
-			commandRegistry,
-		);
+		const result = parseCommand({ _: ['dialog-dismiss'] }, commandRegistry);
 		expect(result).toEqual({
 			command: 'dialog-dismiss',
 			args: {},
@@ -884,10 +883,7 @@ describe('parseCommand', () => {
 	});
 
 	it("parses 'screenshot' without ref", () => {
-		const result = parseCommand(
-			{ _: ['screenshot'] },
-			commandRegistry,
-		);
+		const result = parseCommand({ _: ['screenshot'] }, commandRegistry);
 		expect(result).toEqual({
 			command: 'screenshot',
 			args: {},
@@ -908,10 +904,7 @@ describe('parseCommand', () => {
 	});
 
 	it("parses 'drag e3 e5' correctly", () => {
-		const result = parseCommand(
-			{ _: ['drag', 'e3', 'e5'] },
-			commandRegistry,
-		);
+		const result = parseCommand({ _: ['drag', 'e3', 'e5'] }, commandRegistry);
 		expect(result).toEqual({
 			command: 'drag',
 			args: { startRef: 'e3', endRef: 'e5' },

@@ -1,0 +1,58 @@
+- generic [ref=e2]:
+  - navigation [ref=e3]:
+    - link "About" [ref=e4] [cursor=pointer]:
+      - /url: https://about.google/?fg=1&utm_source=google-CA&utm_medium=referral&utm_campaign=hp-header
+    - link "Store" [ref=e5] [cursor=pointer]:
+      - /url: https://store.google.com/CA?utm_source=hp_header&utm_medium=google_ooo&utm_campaign=GS100042&hl=en-CA
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - link "Gmail" [ref=e10] [cursor=pointer]:
+          - /url: https://mail.google.com/mail/&ogbl
+        - link "Search for Images" [ref=e12] [cursor=pointer]:
+          - /url: https://www.google.com/imghp?hl=en&ogbl
+          - text: Images
+      - button "Google apps" [ref=e15] [cursor=pointer]:
+        - img [ref=e16]
+      - link "Sign in" [ref=e20] [cursor=pointer]:
+        - /url: https://accounts.google.com/ServiceLogin?hl=en&passive=true&continue=https://www.google.com/&ec=futura_exp_og_so_72776762_e
+  - generic [ref=e22]:
+    - link "International Women's Day 2026" [ref=e23] [cursor=pointer]:
+      - /url: /search?sca_esv=2a53f1fec2137711&q=International+Women%27s+Day+&oi=ddle&noiga=1&ct=458094404&hl=en&si=AL3DRZEaipurC9pse1xO2aCwuJWfKA_Njx1c7Qs8ap9rx81jmkaom7peIfbE6V-QoeHR89Au7u7w7zcglA1GaePy5FUVfq2oBDq5Urnn61cOT7b7QBNCwGAvWF_i5DRJ70LjOZpDFsaH2ISjzcRpWpLgxYfHT_6x7FAVchsOiyS7auE21oC1nN0_MVdyEwxSjNAEthOpLNUj&sa=X&ved=0ahUKEwibiMi0n5GTAxVzFDQIHUC5KegQPQgE
+      - img "International Women's Day 2026" [ref=e25]
+    - button "Share" [ref=e27]:
+      - generic "Share" [ref=e28] [cursor=pointer]:
+        - img [ref=e32]
+  - search [ref=e35]:
+    - generic [ref=e37]:
+      - generic [ref=e39]:
+        - img [ref=e43]
+        - combobox "Search" [active] [ref=e46]
+        - generic [ref=e48]:
+          - button "Search by voice" [ref=e49] [cursor=pointer]:
+            - img [ref=e50]
+          - button "Search by image" [ref=e52] [cursor=pointer]:
+            - img [ref=e53]
+      - generic [ref=e56]:
+        - button "Google Search" [ref=e57] [cursor=pointer]
+        - button "I'm Feeling Lucky" [ref=e58] [cursor=pointer]
+  - generic [ref=e61]:
+    - text: "Google offered in:"
+    - link "Français" [ref=e62] [cursor=pointer]:
+      - /url: https://www.google.com/setprefs?sig=0_gOkb-mhGJ8rbrHgSApqFzVaorxo%3D&hl=fr&source=homepage&sa=X&ved=0ahUKEwibiMi0n5GTAxVzFDQIHUC5KegQ2ZgBCCk
+  - contentinfo [ref=e64]:
+    - generic [ref=e65]: Canada
+    - generic [ref=e66]:
+      - generic [ref=e67]:
+        - link "Advertising" [ref=e68] [cursor=pointer]:
+          - /url: https://www.google.com/intl/en_ca/ads/?subid=ww-ww-et-g-awa-a-g_hpafoot1_1!o2&utm_source=google.com&utm_medium=referral&utm_campaign=google_hpafooter&fg=1
+        - link "Business" [ref=e69] [cursor=pointer]:
+          - /url: https://www.google.com/services/?subid=ww-ww-et-g-awa-a-g_hpbfoot1_1!o2&utm_source=google.com&utm_medium=referral&utm_campaign=google_hpbfooter&fg=1
+        - link "How Search works" [ref=e70] [cursor=pointer]:
+          - /url: https://google.com/search/howsearchworks/?fg=1
+      - generic [ref=e71]:
+        - link "Privacy" [ref=e72] [cursor=pointer]:
+          - /url: https://policies.google.com/privacy?hl=en-CA&fg=1
+        - link "Terms" [ref=e73] [cursor=pointer]:
+          - /url: https://policies.google.com/terms?hl=en-CA&fg=1
+        - button "Settings" [ref=e77] [cursor=pointer]:
+          - generic [ref=e78]: Settings
