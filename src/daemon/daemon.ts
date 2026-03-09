@@ -442,6 +442,9 @@ export class Daemon {
 						this._trackInterceptState(session, command);
 					}
 
+					// Detect intercept state drift between daemon and driver
+					this._checkInterceptDrift(session, result);
+
 					// Write snapshot to file if present
 					let snapshotFile: string | undefined;
 					if (result.snapshot) {
@@ -709,6 +712,40 @@ export class Daemon {
 			session.addIntercept(entry);
 		} else if (command.action === 'unintercept') {
 			session.removeIntercept(command.text || undefined);
+		}
+	}
+
+	/**
+	 * Check for drift between the daemon's intercept registry and the
+	 * driver's actual active route count reported in evalResult.
+	 *
+	 * When the driver reports `activeRouteCount` (via network, intercept,
+	 * or unintercept responses), the daemon compares it with its local
+	 * registry. If they diverge, the daemon resets its stale registry
+	 * entries to avoid phantom intercepts.
+	 */
+	private _checkInterceptDrift(session: Session, result: CommandResult): void {
+		if (!result.evalResult) return;
+
+		try {
+			const parsed = JSON.parse(result.evalResult) as Record<string, unknown>;
+			const driverCount = parsed['activeRouteCount'];
+			if (typeof driverCount !== 'number') return;
+
+			const daemonCount = session.intercepts.length;
+			if (driverCount !== daemonCount) {
+				// Drift detected — if driver has fewer routes than daemon,
+				// remove excess daemon entries (most likely cause: socket
+				// drop during unintercept lost the confirmation).
+				if (driverCount === 0 && daemonCount > 0) {
+					session.removeIntercept();
+				}
+				// Note: if driver has MORE routes than daemon, we cannot
+				// reconstruct the missing entries without querying the
+				// driver. This is a safety net, not full reconciliation.
+			}
+		} catch {
+			// evalResult is not JSON or doesn't have the expected shape — ignore
 		}
 	}
 
@@ -1033,10 +1070,10 @@ function buildQueuedCommand(
 		case 'eval': {
 			const lastToken = positionals[positionals.length - 1];
 			const hasTrailingRef =
-				positionals.length >= 2 && lastToken !== undefined && looksLikeRef(lastToken);
-			const exprParts = hasTrailingRef
-				? positionals.slice(0, -1)
-				: positionals;
+				positionals.length >= 2 &&
+				lastToken !== undefined &&
+				looksLikeRef(lastToken);
+			const exprParts = hasTrailingRef ? positionals.slice(0, -1) : positionals;
 			const exprText = joinText(exprParts);
 			return withOptions(
 				{

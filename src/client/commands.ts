@@ -496,7 +496,12 @@ export const network = declareCommand({
 	category: 'network',
 	description: 'List network requests captured since page load',
 	args: z.object({}),
-	options: z.object({}),
+	options: z.object({
+		clear: z
+			.boolean()
+			.optional()
+			.describe('Clear the network log after returning'),
+	}),
 });
 
 export const intercept = declareCommand({
