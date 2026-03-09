@@ -1030,6 +1030,16 @@ function buildQueuedCommand(
 				},
 				options,
 			);
+		case 'eval':
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && { text: positionals[0] }),
+					...(positionals[1] !== undefined && { ref: positionals[1] }),
+				},
+				options,
+			);
 		case 'assert': {
 			const legacyChainer =
 				typeof options['chainer'] === 'string' ? options['chainer'] : undefined;

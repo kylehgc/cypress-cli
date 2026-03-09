@@ -264,6 +264,17 @@ describe('selectorGenerator', () => {
 			});
 			expect(result).toContain("cy.get('[data-cy=\\'drop\\']')");
 		});
+
+		it('builds eval command with ref', () => {
+			const result = buildCypressCommand(
+				'#my-el',
+				'eval',
+				'el => el.textContent',
+			);
+			expect(result).toBe(
+				"cy.get('#my-el').then(($el) => { const fn = eval('(el => el.textContent)'); return typeof fn === 'function' ? fn($el[0]) : fn; })",
+			);
+		});
 	});
 
 	describe('buildCypressCommand (non-ref commands)', () => {
@@ -434,6 +445,17 @@ describe('selectorGenerator', () => {
 			);
 			expect(result).toBe(
 				"cy.window().then((win) => win.eval('document.querySelector(\\'h1\\').textContent'))",
+			);
+		});
+
+		it('builds eval command without ref', () => {
+			const result = buildCypressCommand(
+				undefined,
+				'eval',
+				'document.title',
+			);
+			expect(result).toBe(
+				"cy.window().then((win) => win.eval('document.title'))",
 			);
 		});
 

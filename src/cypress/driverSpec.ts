@@ -218,6 +218,7 @@ const COMMANDS_REQUIRING_TEXT = new Set([
 	'navigate',
 	'press',
 	'run-code',
+	'eval',
 	'intercept',
 	'upload',
 	'drag',
@@ -601,6 +602,32 @@ function executeCommand(cmd: DriverCommand): void {
 					_evalResult = String(result);
 				}
 			});
+			break;
+		case 'eval':
+			if (cmd.ref) {
+				resolveRef(cmd.ref).then(($el) => {
+					cy.window({ log: false }).then((win: Window) => {
+						const evalFn = (
+							win as Window & { eval: (code: string) => unknown }
+						).eval;
+						const element = $el[0];
+						const fn = evalFn.call(win, `(${cmd.text!})`);
+						const result =
+							typeof fn === 'function' ? fn(element) : fn;
+						_evalResult =
+							result === undefined ? 'undefined' : JSON.stringify(result);
+					});
+				});
+			} else {
+				cy.window({ log: false }).then((win: Window) => {
+					const evalFn = (
+						win as Window & { eval: (code: string) => unknown }
+					).eval;
+					const result = evalFn.call(win, cmd.text!);
+					_evalResult =
+						result === undefined ? 'undefined' : JSON.stringify(result);
+				});
+			}
 			break;
 		case 'snapshot':
 			// No-op: snapshot is always taken after command execution
