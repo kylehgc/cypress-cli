@@ -496,6 +496,52 @@ describe('selectorGenerator', () => {
 			expect(result).toBe('// remove all intercepts');
 		});
 
+		it('builds intercept command with alias', () => {
+			const result = buildCypressCommand(
+				undefined,
+				'intercept',
+				'**/api/articles*',
+				undefined,
+				{ _alias: 'apiArticles1' },
+			);
+			expect(result).toBe(
+				"cy.intercept('**/api/articles*').as('apiArticles1')",
+			);
+		});
+
+		it('builds intercept command with alias and static response', () => {
+			const result = buildCypressCommand(
+				undefined,
+				'intercept',
+				'**/api/users',
+				undefined,
+				{ status: 200, _alias: 'apiUsers1' },
+			);
+			expect(result).toBe(
+				"cy.intercept('**/api/users', { statusCode: 200 }).as('apiUsers1')",
+			);
+		});
+
+		it('builds waitforresponse command with alias', () => {
+			const result = buildCypressCommand(
+				undefined,
+				'waitforresponse',
+				'**/api/articles*',
+				undefined,
+				{ _alias: 'apiArticles1' },
+			);
+			expect(result).toBe("cy.wait('@apiArticles1')");
+		});
+
+		it('builds waitforresponse command without alias uses pattern', () => {
+			const result = buildCypressCommand(
+				undefined,
+				'waitforresponse',
+				'**/api/articles*',
+			);
+			expect(result).toBe("cy.wait('@**/api/articles*')");
+		});
+
 		it('builds network command as read-only comment', () => {
 			const result = buildCypressCommand(undefined, 'network');
 			expect(result).toBe('// network requests (read-only)');

@@ -29,7 +29,7 @@ client/
 ├── main.ts               ← Entry point: parse args, dispatch, handle exit codes
 ├── cli.ts                ← Global flags, run(), formatResult/formatError, help text
 ├── command.ts            ← declareCommand helper + parseCommand + CommandSchema
-├── commands.ts           ← All 28 command schemas (open, stop, click, type, etc.)
+├── commands.ts           ← All 43 command schemas (open, stop, click, type, intercept, etc.)
 ├── session.ts            ← ClientSession: socket-based command sending, session discovery
 ├── socketConnection.ts   ← sendAndReceive: Unix socket client with retry logic
 └── repl.ts               ← Interactive REPL mode (readline-based, shell-style quoting)

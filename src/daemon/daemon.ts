@@ -1099,6 +1099,18 @@ function buildQueuedCommand(
 				},
 				options,
 			);
+		case 'waitforresponse':
+			// Pattern is the first positional, stored in `text`
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && {
+						text: positionals[0],
+					}),
+				},
+				options,
+			);
 		case 'dialog-accept':
 			return withOptions(
 				{

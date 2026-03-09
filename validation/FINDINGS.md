@@ -18,7 +18,7 @@ the LLM experience.
 
 ## Bugs Found
 
-### BUG-1: Numeric string coercion (HIGH — blocks common workflows)
+### BUG-1: Numeric string coercion (HIGH — blocks common workflows) — RESOLVED
 
 **Commands affected**: `assert`, `fill`, `type`
 **Symptom**: Values like `'2'` or `'90210'` are parsed as numbers by the CLI arg
@@ -71,7 +71,7 @@ automatically traverse children to find the `<select>`.
 
 ---
 
-### BUG-3: `dialog-dismiss` crashes with uncaught exception (MEDIUM)
+### BUG-3: `dialog-dismiss` crashes with uncaught exception (MEDIUM) — RESOLVED
 
 **Commands affected**: `dialog-dismiss`
 **Symptom**: The `cy.stub(win, 'prompt').returns(null)` call in the dismiss
@@ -93,7 +93,7 @@ the stub setup.
 
 ---
 
-### BUG-4: `press Escape` generates invalid sequence (LOW)
+### BUG-4: `press Escape` generates invalid sequence (LOW) — RESOLVED
 
 **Commands affected**: `press`
 **Symptom**: `press Escape` generates `{Escape}` but Cypress expects `{esc}`.
@@ -116,29 +116,24 @@ Cypress's shorthand forms.
 
 ## UX Friction Points
 
-### FRICTION-1: Refs are unstable across DOM changes (HIGH)
+### FRICTION-1: Refs are unstable across DOM changes (HIGH) — RESOLVED
 
-Refs shift when the DOM changes — even minor changes like a button label
-switching from "Add to cart" to "Remove" cause all subsequent refs to
-renumber. This means:
-
-- Refs from a diff-based snapshot may not match refs in the current full snapshot
-- An agent must take a fresh `snapshot` after every DOM-mutating command before
-  using new refs
-- Using a stale ref silently targets the wrong element (no error — just wrong
-  behavior)
+Refs shifted when the DOM changed — even minor changes like a button label
+switching from "Add to cart" to "Remove" caused all subsequent refs to
+renumber.
 
 **Example**: In SauceDemo, after adding one item to cart, the Bike Light's
 "Add to cart" button shifted from `e58` to `e49`. Clicking the old `e58` hit a
 different element (a `<div>` wrapper), wasting two attempts.
 
-**Recommendation**: Consider stable ref identifiers that survive DOM mutations,
-or at minimum emit a warning when a ref targets a different element type than
-what was shown in the snapshot.
+**Resolution**: Refs are now stable across DOM mutations. The ref map uses
+WeakRef-based tracking so elements keep their assigned ref even when the DOM
+re-renders. Refs only become invalid when their element is removed from the DOM,
+in which case commands correctly fail with a ref-not-found error.
 
 ---
 
-### FRICTION-2: SPA routing needs explicit waits (MEDIUM)
+### FRICTION-2: SPA routing needs explicit waits (MEDIUM) — RESOLVED
 
 Single-page applications (Conduit, and partially SauceDemo) perform client-side
 routing that doesn't trigger Cypress's page load detection. The snapshot after a
@@ -148,37 +143,38 @@ components have rendered.
 **Pattern observed**: Had to use `wait 2000` + `snapshot` after every SPA
 navigation in the Conduit scenario.
 
-**Recommendation**: Consider a `waitfor` approach where the snapshot command
-automatically waits for DOM stability (MutationObserver-based idle detection)
-before capturing.
+**Resolution**: Added `waitforresponse` command that uses `cy.wait('@alias')`
+to wait for intercepted network responses. Combined with `intercept`, agents can
+now wait for specific API calls to complete before snapshotting. Skill docs
+also document `waitfor` for element-based waits.
 
 ---
 
-### FRICTION-3: Diff snapshots hide stale refs (MEDIUM)
+### FRICTION-3: Diff snapshots hide stale refs (MEDIUM) — RESOLVED
 
 The incremental diff snapshot format (`ref=e14 [unchanged]`) is compact but
-doesn't show the current element details. An agent needs to:
+didn't show the current element details. An agent needed to remember which refs
+were assigned in previous full snapshots or take a full `snapshot` to see current
+refs.
 
-1. Remember which refs were assigned in previous full snapshots
-2. Or take a full `snapshot` to see current refs
-
-When a `[no changes]` snapshot is returned, the agent has zero visibility into
-the current page state.
-
-**Recommendation**: Consider a `--full` flag on snapshot, or always return full
-snapshots when the agent requests them explicitly.
+**Resolution**: Resolved by FRICTION-1 fix (stable refs). Refs are now stable
+across DOM mutations — they only become invalid when elements are removed from
+the DOM, in which case the command correctly fails with a ref-not-found error.
+Diff snapshots no longer hide stale refs because refs don't go stale from
+re-renders.
 
 ---
 
-### FRICTION-4: Export includes failed/stale commands (LOW)
+### FRICTION-4: Export includes failed/stale commands (LOW) — RESOLVED
 
 The exported test includes every command in history, including failed attempts
 that hit wrong elements. In the SauceDemo export, there were 3 click commands
 targeting wrapper `<div>` elements that did nothing — these become dead code in
 the test.
 
-**Recommendation**: Either exclude commands that had no effect (clicked wrong
-element type), or flag them with comments in the export.
+**Resolution**: Failed commands are now filtered out of the exported test file.
+The `buildHistory` function in codegen skips any command result with
+`success: false`, keeping exports clean.
 
 ---
 
@@ -230,18 +226,19 @@ element type), or flag them with comments in the export.
 
 ## Priority Recommendations
 
-1. **Fix BUG-1 (numeric coercion)** — This is the most impactful fix. Every
-   scenario hit it. Simple to fix in the arg parser.
+1. **Fix BUG-1 (numeric coercion)** — ✅ Fixed. Arg parser now preserves
+   string types for command arguments.
 
-2. **Fix BUG-4 (key name mapping)** — Standard key names should work. Small
-   lookup table.
+2. **Fix BUG-4 (key name mapping)** — ✅ Fixed. Standard key names mapped to
+   Cypress equivalents.
 
-3. **Address FRICTION-1 (ref stability)** — Most complex but highest impact on
-   LLM usability. At minimum, warn when a ref targets a different element type.
+3. **Address FRICTION-1 (ref stability)** — ✅ Fixed. Refs are now stable across
+   DOM mutations via WeakRef-based tracking.
 
-4. **Fix BUG-3 (dialog-dismiss)** — Guard the prompt stub.
+4. **Fix BUG-3 (dialog-dismiss)** — ✅ Fixed. Guard added to prompt stub.
 
-5. **Address FRICTION-2 (SPA waits)** — Add DOM stability detection to snapshots.
+5. **Address FRICTION-2 (SPA waits)** — ✅ Fixed. `waitforresponse` command added
+   for network-based waits; `waitfor` documented for element-based waits.
 
 ---
 

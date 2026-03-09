@@ -44,6 +44,7 @@ import {
 	intercept,
 	interceptList,
 	unintercept,
+	waitforresponse,
 	fill,
 	dialogAccept,
 	dialogDismiss,
@@ -88,12 +89,12 @@ describe('declareCommand', () => {
 });
 
 describe('command schemas', () => {
-	it('defines all 42 commands', () => {
-		expect(allCommands).toHaveLength(42);
+	it('defines all 43 commands', () => {
+		expect(allCommands).toHaveLength(43);
 	});
 
 	it('registers all commands plus aliases in the registry', () => {
-		expect(commandRegistry.size).toBe(46);
+		expect(commandRegistry.size).toBe(47);
 	});
 
 	describe('categories', () => {
@@ -167,6 +168,7 @@ describe('command schemas', () => {
 			expect(intercept.category).toBe('network');
 			expect(interceptList.category).toBe('network');
 			expect(unintercept.category).toBe('network');
+			expect(waitforresponse.category).toBe('network');
 		});
 	});
 
@@ -369,6 +371,24 @@ describe('command schemas', () => {
 				pattern: '**/api/**',
 			});
 			expect(withPattern.success).toBe(true);
+		});
+
+		it('waitforresponse requires pattern', () => {
+			const good = waitforresponse.args.safeParse({
+				pattern: '**/api/articles*',
+			});
+			expect(good.success).toBe(true);
+
+			const missing = waitforresponse.args.safeParse({});
+			expect(missing.success).toBe(false);
+		});
+
+		it('waitforresponse timeout is optional', () => {
+			const noTimeout = waitforresponse.options.safeParse({});
+			expect(noTimeout.success).toBe(true);
+
+			const withTimeout = waitforresponse.options.safeParse({ timeout: 10000 });
+			expect(withTimeout.success).toBe(true);
 		});
 
 		it('fill requires ref and text', () => {
@@ -825,6 +845,30 @@ describe('parseCommand', () => {
 			command: 'unintercept',
 			args: { pattern: '**/api/**' },
 			options: {},
+		});
+	});
+
+	it("parses 'waitforresponse **/api/articles*' correctly", () => {
+		const result = parseCommand(
+			{ _: ['waitforresponse', '**/api/articles*'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'waitforresponse',
+			args: { pattern: '**/api/articles*' },
+			options: {},
+		});
+	});
+
+	it("parses 'waitforresponse **/api/** --timeout 10000' correctly", () => {
+		const result = parseCommand(
+			{ _: ['waitforresponse', '**/api/**'], timeout: 10000 },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'waitforresponse',
+			args: { pattern: '**/api/**' },
+			options: { timeout: 10000 },
 		});
 	});
 

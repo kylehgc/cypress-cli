@@ -524,6 +524,21 @@ export const unintercept = declareCommand({
 	options: z.object({}),
 });
 
+export const waitforresponse = declareCommand({
+	name: 'waitforresponse',
+	category: 'network',
+	description:
+		'Wait for a network response matching a previously intercepted URL pattern',
+	args: z.object({
+		pattern: z
+			.string()
+			.describe('URL pattern of a previously registered intercept'),
+	}),
+	options: z.object({
+		timeout: z.coerce.number().optional().describe('Timeout in ms'),
+	}),
+});
+
 // ---------------------------------------------------------------------------
 // Screenshot command
 // ---------------------------------------------------------------------------
@@ -624,6 +639,7 @@ export const allCommands = [
 	intercept,
 	interceptList,
 	unintercept,
+	waitforresponse,
 	screenshot,
 	drag,
 	upload,
@@ -724,6 +740,10 @@ export function buildRegistry(): ReadonlyMap<string, CommandRegistryEntry> {
 	});
 	registry.set('unintercept', {
 		schema: unintercept,
+		positionals: ['pattern'],
+	});
+	registry.set('waitforresponse', {
+		schema: waitforresponse,
 		positionals: ['pattern'],
 	});
 

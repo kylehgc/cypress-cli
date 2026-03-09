@@ -201,9 +201,7 @@ export function buildCypressCommand(
 			return `${getExpr}.selectFile('${escapedFile}')`;
 		}
 		case 'drag': {
-			const targetSelector = options?.['_targetSelector'] as
-				| string
-				| undefined;
+			const targetSelector = options?.['_targetSelector'] as string | undefined;
 			if (targetSelector) {
 				const escapedTarget = targetSelector
 					.replace(/\\/g, '\\\\')
@@ -247,9 +245,7 @@ function _buildNonRefCommand(
 			return 'cy.reload()';
 		case 'press': {
 			const mappedKey = KEY_MAP[text ?? ''] ?? text ?? '';
-			const escapedKey = mappedKey
-				.replace(/\\/g, '\\\\')
-				.replace(/'/g, "\\'");
+			const escapedKey = mappedKey.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 			return `cy.get('body').type('{${escapedKey}}')`;
 		}
 		case 'asserturl': {
@@ -298,11 +294,23 @@ function _buildNonRefCommand(
 			const escapedPattern = (text ?? '')
 				.replace(/\\/g, '\\\\')
 				.replace(/'/g, "\\'");
+			const alias = options?.['_alias'] as string | undefined;
+			const asSuffix = alias ? `.as('${alias}')` : '';
 			const staticResponse = _buildStaticResponse(options);
 			if (staticResponse) {
-				return `cy.intercept('${escapedPattern}', ${staticResponse})`;
+				return `cy.intercept('${escapedPattern}', ${staticResponse})${asSuffix}`;
 			}
-			return `cy.intercept('${escapedPattern}')`;
+			return `cy.intercept('${escapedPattern}')${asSuffix}`;
+		}
+		case 'waitforresponse': {
+			const alias = options?.['_alias'] as string | undefined;
+			if (alias) {
+				return `cy.wait('@${alias}')`;
+			}
+			const escapedPattern = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `cy.wait('@${escapedPattern}')`;
 		}
 		case 'unintercept': {
 			if (text) {
@@ -348,9 +356,7 @@ function _buildNonRefCommand(
 			return 'cy.screenshot()';
 		}
 		case 'drag': {
-			const targetSelector = options?.['_targetSelector'] as
-				| string
-				| undefined;
+			const targetSelector = options?.['_targetSelector'] as string | undefined;
 			if (targetSelector) {
 				const escapedTarget = targetSelector
 					.replace(/\\/g, '\\\\')

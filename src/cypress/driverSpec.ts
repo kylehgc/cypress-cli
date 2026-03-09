@@ -86,6 +86,39 @@ const _networkLog: NetworkEntry[] = [];
 const _activeRoutes = new Map<string, Record<string, unknown>>();
 
 /**
+ * Map of intercept patterns to their Cypress aliases.
+ * Used by `waitforresponse` to resolve patterns to `@alias` names.
+ */
+const _interceptAliases = new Map<string, string>();
+
+/** Counter for generating unique intercept alias names. */
+let _interceptAliasCounter = 0;
+
+/**
+ * Generates a unique, Cypress-safe alias name from a URL pattern.
+ * Strips glob characters and path separators, converts to camelCase.
+ */
+function _generateAlias(pattern: string): string {
+	_interceptAliasCounter++;
+	// Strip glob chars, keep alphanumeric and slashes, then extract words
+	const words = pattern
+		.replace(/[*?{}[\]]/g, '')
+		.replace(/[^a-zA-Z0-9]/g, ' ')
+		.trim()
+		.split(/\s+/)
+		.filter(Boolean);
+	const camel =
+		words.length > 0
+			? words[0].toLowerCase() +
+				words
+					.slice(1)
+					.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+					.join('')
+			: 'intercept';
+	return `${camel}${_interceptAliasCounter}`;
+}
+
+/**
  * Registers a passive `cy.intercept('**')` to capture all network requests.
  * Called once at session start, before the first cy.visit().
  */
@@ -188,6 +221,7 @@ const COMMANDS_REQUIRING_TEXT = new Set([
 	'intercept',
 	'upload',
 	'drag',
+	'waitforresponse',
 ]);
 
 /**
@@ -600,14 +634,37 @@ function executeCommand(cmd: DriverCommand): void {
 				staticResponse['headers'] = { 'content-type': contentType };
 			}
 
+			// Alias is pre-generated in the codegen section before executeCommand
+			const alias = _interceptAliases.get(pattern) ?? _generateAlias(pattern);
+			_interceptAliases.set(pattern, alias);
+
 			if (Object.keys(staticResponse).length > 0) {
-				cy.intercept(pattern, staticResponse);
+				cy.intercept(pattern, staticResponse).as(alias);
 			} else {
 				// Intercept without mock response — just monitor
-				cy.intercept(pattern);
+				cy.intercept(pattern).as(alias);
 			}
 			_activeRoutes.set(pattern, staticResponse);
-			_evalResult = `Intercept registered for "${pattern}"`;
+			_evalResult = `Intercept registered for "${pattern}" as @${alias}`;
+			break;
+		}
+		case 'waitforresponse': {
+			const pattern = cmd.text!;
+			const alias = _interceptAliases.get(pattern);
+			if (!alias) {
+				throw new Error(
+					`No intercept registered for "${pattern}". Run "intercept ${pattern}" first.`,
+				);
+			}
+			const timeout =
+				cmd.options?.['timeout'] !== undefined
+					? Number(cmd.options['timeout'])
+					: undefined;
+			if (timeout !== undefined) {
+				cy.wait(`@${alias}`, { timeout });
+			} else {
+				cy.wait(`@${alias}`);
+			}
 			break;
 		}
 		case 'unintercept': {
@@ -618,6 +675,7 @@ function executeCommand(cmd: DriverCommand): void {
 					req.continue();
 				});
 				_activeRoutes.delete(pattern);
+				_interceptAliases.delete(pattern);
 				_evalResult = `Intercept removed for "${pattern}"`;
 			} else {
 				// Remove all intercepts by replacing with passthrough
@@ -628,6 +686,7 @@ function executeCommand(cmd: DriverCommand): void {
 				}
 				const count = _activeRoutes.size;
 				_activeRoutes.clear();
+				_interceptAliases.clear();
 				_evalResult = `All ${count} intercept(s) removed`;
 			}
 			break;
@@ -819,12 +878,26 @@ function pollForCommands(): void {
 				});
 			} else if (cmd.action) {
 				const chainer = cmd.options?.['chainer'] as string | undefined;
+				// For intercept/waitforresponse, inject alias metadata for codegen
+				let codegenOpts = cmd.options;
+				if (cmd.action === 'intercept' && cmd.text) {
+					// Pre-generate the alias. executeCommand will use _interceptAliases
+					// to look it up rather than generating again.
+					const alias = _generateAlias(cmd.text);
+					_interceptAliases.set(cmd.text, alias);
+					codegenOpts = { ...cmd.options, _alias: alias };
+				} else if (cmd.action === 'waitforresponse' && cmd.text) {
+					const alias = _interceptAliases.get(cmd.text);
+					if (alias) {
+						codegenOpts = { ...cmd.options, _alias: alias };
+					}
+				}
 				cypressCommand = buildCypressCommand(
 					undefined,
 					cmd.action,
 					cmd.text,
 					chainer,
-					cmd.options,
+					codegenOpts,
 				);
 			}
 
@@ -1011,10 +1084,17 @@ function enqueueRecoveryTest(currentTest: unknown): void {
 		// (all cy.intercept() registrations are lost on test boundary).
 		registerPassiveNetworkMonitor();
 		for (const [pattern, staticResponse] of _activeRoutes) {
+			const alias = _interceptAliases.get(pattern);
 			if (Object.keys(staticResponse).length > 0) {
-				cy.intercept(pattern, staticResponse);
+				const chain = cy.intercept(pattern, staticResponse);
+				if (alias) {
+					chain.as(alias);
+				}
 			} else {
-				cy.intercept(pattern);
+				const chain = cy.intercept(pattern);
+				if (alias) {
+					chain.as(alias);
+				}
 			}
 		}
 

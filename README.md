@@ -71,17 +71,18 @@ cypress-cli repl
 
 ## Commands
 
-| Category    | Commands                                                          |
-| ----------- | ----------------------------------------------------------------- |
-| Core        | `open`, `stop`, `status`, `install`, `snapshot`                   |
-| Navigation  | `navigate`, `back`, `forward`, `reload`                           |
-| Interaction | `click`, `dblclick`, `rightclick`, `type`, `clear`, `select`      |
-|             | `check`, `uncheck`, `focus`, `blur`, `scrollto`, `hover`          |
-| Keyboard    | `press`                                                           |
-| Assertion   | `assert`, `asserturl`, `asserttitle`                              |
-| Execution   | `run-code`                                                        |
-| Wait        | `wait`, `waitfor`                                                 |
-| Export      | `export`, `history`, `undo`                                       |
+| Category    | Commands                                                                   |
+| ----------- | -------------------------------------------------------------------------- |
+| Core        | `open`, `stop`, `status`, `install`, `snapshot`                            |
+| Navigation  | `navigate`, `back`, `forward`, `reload`                                    |
+| Interaction | `click`, `dblclick`, `rightclick`, `type`, `clear`, `select`               |
+|             | `check`, `uncheck`, `focus`, `blur`, `scrollto`, `hover`                   |
+| Keyboard    | `press`                                                                    |
+| Assertion   | `assert`, `asserturl`, `asserttitle`                                       |
+| Execution   | `run-code`                                                                 |
+| Wait        | `wait`, `waitfor`                                                          |
+| Network     | `intercept`, `waitforresponse`, `unintercept`, `intercept-list`, `network` |
+| Export      | `export`, `history`, `undo`                                                |
 
 See [docs/COMMANDS.md](docs/COMMANDS.md) for full syntax, schemas, and Cypress API mappings.
 
@@ -113,6 +114,7 @@ CLI never prints inline YAML — the link points to the file on disk. Use
 `--json` for programmatic access to the full response including inline snapshot.
 
 Example tool-use flow:
+
 ```
 Agent → cypress-cli open https://app.example.com
 Agent ← ### Page

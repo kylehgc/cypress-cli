@@ -14,29 +14,29 @@ to move into Phase 2.
 
 ### Closed Issues (Phase 1)
 
-| # | Title | Status |
-|---|-------|--------|
-| 1 | Project scaffolding: package.json, tsconfig, vitest, esbuild | ✅ Complete |
-| 2 | Port Playwright aria snapshot to src/injected/ | ✅ Complete |
-| 3 | Unit tests for ported aria snapshot | ✅ Complete |
-| 4 | Socket protocol and connection handling | ✅ Complete |
-| 5 | Command schemas and registry | ✅ Complete |
-| 6 | Daemon process and command queue | ✅ Complete |
-| 7 | CLI client and argument parsing | ✅ Complete |
-| 8 | Cypress plugin, driver spec, and launcher | ✅ Complete |
-| 14 | Error handling and logging infrastructure | ✅ Complete |
+| #   | Title                                                        | Status      |
+| --- | ------------------------------------------------------------ | ----------- |
+| 1   | Project scaffolding: package.json, tsconfig, vitest, esbuild | ✅ Complete |
+| 2   | Port Playwright aria snapshot to src/injected/               | ✅ Complete |
+| 3   | Unit tests for ported aria snapshot                          | ✅ Complete |
+| 4   | Socket protocol and connection handling                      | ✅ Complete |
+| 5   | Command schemas and registry                                 | ✅ Complete |
+| 6   | Daemon process and command queue                             | ✅ Complete |
+| 7   | CLI client and argument parsing                              | ✅ Complete |
+| 8   | Cypress plugin, driver spec, and launcher                    | ✅ Complete |
+| 14  | Error handling and logging infrastructure                    | ✅ Complete |
 
 ### Quantitative Summary
 
-| Metric | Value |
-|--------|-------|
-| Source files | 34 `.ts` files |
-| Test files | 19 test files |
-| Total tests | 416 (all passing) |
-| Test coverage | Unit tests for all implemented modules |
-| Build time | < 5 seconds |
-| TypeScript strict mode | Enabled, zero errors |
-| ESLint | Zero errors (warnings only) |
+| Metric                 | Value                                  |
+| ---------------------- | -------------------------------------- |
+| Source files           | 34 `.ts` files                         |
+| Test files             | 19 test files                          |
+| Total tests            | 416 (all passing)                      |
+| Test coverage          | Unit tests for all implemented modules |
+| Build time             | < 5 seconds                            |
+| TypeScript strict mode | Enabled, zero errors                   |
+| ESLint                 | Zero errors (warnings only)            |
 
 ## Architecture Verification
 
@@ -91,7 +91,7 @@ The implemented data flow matches the architecture document:
 - **Unix domain sockets**: Working with newline-delimited JSON protocol
 - **IIFE injection**: esbuild produces IIFE, injected via `Cypress.env()` + `win.eval()`
 - **Module API**: `cypress.run()` with generated temp config, plugin, and spec
-- **minimist + zod**: All 28 commands declared with zod schemas and positional mapping
+- **minimist + zod**: All 43 commands declared with zod schemas and positional mapping
 
 ## Gaps Found
 
@@ -108,18 +108,18 @@ TypeScript support. Added relaxed rules for ported Playwright code.
 Several documentation files described planned/idealized file structures that
 diverged from the actual implementation:
 
-| Document | Issue | Resolution |
-|----------|-------|------------|
-| `PACKAGE_SPEC.md` | `bin` entry pointed to `dist/client/index.js` (actual: `dist/client/main.js`) | Fixed |
-| `PACKAGE_SPEC.md` | Missing `typescript-eslint` dev dependency | Fixed |
-| `PACKAGE_SPEC.md` | vitest config missing several globs and options | Fixed |
-| `PACKAGE_SPEC.md` | tsconfig missing `support.ts` exclusion | Fixed |
-| `TEST_PLAN.md` | Referenced `parseArgs.test.ts` (actual: `cli.test.ts`) | Fixed |
-| `TEST_PLAN.md` | Missing 9 test files that were actually created | Fixed |
-| `src/client/README.md` | Listed planned files that don't exist | Fixed |
-| `src/daemon/README.md` | Listed `cypress.ts` (never created), missing 3 actual files | Fixed |
-| `src/cypress/README.md` | Listed `executor.ts`, `snapshot.ts`, `refs.ts` (all inlined) | Fixed |
-| `ARCHITECTURE.md` | Used `reportResult` (actual: `commandResult`) | Fixed |
+| Document                | Issue                                                                         | Resolution |
+| ----------------------- | ----------------------------------------------------------------------------- | ---------- |
+| `PACKAGE_SPEC.md`       | `bin` entry pointed to `dist/client/index.js` (actual: `dist/client/main.js`) | Fixed      |
+| `PACKAGE_SPEC.md`       | Missing `typescript-eslint` dev dependency                                    | Fixed      |
+| `PACKAGE_SPEC.md`       | vitest config missing several globs and options                               | Fixed      |
+| `PACKAGE_SPEC.md`       | tsconfig missing `support.ts` exclusion                                       | Fixed      |
+| `TEST_PLAN.md`          | Referenced `parseArgs.test.ts` (actual: `cli.test.ts`)                        | Fixed      |
+| `TEST_PLAN.md`          | Missing 9 test files that were actually created                               | Fixed      |
+| `src/client/README.md`  | Listed planned files that don't exist                                         | Fixed      |
+| `src/daemon/README.md`  | Listed `cypress.ts` (never created), missing 3 actual files                   | Fixed      |
+| `src/cypress/README.md` | Listed `executor.ts`, `snapshot.ts`, `refs.ts` (all inlined)                  | Fixed      |
+| `ARCHITECTURE.md`       | Used `reportResult` (actual: `commandResult`)                                 | Fixed      |
 
 ### 3. Stub Modules
 
@@ -140,23 +140,24 @@ that could easily be tested.
 
 ### Phase 2 Issues
 
-| # | Title | Status | Notes |
-|---|-------|--------|-------|
-| 9 | Command execution | **Needs Update** | Most commands already implemented in `driverSpec.ts`. Issue should be updated to focus on the command execution files (`src/cypress/commands/`) that were originally planned but implemented differently. |
-| 10 | Codegen | **Accurate** | No code exists yet. Ready to implement. |
-| 11 | Integration tests | **Accurate** | No integration tests exist. Ready to implement. |
-| 13 | Session management | **Partially Addressed** | Basic session management exists in `src/daemon/session.ts`. Issue's undo/history/persistence features are still needed. |
+| #   | Title              | Status                  | Notes                                                                                                                                                                                                     |
+| --- | ------------------ | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 9   | Command execution  | **Needs Update**        | Most commands already implemented in `driverSpec.ts`. Issue should be updated to focus on the command execution files (`src/cypress/commands/`) that were originally planned but implemented differently. |
+| 10  | Codegen            | **Accurate**            | No code exists yet. Ready to implement.                                                                                                                                                                   |
+| 11  | Integration tests  | **Accurate**            | No integration tests exist. Ready to implement.                                                                                                                                                           |
+| 13  | Session management | **Partially Addressed** | Basic session management exists in `src/daemon/session.ts`. Issue's undo/history/persistence features are still needed.                                                                                   |
 
 ### Phase 3 Issues
 
-| # | Title | Status | Notes |
-|---|-------|--------|-------|
-| 12 | E2E tests | **Accurate** | No e2e tests exist. Depends on Phase 2 completion. |
-| 15 | CI/CD pipeline | **Accurate** | No CI/CD exists. Ready to implement at any time. |
+| #   | Title          | Status       | Notes                                              |
+| --- | -------------- | ------------ | -------------------------------------------------- |
+| 12  | E2E tests      | **Accurate** | No e2e tests exist. Depends on Phase 2 completion. |
+| 15  | CI/CD pipeline | **Accurate** | No CI/CD exists. Ready to implement at any time.   |
 
 ### Issue Context Changes
 
 **Issue #9 (Command execution)** should be updated because:
+
 - The acceptance criteria list separate files (`src/cypress/commands/navigate.ts`,
   `interact.ts`, `keyboard.ts`, `assert.ts`, `wait.ts`, `snapshot.ts`) but the
   actual implementation inlined all command execution into `driverSpec.ts`.
@@ -165,6 +166,7 @@ that could easily be tested.
   - (b) Removing the file-per-command requirement since the inline approach works
 
 **Issue #13 (Session management)** should be updated because:
+
 - Basic `Session` class with state machine already exists
 - `CommandHistory` class with undo pointer and `history` command are the remaining work
 - Session persistence (`$XDG_STATE_HOME`) is the biggest remaining feature

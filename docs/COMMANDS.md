@@ -35,12 +35,12 @@ or require a running Cypress session.
 
 ### Core
 
-| Command    | Syntax                                            | Description                                                   |
-| ---------- | ------------------------------------------------- | ------------------------------------------------------------- |
-| `open`     | `cypress-cli open [url] [options]`                | Start or reuse a session, launch Cypress, and navigate to URL |
-| `stop`     | `cypress-cli stop`                                | Stop the current session                                      |
-| `status`   | `cypress-cli status`                              | Check if a session is running and return session metadata     |
-| `install`  | `cypress-cli install --skills`                    | Install bundled AI agent skills into `.github/skills/`        |
+| Command    | Syntax                                   | Description                                                   |
+| ---------- | ---------------------------------------- | ------------------------------------------------------------- |
+| `open`     | `cypress-cli open [url] [options]`       | Start or reuse a session, launch Cypress, and navigate to URL |
+| `stop`     | `cypress-cli stop`                       | Stop the current session                                      |
+| `status`   | `cypress-cli status`                     | Check if a session is running and return session metadata     |
+| `install`  | `cypress-cli install --skills`           | Install bundled AI agent skills into `.github/skills/`        |
 | `snapshot` | `cypress-cli snapshot [--filename path]` | Get current aria snapshot                                     |
 
 ### Navigation
@@ -93,9 +93,9 @@ or require a running Cypress session.
 
 ### Execution
 
-| Command    | Syntax                        | Description                                                        |
-| ---------- | ----------------------------- | ------------------------------------------------------------------ |
-| `run-code` | `cypress-cli run-code <code>` | Execute JS in browser (`cy.window().then(win => win.eval(code))`)  |
+| Command    | Syntax                        | Description                                                       |
+| ---------- | ----------------------------- | ----------------------------------------------------------------- |
+| `run-code` | `cypress-cli run-code <code>` | Execute JS in browser (`cy.window().then(win => win.eval(code))`) |
 
 ### Wait
 
@@ -103,6 +103,16 @@ or require a running Cypress session.
 | --------- | ------------------------------------------ | ------------------------- |
 | `wait`    | `cypress-cli wait <ms>`                    | Wait (`cy.wait(ms)`)      |
 | `waitfor` | `cypress-cli waitfor <ref> [--timeout ms]` | Wait for element to exist |
+
+### Network
+
+| Command           | Syntax                                                       | Description                                         |
+| ----------------- | ------------------------------------------------------------ | --------------------------------------------------- |
+| `intercept`       | `cypress-cli intercept <pattern> [--status N] [--body JSON]` | Intercept/mock requests (`cy.intercept().as()`)     |
+| `waitforresponse` | `cypress-cli waitforresponse <pattern> [--timeout ms]`       | Wait for intercepted response (`cy.wait('@alias')`) |
+| `unintercept`     | `cypress-cli unintercept [pattern]`                          | Remove intercept(s)                                 |
+| `intercept-list`  | `cypress-cli intercept-list`                                 | List active intercept routes                        |
+| `network`         | `cypress-cli network`                                        | List captured network requests                      |
 
 ## Command Schemas (zod)
 
@@ -285,14 +295,14 @@ incrementally and understand exactly which Cypress command was executed.
 
 Examples:
 
-| CLI command                    | `cypressCommand` value                            |
-| ------------------------------ | ------------------------------------------------- |
-| `click e5`                     | `cy.get('[data-cy="submit"]').click()`            |
-| `type e3 "hello"`              | `cy.get('#search').type('hello')`                 |
-| `navigate https://example.com` | `cy.visit('https://example.com')`                 |
-| `assert e5 have.text "Hello"`  | `cy.get('.heading').should('have.text', 'Hello')` |
-| `run-code "document.title"`   | `cy.window().then((win) => win.eval('document.title'))` |
-| `snapshot`                     | _(not included — meta-command)_                   |
+| CLI command                    | `cypressCommand` value                                  |
+| ------------------------------ | ------------------------------------------------------- |
+| `click e5`                     | `cy.get('[data-cy="submit"]').click()`                  |
+| `type e3 "hello"`              | `cy.get('#search').type('hello')`                       |
+| `navigate https://example.com` | `cy.visit('https://example.com')`                       |
+| `assert e5 have.text "Hello"`  | `cy.get('.heading').should('have.text', 'Hello')`       |
+| `run-code "document.title"`    | `cy.window().then((win) => win.eval('document.title'))` |
+| `snapshot`                     | _(not included — meta-command)_                         |
 
 The selector in `cypressCommand` comes from `@cypress/unique-selector` (the
 stable selector, not the ephemeral ref). The CLI and REPL display the generated

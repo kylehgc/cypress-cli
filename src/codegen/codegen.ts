@@ -157,7 +157,9 @@ function _makeVisitRelative(visitCode: string, baseUrl: string): string {
 		if (!relativePath.startsWith('/')) {
 			relativePath = '/' + relativePath;
 		}
-		const escapedPath = relativePath.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+		const escapedPath = relativePath
+			.replace(/\\/g, '\\\\')
+			.replace(/'/g, "\\'");
 		return `cy.visit('${escapedPath}')`;
 	}
 

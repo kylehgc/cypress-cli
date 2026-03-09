@@ -15,13 +15,13 @@
 
 ## Implementation Completeness
 
-All 28 commands specified in `docs/COMMANDS.md` are fully implemented end-to-end.
+All 43 commands specified in `docs/COMMANDS.md` are fully implemented end-to-end.
 
 ### Module Status
 
 | Module            | Status       | Summary                                                                                                                 |
 | ----------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| `src/client/`     | **Complete** | CLI parsing (minimist + zod), 28 validated commands, REPL mode, Unix socket client, session discovery                   |
+| `src/client/`     | **Complete** | CLI parsing (minimist + zod), 43 validated commands, REPL mode, Unix socket client, session discovery                   |
 | `src/daemon/`     | **Complete** | Unix socket server, FIFO command queue, session lifecycle state machine, persistence to `$XDG_STATE_HOME`, idle timeout |
 | `src/cypress/`    | **Complete** | Module API launcher, `cy.task()` bridge, driver spec REPL loop, cross-process IPC via QueueBridge                       |
 | `src/browser/`    | **Complete** | Element ref map, selector generation (`@cypress/unique-selector` with Cypress priority order), IIFE snapshot injection  |
@@ -29,17 +29,20 @@ All 28 commands specified in `docs/COMMANDS.md` are fully implemented end-to-end
 | `src/injected/`   | **Complete** | Ported Playwright aria snapshot (Apache 2.0), YAML tree generation, incremental diffing, element map                    |
 | `bin/cypress-cli` | **Complete** | Executable shim (`#!/usr/bin/env node`)                                                                                 |
 
-### Command Coverage (28/28)
+### Command Coverage (43/43)
 
 | Category    | Count | Commands                                                                                                               |
 | ----------- | ----- | ---------------------------------------------------------------------------------------------------------------------- |
-| Core        | 4     | `open`, `stop`, `status`, `snapshot`                                                                                   |
+| Core        | 5     | `open`, `stop`, `status`, `install`, `snapshot`                                                                        |
 | Navigation  | 4     | `navigate`, `back`, `forward`, `reload`                                                                                |
 | Interaction | 12    | `click`, `dblclick`, `rightclick`, `type`, `clear`, `check`, `uncheck`, `select`, `focus`, `blur`, `scrollto`, `hover` |
 | Keyboard    | 1     | `press`                                                                                                                |
 | Assertion   | 3     | `assert`, `asserturl`, `asserttitle`                                                                                   |
-| Export      | 3     | `export`, `history`, `undo`                                                                                            |
+| Execution   | 1     | `run-code`                                                                                                             |
 | Wait        | 2     | `wait`, `waitfor`                                                                                                      |
+| Network     | 5     | `intercept`, `waitforresponse`, `unintercept`, `intercept-list`, `network`                                             |
+| Export      | 3     | `export`, `history`, `undo`                                                                                            |
+| Session     | 7     | `cookie-list`, `cookie-get`, `cookie-set`, `cookie-delete`, `cookie-clear`, `storage-state`, `set-storage-state`       |
 
 ## What's Ready for User Testing
 
