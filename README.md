@@ -79,6 +79,7 @@ cypress-cli repl
 |             | `check`, `uncheck`, `focus`, `blur`, `scrollto`, `hover`          |
 | Keyboard    | `press`                                                           |
 | Assertion   | `assert`, `asserturl`, `asserttitle`                              |
+| Execution   | `run-code`                                                        |
 | Wait        | `wait`, `waitfor`                                                 |
 | Export      | `export`, `history`, `undo`                                       |
 
@@ -88,18 +89,49 @@ See [docs/COMMANDS.md](docs/COMMANDS.md) for full syntax, schemas, and Cypress A
 
 cypress-cli is designed as a tool-use interface for LLMs. To integrate with an AI agent:
 
-1. **Tool definition**: Each command is a tool call. The agent sends a command string, receives a JSON response with `snapshot` (aria tree) and `success` (boolean).
+1. **Tool definition**: Each command is a tool call. The agent sends a command string, receives page metadata and a path to the snapshot file on disk.
 2. **Ref-based interaction**: Elements in the aria snapshot are tagged with refs (e.g., `e5`). The agent uses these refs to target elements for clicks, typing, and assertions.
 3. **Session export**: After the agent builds a workflow, `export` generates a complete Cypress test file capturing every action.
+
+### Output format
+
+Every command that produces a snapshot returns output in this format (matching
+[`playwright-cli`](https://github.com/microsoft/playwright-cli)):
+
+```
+### Page
+- Page URL: https://app.example.com/settings
+- Page Title: Settings — My App
+# Ran Cypress code:
+#   cy.get('[data-cy="settings"]').click()
+### Snapshot
+[Snapshot](.cypress-cli/page-2026-03-07T19-22-42-679Z.yml)
+```
+
+The snapshot YAML is written to a file (default: `.cypress-cli/` directory). The
+CLI never prints inline YAML — the link points to the file on disk. Use
+`--json` for programmatic access to the full response including inline snapshot.
 
 Example tool-use flow:
 ```
 Agent → cypress-cli open https://app.example.com
-Agent ← { snapshot: "- heading \"Dashboard\" [ref=e1]\n- button \"Settings\" [ref=e2]\n...", success: true }
+Agent ← ### Page
+         - Page URL: https://app.example.com
+         - Page Title: Dashboard — My App
+         ### Snapshot
+         [Snapshot](.cypress-cli/page-2026-03-07T19-22-42-679Z.yml)
+
 Agent → cypress-cli click e2
-Agent ← { snapshot: "- heading \"Settings\" [ref=e3]\n- textbox \"Name\" [ref=e4]\n...", success: true }
+Agent ← ### Page
+         - Page URL: https://app.example.com/settings
+         - Page Title: Settings — My App
+         # Ran Cypress code:
+         #   cy.get('[data-cy="settings"]').click()
+         ### Snapshot
+         [Snapshot](.cypress-cli/page-2026-03-07T19-23-01-123Z.yml)
+
 Agent → cypress-cli export --file settings.cy.ts
-Agent ← { success: true, file: "settings.cy.ts" }
+Agent ← Wrote test file: settings.cy.ts
 ```
 
 To install the packaged skill files into the current project, run:

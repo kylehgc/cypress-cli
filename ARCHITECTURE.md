@@ -56,10 +56,12 @@ command that would appear in a real test file.
 5. Driver spec resolves ref "e5" to a Cypress selector via the element map
 6. Driver spec executes: cy.get('[data-cy="login"]').click()
 7. Driver spec takes a new aria snapshot via cy.window().then(win => ...)
-8. Driver spec calls cy.task('commandResult', { snapshot, success: true })
-9. Plugin handler forwards result to daemon
-10. Daemon sends response over socket: { id: 1, result: { snapshot: "...", success: true } }
-11. Client prints result and disconnects
+8. Driver spec captures page URL and title via cy.url() and cy.title()
+9. Driver spec calls cy.task('commandResult', { snapshot, url, title, success: true })
+10. Plugin handler forwards result to daemon
+11. Daemon writes snapshot YAML to .cypress-cli/*.yml file on disk
+12. Daemon sends response over socket: { id: 1, result: { url, title, snapshotFilePath, success: true } }
+13. Client formats output as page metadata + snapshot file link and prints it
 ```
 
 ## Component Architecture
@@ -143,12 +145,21 @@ function pollForCommands() {
     // Execute the command
     executeCommand(command);
 
-    // Take post-command snapshot
-    takeSnapshot();
+    // Take post-command snapshot (full tree for snapshot/navigate/back/forward/reload,
+    // incremental diff for action commands)
+    const snap = FULL_TREE_COMMANDS.has(command.action)
+      ? takeFullSnapshot()
+      : takeSnapshot();
 
-    // Report result and loop
-    cy.task('commandResult', { /* ... */ }).then(() => {
-      pollForCommands();
+    snap.then((snapshotYaml) => {
+      // Capture page metadata
+      cy.url().then((url) => {
+        cy.title().then((title) => {
+          cy.task('commandResult', { snapshot: snapshotYaml, url, title, ... }).then(() => {
+            pollForCommands();
+          });
+        });
+      });
     });
   });
 }
@@ -159,6 +170,7 @@ Each command maps to real Cypress APIs:
 - `click e5` → resolve `e5` to selector → `cy.get(selector).click()`
 - `type e3 "hello"` → `cy.get(selector).type("hello")`
 - `navigate https://example.com` → `cy.visit("https://example.com")`
+- `run-code "document.title"` → `cy.window().then(win => win.eval("document.title"))`
 - `snapshot` → take aria snapshot without executing an action
 
 ### 5. Browser Module (`src/browser/`)

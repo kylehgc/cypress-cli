@@ -92,6 +92,36 @@ selectors, or codegen — or is labeled `P0`, `P1`, `command`, or `testing` —
 you **must** run the CLI against a real web page and confirm it works before
 opening a PR. Tests alone are not sufficient.
 
+### Quick validation steps
+
+```bash
+# 1. Build the IIFE bundles
+npm run build
+
+# 2. Open a session
+node bin/cypress-cli open https://example.cypress.io/commands/actions
+
+# 3. Exercise your feature (example: type + assert)
+node bin/cypress-cli type e40 'test@test.com'
+node bin/cypress-cli assert e40 have.value 'test@test.com'
+
+# 4. Take a snapshot and verify the file exists
+node bin/cypress-cli snapshot
+
+# 5. Clean up
+node bin/cypress-cli stop
+```
+
+Every command should return output in this format:
+
+```
+### Page
+- Page URL: https://example.cypress.io/commands/actions
+- Page Title: Cypress.io: Kitchen Sink
+### Snapshot
+[Snapshot](.cypress-cli/page-2026-03-07T19-22-42-679Z.yml)
+```
+
 **Read `docs/LIVE_VALIDATION.md` for the full procedure and PR template.**
 
 ## Code Style (Quick Reference)

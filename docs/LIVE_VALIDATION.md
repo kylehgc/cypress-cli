@@ -26,20 +26,23 @@ Always validate live if the issue touches:
 2. **Open a session against a real page:**
 
    ```bash
-   node dist/client/main.js open https://example.cypress.io/commands/actions
+   node bin/cypress-cli open https://example.cypress.io/commands/actions
    ```
+
+   Wait for the output showing `### Page` and `### Snapshot` — this confirms
+   the session started and Cypress connected.
 
 3. **Exercise the feature you changed.** For example, if you fixed assertions:
 
    ```bash
    # Type into a field
-   node dist/client/main.js type e40 'hello@example.com'
+   node bin/cypress-cli type e40 'hello@example.com'
 
    # Verify the value with an assertion
-   node dist/client/main.js assert e40 have.value 'hello@example.com'
+   node bin/cypress-cli assert e40 have.value 'hello@example.com'
 
    # Take a snapshot to confirm state
-   node dist/client/main.js snapshot
+   node bin/cypress-cli snapshot
    ```
 
 4. **Test error paths too** — send bad refs, missing args, wrong chainers.
@@ -49,18 +52,41 @@ Always validate live if the issue touches:
 5. **Export and review** — if codegen is affected:
 
    ```bash
-   node dist/client/main.js export --file /tmp/test-output.cy.ts
+   node bin/cypress-cli export --file /tmp/test-output.cy.ts
    cat /tmp/test-output.cy.ts
    ```
 
 6. **Clean up:**
    ```bash
-   node dist/client/main.js stop
+   node bin/cypress-cli stop
    ```
+
+## Expected Output Format
+
+Every command that produces a snapshot returns output like this:
+
+```
+### Page
+- Page URL: https://example.cypress.io/commands/actions
+- Page Title: Cypress.io: Kitchen Sink
+# Ran Cypress code:
+#   cy.get('[data-cy="action-email"]').type('hello@example.com')
+### Snapshot
+[Snapshot](.cypress-cli/page-2026-03-07T19-22-42-679Z.yml)
+```
+
+- The `### Page` section shows URL and title metadata.
+- The `# Ran Cypress code:` line shows the generated Cypress command.
+- The `### Snapshot` link points to the YAML file on disk. Read this file to
+  see the aria tree with `[ref=eN]` handles.
+- The CLI never prints inline YAML — always check the file.
+
+Error responses include the same structure with an `Error:` prefix.
 
 ## What to Check During Live Validation
 
-- Commands succeed and return expected results
+- Commands succeed and return `### Page` + `### Snapshot` output
+- Snapshot file exists on disk at the path shown and contains valid YAML
 - Aria snapshot refs are stable across commands
 - Error messages include enough context to self-correct
 - Exported code is valid Cypress syntax
@@ -83,7 +109,7 @@ validation in the PR body:
 
 Tested against `https://example.cypress.io/commands/actions`:
 
-- ✅ `open` — session started, snapshot returned
+- ✅ `open` — session started, page metadata + snapshot file returned
 - ✅ `type e40 'test@test.com'` — value reflected in snapshot
 - ✅ `assert e40 have.value 'test@test.com'` — passed
 - ✅ `export` — valid .cy.ts output

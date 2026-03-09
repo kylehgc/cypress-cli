@@ -31,8 +31,20 @@ cypress-cli stop
 
 ## How to read snapshots
 
-After `open`, `snapshot`, and most interaction commands, the CLI returns a YAML
-aria snapshot. Elements may include handles like `[ref=e40]`.
+After `open`, `snapshot`, and most interaction commands, the CLI writes an aria
+snapshot to a YAML file on disk and returns the path. The CLI output format is:
+
+```
+### Page
+- Page URL: https://example.cypress.io/commands/actions
+- Page Title: Commands | Actions
+# Ran Cypress code:
+#   cy.get('[data-cy="submit"]').click()
+### Snapshot
+[Snapshot](.cypress-cli/page-2026-03-07T19-22-42-679Z.yml)
+```
+
+Read the snapshot file to see the aria tree:
 
 ```yaml
 - main:
@@ -45,8 +57,10 @@ aria snapshot. Elements may include handles like `[ref=e40]`.
   `waitfor`.
 - Refs come from the current snapshot only. When the page changes, take a new
   snapshot before reusing a ref.
-- Snapshot YAML is the primary agent-facing DOM representation. Prefer it over
-  screenshots for navigation and element targeting.
+- Navigation commands (`snapshot`, `navigate`, `back`, `forward`, `reload`)
+  return a full aria tree. Action commands (`click`, `type`, etc.) return an
+  incremental diff from the previous snapshot.
+- The CLI never prints inline YAML — always read the file at the path provided.
 
 ## Command reference
 
@@ -59,7 +73,7 @@ cypress-cli open [url]
 cypress-cli stop
 cypress-cli status
 cypress-cli install --skills
-cypress-cli snapshot [--diff] [--filename path]
+cypress-cli snapshot [--filename path]
 ```
 
 #### Navigation
@@ -112,6 +126,12 @@ cypress-cli history
 cypress-cli undo
 ```
 
+#### Execution
+
+```bash
+cypress-cli run-code <code>
+```
+
 ### Planned commands (roadmap only — do not invoke until implemented)
 
 These commands are planned for parity with `playwright-cli`, but are not part of
@@ -132,7 +152,7 @@ localstorage-list, localstorage-get, localstorage-set, localstorage-delete, loca
 sessionstorage-list, sessionstorage-get, sessionstorage-set, sessionstorage-delete, sessionstorage-clear
 
 # Network and DevTools
-console, network, route, route-list, unroute, run-code
+console, network, route, route-list, unroute
 
 # Low-level / future Cypress-specific primitives
 keydown, keyup, mousemove, mousedown, mouseup, mousewheel, delete-data, run

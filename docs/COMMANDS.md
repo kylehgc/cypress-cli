@@ -9,7 +9,7 @@ Commands flow over the Unix socket as newline-delimited JSON:
 
 ```
 Client → Daemon:  { "id": 1, "method": "run", "params": { "args": { "_": ["click", "e5"] } } }
-Daemon → Client:  { "id": 1, "result": { "snapshot": "...", "success": true } }
+Daemon → Client:  { "id": 1, "result": { "success": true, "url": "https://example.com", "title": "Example", "snapshotFilePath": ".cypress-cli/page-2026-03-07T19-22-42-679Z.yml", "cypressCommand": "cy.get('#btn').click()" } }
 ```
 
 Protocol / daemon errors:
@@ -41,7 +41,7 @@ or require a running Cypress session.
 | `stop`     | `cypress-cli stop`                                | Stop the current session                                      |
 | `status`   | `cypress-cli status`                              | Check if a session is running and return session metadata     |
 | `install`  | `cypress-cli install --skills`                    | Install bundled AI agent skills into `.github/skills/`        |
-| `snapshot` | `cypress-cli snapshot [--diff] [--filename path]` | Get current aria snapshot                                     |
+| `snapshot` | `cypress-cli snapshot [--filename path]` | Get current aria snapshot                                     |
 
 ### Navigation
 
@@ -177,10 +177,10 @@ export const snapshot = declareCommand({
 	description: 'Get current aria snapshot of the page',
 	args: z.object({}),
 	options: z.object({
-		diff: z
-			.boolean()
+		filename: z
+			.string()
 			.optional()
-			.describe('Return incremental diff from last snapshot'),
+			.describe('Save snapshot to a specific file path'),
 	}),
 });
 
@@ -260,17 +260,18 @@ Every command response includes:
 ```typescript
 type CommandResponse = {
 	success: boolean;
-	snapshot?: string; // YAML aria snapshot (always included unless error)
+	snapshot?: string; // YAML aria snapshot (included in JSON mode; file path returned in CLI output)
 	error?: string; // Error message if command failed
 	selector?: string; // Resolved selector (for codegen tracking)
 	cypressCommand?: string; // The Cypress command that was executed (for inline codegen)
 	evalResult?: string; // Return value from run-code eval (stringified)
-	snapshotFilePath?: string; // Relative path to snapshot YAML file on disk (snapshot/action commands)
+	snapshotFilePath?: string; // Relative path to snapshot YAML file on disk
 	filePath?: string; // Relative path to generated test file on disk (export command only)
 	installedPath?: string; // Relative path to installed skill directory (install command only)
+	url?: string; // Current page URL after command execution
+	title?: string; // Current page title after command execution
 	status?: string; // Session status for status command
 	sessionId?: string;
-	url?: string;
 	browser?: string;
 	headed?: boolean;
 };
@@ -302,18 +303,36 @@ code after each command result:
 #   cy.get('[data-cy="submit"]').click()
 ```
 
-### Snapshot File Output (`filePath`)
+### Snapshot File Output
 
 After every command that produces a snapshot, the daemon writes the YAML to a
 file in the snapshot directory (default: `.cypress-cli/` in the working
-directory). The response includes the relative file path:
+directory). The CLI output shows the file path as a link — inline YAML is
+never printed to the terminal. This matches
+[`playwright-cli`](https://github.com/microsoft/playwright-cli)'s output model.
+
+CLI output format:
+
+```
+### Page
+- Page URL: https://example.com/dashboard
+- Page Title: Dashboard
+# Ran Cypress code:
+#   cy.get('#btn').click()
+### Snapshot
+[Snapshot](.cypress-cli/page-2026-03-07T19-22-42-679Z.yml)
+```
+
+JSON mode (`--json`) includes the full response with inline snapshot:
 
 ```json
 {
 	"success": true,
 	"snapshot": "- main:\n  ...",
-	"filePath": ".cypress-cli/page-2026-03-07T19-22-42-679Z.yml",
-	"cypressCommand": "cy.get('#btn').click()"
+	"url": "https://example.com/dashboard",
+	"title": "Dashboard",
+	"cypressCommand": "cy.get('#btn').click()",
+	"snapshotFilePath": ".cypress-cli/page-2026-03-07T19-22-42-679Z.yml"
 }
 ```
 
@@ -322,25 +341,30 @@ Options:
 - `--snapshot-dir <path>` on `open` command to configure the output directory
 - `--filename <path>` on `snapshot` command to save to a specific file
 
-Example success response:
+Example success response (JSON mode):
 
 ```json
 {
 	"success": true,
 	"snapshot": "- main:\n  - heading \"Dashboard\" [level=1]\n  - text: Welcome back",
+	"url": "https://example.com/dashboard",
+	"title": "Dashboard",
 	"selector": "[data-cy=\"submit-btn\"]",
 	"cypressCommand": "cy.get('[data-cy=\"submit-btn\"]').click()",
-	"filePath": ".cypress-cli/page-2026-03-07T19-22-42-679Z.yml"
+	"snapshotFilePath": ".cypress-cli/page-2026-03-07T19-22-42-679Z.yml"
 }
 ```
 
-Example command failure response:
+Example command failure response (JSON mode):
 
 ```json
 {
 	"success": false,
 	"error": "cy.get() could not find element: [data-cy=\"nonexistent\"]",
-	"snapshot": "- main:\n  - heading \"Login\" [level=1]"
+	"snapshot": "- main:\n  - heading \"Login\" [level=1]",
+	"url": "https://example.com/login",
+	"title": "Login",
+	"snapshotFilePath": ".cypress-cli/page-2026-03-07T19-23-05-456Z.yml"
 }
 ```
 
