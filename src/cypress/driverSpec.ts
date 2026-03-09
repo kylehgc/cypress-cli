@@ -161,6 +161,7 @@ const COMMANDS_REQUIRING_REF = new Set([
 	'dblclick',
 	'rightclick',
 	'type',
+	'fill',
 	'clear',
 	'check',
 	'uncheck',
@@ -170,6 +171,8 @@ const COMMANDS_REQUIRING_REF = new Set([
 	'hover',
 	'assert',
 	'waitfor',
+	'drag',
+	'upload',
 ]);
 
 /**
@@ -177,11 +180,14 @@ const COMMANDS_REQUIRING_REF = new Set([
  */
 const COMMANDS_REQUIRING_TEXT = new Set([
 	'type',
+	'fill',
 	'select',
 	'navigate',
 	'press',
 	'run-code',
 	'intercept',
+	'upload',
+	'drag',
 ]);
 
 /**
@@ -445,6 +451,9 @@ function executeCommand(cmd: DriverCommand): void {
 		case 'type':
 			resolveRef(cmd.ref!).type(cmd.text!, options);
 			break;
+		case 'fill':
+			resolveRef(cmd.ref!).clear(options).type(cmd.text!, options);
+			break;
 		case 'clear':
 			resolveRef(cmd.ref!).clear(options);
 			break;
@@ -593,6 +602,75 @@ function executeCommand(cmd: DriverCommand): void {
 			}
 			break;
 		}
+		case 'dialog-accept': {
+			const promptText = cmd.text;
+			Cypress.once('window:confirm', () => true);
+			Cypress.once('window:alert', () => true);
+			if (promptText !== undefined) {
+				cy.window({ log: false }).then((win: Window) => {
+					const origPrompt = win.prompt;
+					win.prompt = () => {
+						win.prompt = origPrompt;
+						return promptText;
+					};
+				});
+			}
+			_evalResult = promptText
+				? `Dialog will be accepted with text: "${promptText}"`
+				: 'Dialog will be accepted';
+			break;
+		}
+		case 'dialog-dismiss':
+			Cypress.once('window:confirm', () => false);
+			_evalResult = 'Dialog will be dismissed';
+			break;
+		case 'resize': {
+			const width = Number(cmd.options?.['width']);
+			const height = Number(cmd.options?.['height']);
+			cy.viewport(width, height);
+			break;
+		}
+		case 'screenshot': {
+			const filename =
+				(cmd.options?.['filename'] as string | undefined) ??
+				`screenshot-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+			if (cmd.ref) {
+				resolveRef(cmd.ref).screenshot(filename);
+			} else {
+				cy.screenshot(filename);
+			}
+			_evalResult = `Screenshot saved: ${filename}`;
+			break;
+		}
+		case 'drag': {
+			const endRef = cmd.text!;
+			const force = Boolean(options['force']);
+			resolveRef(cmd.ref!).then(($source) => {
+				cy.window({ log: false }).then((win: Window) => {
+					const endElement = validateRef(win, endRef);
+					if (!endElement) return;
+					const targetRect = endElement.getBoundingClientRect();
+					cy.wrap($source)
+						.trigger('pointerdown', { which: 1, force })
+						.trigger('dragstart', { force })
+						.trigger('mousemove', {
+							clientX: targetRect.left + targetRect.width / 2,
+							clientY: targetRect.top + targetRect.height / 2,
+							force,
+						});
+					cy.wrap(endElement)
+						.trigger('dragover', { force })
+						.trigger('drop', { force });
+					cy.wrap($source)
+						.trigger('dragend', { force })
+						.trigger('pointerup', { force });
+				});
+			});
+			break;
+		}
+		case 'upload':
+			resolveRef(cmd.ref!).selectFile(cmd.text!, options);
+			break;
 		default:
 			throw new Error(`Unknown command action: ${cmd.action}`);
 	}
@@ -663,15 +741,49 @@ function pollForCommands(): void {
 					try {
 						selector = generateSelector(element);
 						const chainer = cmd.options?.['chainer'] as string | undefined;
+						const codegenOptions = { ...cmd.options };
+
+						// For drag, resolve the target element selector too
+						if (cmd.action === 'drag' && cmd.text) {
+							try {
+								const targetEl = resolveRefFromMap(win, cmd.text);
+								if (targetEl?.isConnected) {
+									codegenOptions['_targetSelector'] =
+										generateSelector(targetEl);
+								}
+							} catch {
+								// Best-effort: target selector for codegen only
+							}
+						}
+
 						cypressCommand = buildCypressCommand(
 							selector,
 							cmd.action,
 							cmd.text,
 							chainer,
-							cmd.options,
+							codegenOptions,
 						);
 					} catch {
 						// Codegen metadata is best-effort; command execution can continue.
+					}
+				});
+			} else if (cmd.action && cmd.ref) {
+				// Commands with an optional ref (e.g. screenshot): resolve the
+				// element for codegen but don't validate as strictly.
+				cy.window({ log: false }).then((win: Window) => {
+					const element = validateRef(win, cmd.ref!);
+					if (!element) return;
+					try {
+						selector = generateSelector(element);
+						cypressCommand = buildCypressCommand(
+							selector,
+							cmd.action!,
+							cmd.text,
+							undefined,
+							cmd.options,
+						);
+					} catch {
+						// Codegen metadata is best-effort
 					}
 				});
 			} else if (cmd.action) {
@@ -754,6 +866,7 @@ function pollForCommands(): void {
 				'back',
 				'forward',
 				'reload',
+				'resize',
 			]);
 			const snap = FULL_TREE_COMMANDS.has(cmd.action!)
 				? takeFullSnapshot()

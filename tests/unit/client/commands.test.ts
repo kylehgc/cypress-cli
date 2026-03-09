@@ -44,6 +44,13 @@ import {
 	intercept,
 	interceptList,
 	unintercept,
+	fill,
+	dialogAccept,
+	dialogDismiss,
+	resize,
+	screenshot,
+	drag,
+	upload,
 } from '../../../src/client/commands.js';
 import { z } from 'zod';
 
@@ -81,12 +88,12 @@ describe('declareCommand', () => {
 });
 
 describe('command schemas', () => {
-	it('defines all 35 commands', () => {
-		expect(allCommands).toHaveLength(35);
+	it('defines all 42 commands', () => {
+		expect(allCommands).toHaveLength(42);
 	});
 
-	it('registers all commands in the registry', () => {
-		expect(commandRegistry.size).toBe(35);
+	it('registers all commands plus aliases in the registry', () => {
+		expect(commandRegistry.size).toBe(46);
 	});
 
 	describe('categories', () => {
@@ -118,6 +125,16 @@ describe('command schemas', () => {
 			expect(blur.category).toBe('interaction');
 			expect(scrollto.category).toBe('interaction');
 			expect(hover.category).toBe('interaction');
+			expect(fill.category).toBe('interaction');
+			expect(dialogAccept.category).toBe('interaction');
+			expect(dialogDismiss.category).toBe('interaction');
+			expect(resize.category).toBe('interaction');
+			expect(drag.category).toBe('interaction');
+			expect(upload.category).toBe('interaction');
+		});
+
+		it('has screenshot command', () => {
+			expect(screenshot.category).toBe('core');
 		});
 
 		it('has keyboard commands', () => {
@@ -352,6 +369,84 @@ describe('command schemas', () => {
 				pattern: '**/api/**',
 			});
 			expect(withPattern.success).toBe(true);
+		});
+
+		it('fill requires ref and text', () => {
+			const good = fill.args.safeParse({ ref: 'e3', text: 'hello' });
+			expect(good.success).toBe(true);
+
+			const missingText = fill.args.safeParse({ ref: 'e3' });
+			expect(missingText.success).toBe(false);
+
+			const missingRef = fill.args.safeParse({ text: 'hello' });
+			expect(missingRef.success).toBe(false);
+		});
+
+		it('dialog-accept has optional text for prompt', () => {
+			const noText = dialogAccept.args.safeParse({});
+			expect(noText.success).toBe(true);
+
+			const withText = dialogAccept.args.safeParse({ text: 'prompt answer' });
+			expect(withText.success).toBe(true);
+		});
+
+		it('dialog-dismiss requires no args', () => {
+			const good = dialogDismiss.args.safeParse({});
+			expect(good.success).toBe(true);
+		});
+
+		it('resize requires width and height as numbers', () => {
+			const good = resize.args.safeParse({ width: 1280, height: 720 });
+			expect(good.success).toBe(true);
+
+			// z.coerce.number() coerces strings
+			const fromStrings = resize.args.safeParse({
+				width: '1024',
+				height: '768',
+			});
+			expect(fromStrings.success).toBe(true);
+			if (fromStrings.success) {
+				expect(fromStrings.data.width).toBe(1024);
+				expect(fromStrings.data.height).toBe(768);
+			}
+
+			const missingHeight = resize.args.safeParse({ width: 1280 });
+			expect(missingHeight.success).toBe(false);
+		});
+
+		it('screenshot has optional ref and filename', () => {
+			const noArgs = screenshot.args.safeParse({});
+			expect(noArgs.success).toBe(true);
+
+			const withRef = screenshot.args.safeParse({ ref: 'e5' });
+			expect(withRef.success).toBe(true);
+
+			const withFilename = screenshot.options.safeParse({
+				filename: 'test.png',
+			});
+			expect(withFilename.success).toBe(true);
+		});
+
+		it('drag requires startRef and endRef', () => {
+			const good = drag.args.safeParse({ startRef: 'e3', endRef: 'e5' });
+			expect(good.success).toBe(true);
+
+			const missingEnd = drag.args.safeParse({ startRef: 'e3' });
+			expect(missingEnd.success).toBe(false);
+
+			const missingStart = drag.args.safeParse({ endRef: 'e5' });
+			expect(missingStart.success).toBe(false);
+		});
+
+		it('upload requires ref and file', () => {
+			const good = upload.args.safeParse({ ref: 'e3', file: 'test.pdf' });
+			expect(good.success).toBe(true);
+
+			const missingFile = upload.args.safeParse({ ref: 'e3' });
+			expect(missingFile.success).toBe(false);
+
+			const missingRef = upload.args.safeParse({ file: 'test.pdf' });
+			expect(missingRef.success).toBe(false);
 		});
 	});
 });
@@ -682,7 +777,7 @@ describe('parseCommand', () => {
 		});
 	});
 
-	it("parses 'intercept **/api/** --status 200 --body {\"ok\":true}' correctly", () => {
+	it('parses \'intercept **/api/** --status 200 --body {"ok":true}\' correctly', () => {
 		const result = parseCommand(
 			{
 				_: ['intercept', '**/api/**'],
@@ -729,6 +824,141 @@ describe('parseCommand', () => {
 		expect(result).toEqual({
 			command: 'unintercept',
 			args: { pattern: '**/api/**' },
+			options: {},
+		});
+	});
+
+	it("parses 'fill e3 hello world' correctly", () => {
+		const result = parseCommand(
+			{ _: ['fill', 'e3', 'hello', 'world'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'fill',
+			args: { ref: 'e3', text: 'hello world' },
+			options: {},
+		});
+	});
+
+	it("parses 'dialog-accept' without text", () => {
+		const result = parseCommand({ _: ['dialog-accept'] }, commandRegistry);
+		expect(result).toEqual({
+			command: 'dialog-accept',
+			args: {},
+			options: {},
+		});
+	});
+
+	it("parses 'dialog-accept prompt answer' with text", () => {
+		const result = parseCommand(
+			{ _: ['dialog-accept', 'prompt', 'answer'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'dialog-accept',
+			args: { text: 'prompt answer' },
+			options: {},
+		});
+	});
+
+	it("parses 'dialog-dismiss' correctly", () => {
+		const result = parseCommand({ _: ['dialog-dismiss'] }, commandRegistry);
+		expect(result).toEqual({
+			command: 'dialog-dismiss',
+			args: {},
+			options: {},
+		});
+	});
+
+	it("parses 'resize 1280 720' correctly", () => {
+		const result = parseCommand(
+			{ _: ['resize', '1280', '720'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'resize',
+			args: { width: 1280, height: 720 },
+			options: {},
+		});
+	});
+
+	it("parses 'screenshot' without ref", () => {
+		const result = parseCommand({ _: ['screenshot'] }, commandRegistry);
+		expect(result).toEqual({
+			command: 'screenshot',
+			args: {},
+			options: {},
+		});
+	});
+
+	it("parses 'screenshot e5 --filename test.png' correctly", () => {
+		const result = parseCommand(
+			{ _: ['screenshot', 'e5'], filename: 'test.png' },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'screenshot',
+			args: { ref: 'e5' },
+			options: { filename: 'test.png' },
+		});
+	});
+
+	it("parses 'drag e3 e5' correctly", () => {
+		const result = parseCommand({ _: ['drag', 'e3', 'e5'] }, commandRegistry);
+		expect(result).toEqual({
+			command: 'drag',
+			args: { startRef: 'e3', endRef: 'e5' },
+			options: {},
+		});
+	});
+
+	it("parses 'upload e3 test.pdf' correctly", () => {
+		const result = parseCommand(
+			{ _: ['upload', 'e3', 'test.pdf'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'upload',
+			args: { ref: 'e3', file: 'test.pdf' },
+			options: {},
+		});
+	});
+
+	it("resolves 'close' alias to 'stop'", () => {
+		const result = parseCommand({ _: ['close'] }, commandRegistry);
+		expect(result).toEqual({
+			command: 'stop',
+			args: {},
+			options: {},
+		});
+	});
+
+	it("resolves 'goto' alias to 'navigate'", () => {
+		const result = parseCommand(
+			{ _: ['goto', 'https://example.com'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'navigate',
+			args: { url: 'https://example.com' },
+			options: {},
+		});
+	});
+
+	it("resolves 'go-back' alias to 'back'", () => {
+		const result = parseCommand({ _: ['go-back'] }, commandRegistry);
+		expect(result).toEqual({
+			command: 'back',
+			args: {},
+			options: {},
+		});
+	});
+
+	it("resolves 'go-forward' alias to 'forward'", () => {
+		const result = parseCommand({ _: ['go-forward'] }, commandRegistry);
+		expect(result).toEqual({
+			command: 'forward',
+			args: {},
 			options: {},
 		});
 	});

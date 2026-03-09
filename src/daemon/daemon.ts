@@ -22,7 +22,12 @@ import {
 	type ResponseMessage,
 	type ErrorMessage,
 } from './protocol.js';
-import { SessionMap, Session, type SessionConfig, type InterceptEntry } from './session.js';
+import {
+	SessionMap,
+	Session,
+	type SessionConfig,
+	type InterceptEntry,
+} from './session.js';
 import type { QueuedCommand, CommandResult } from './commandQueue.js';
 import { generateTestFile } from '../codegen/codegen.js';
 
@@ -687,10 +692,7 @@ export class Daemon {
 	 * Track intercept/unintercept state in the session registry.
 	 * Called after a successful command execution.
 	 */
-	private _trackInterceptState(
-		session: Session,
-		command: QueuedCommand,
-	): void {
+	private _trackInterceptState(session: Session, command: QueuedCommand): void {
 		if (command.action === 'intercept' && command.text) {
 			const entry: InterceptEntry = {
 				pattern: command.text,
@@ -959,6 +961,18 @@ function buildQueuedCommand(
 				},
 				options,
 			);
+		case 'fill':
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && { ref: positionals[0] }),
+					...(joinText(positionals.slice(1)) !== undefined && {
+						text: joinText(positionals.slice(1)),
+					}),
+				},
+				options,
+			);
 		case 'select':
 			return withOptions(
 				{
@@ -1085,6 +1099,73 @@ function buildQueuedCommand(
 				},
 				options,
 			);
+		case 'dialog-accept':
+			return withOptions(
+				{
+					id,
+					action,
+					...(joinText(positionals) !== undefined && {
+						text: joinText(positionals),
+					}),
+				},
+				options,
+			);
+		case 'dialog-dismiss':
+			return withOptions({ id, action }, options);
+		case 'resize':
+			return withOptions(
+				{ id, action },
+				{
+					...options,
+					...(positionals[0] !== undefined && {
+						width: positionals[0],
+					}),
+					...(positionals[1] !== undefined && {
+						height: positionals[1],
+					}),
+				},
+			);
+		case 'screenshot':
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && { ref: positionals[0] }),
+				},
+				options,
+			);
+		case 'drag':
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && { ref: positionals[0] }),
+					...(positionals[1] !== undefined && { text: positionals[1] }),
+				},
+				options,
+			);
+		case 'upload': {
+			const filePath = joinText(positionals.slice(1));
+			if (filePath !== undefined) {
+				const resolved = path.resolve(filePath);
+				const cwd = process.cwd();
+				if (!resolved.startsWith(cwd + path.sep) && resolved !== cwd) {
+					throw new Error(
+						`Upload path "${filePath}" resolves outside the working directory. ` +
+							'Use a relative path within the project.',
+					);
+				}
+			}
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && { ref: positionals[0] }),
+					...(filePath !== undefined && { text: filePath }),
+				},
+				options,
+			);
+		}
 		default:
 			return withOptions(
 				{

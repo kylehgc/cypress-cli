@@ -139,6 +139,12 @@ export function buildCypressCommand(
 				.replace(/'/g, "\\'");
 			return `${getExpr}.type('${escapedText}')`;
 		}
+		case 'fill': {
+			const escapedText = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `${getExpr}.clear().type('${escapedText}')`;
+		}
 		case 'select': {
 			const escapedText = (text ?? '')
 				.replace(/\\/g, '\\\\')
@@ -164,6 +170,37 @@ export function buildCypressCommand(
 		}
 		case 'waitfor':
 			return `${getExpr}.should('exist')`;
+		case 'screenshot': {
+			const fname = options?.['filename'] as string | undefined;
+			if (fname) {
+				const escapedFname = fname.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+				return `${getExpr}.screenshot('${escapedFname}')`;
+			}
+			return `${getExpr}.screenshot()`;
+		}
+		case 'upload': {
+			const escapedFile = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `${getExpr}.selectFile('${escapedFile}')`;
+		}
+		case 'drag': {
+			const targetSelector = options?.['_targetSelector'] as
+				| string
+				| undefined;
+			if (targetSelector) {
+				const escapedTarget = targetSelector
+					.replace(/\\/g, '\\\\')
+					.replace(/'/g, "\\'");
+				return [
+					`${getExpr}.trigger('pointerdown', { which: 1 })`,
+					`  .trigger('dragstart')`,
+					`cy.get('${escapedTarget}').trigger('dragover').trigger('drop')`,
+					`${getExpr}.trigger('dragend').trigger('pointerup')`,
+				].join(';\n');
+			}
+			return `// drag ${selector ?? 'source'} → target (missing target selector)`;
+		}
 		default:
 			return `${getExpr}.${action}()`;
 	}
@@ -259,6 +296,60 @@ function _buildNonRefCommand(
 		}
 		case 'network':
 			return '// network requests (read-only)';
+		case 'dialog-accept': {
+			if (text) {
+				const escapedPrompt = (text ?? '')
+					.replace(/\\/g, '\\\\')
+					.replace(/'/g, "\\'");
+				return [
+					"cy.once('window:confirm', () => true)",
+					"cy.once('window:alert', () => true)",
+					`cy.window().then((win) => cy.stub(win, 'prompt').returns('${escapedPrompt}'))`,
+				].join(';\n');
+			}
+			return [
+				"cy.once('window:confirm', () => true)",
+				"cy.once('window:alert', () => true)",
+			].join(';\n');
+		}
+		case 'dialog-dismiss':
+			return [
+				"cy.once('window:confirm', () => false)",
+				"cy.once('window:alert', () => false)",
+				"cy.window().then((win) => cy.stub(win, 'prompt').returns(null))",
+			].join(';\n');
+		case 'resize': {
+			const w = Number(options?.['width'] ?? 0);
+			const h = Number(options?.['height'] ?? 0);
+			return `cy.viewport(${w}, ${h})`;
+		}
+		case 'screenshot': {
+			const fname = options?.['filename'] as string | undefined;
+			if (fname) {
+				const escapedFname = fname.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+				return `cy.screenshot('${escapedFname}')`;
+			}
+			return 'cy.screenshot()';
+		}
+		case 'drag': {
+			const targetSelector = options?.['_targetSelector'] as
+				| string
+				| undefined;
+			if (targetSelector) {
+				const escapedTarget = targetSelector
+					.replace(/\\/g, '\\\\')
+					.replace(/'/g, "\\'");
+				return [
+					"cy.get('source').trigger('pointerdown', { which: 1 })",
+					`  .trigger('dragstart')`,
+					`cy.get('${escapedTarget}').trigger('dragover').trigger('drop')`,
+					"cy.get('source').trigger('dragend').trigger('pointerup')",
+				].join(';\n');
+			}
+			return '// drag (missing target selector)';
+		}
+		case 'upload':
+			return '// upload (requires cy.selectFile with element ref)';
 		default:
 			return `cy.${action}()`;
 	}

@@ -187,7 +187,7 @@ export function parseCommand(
 	}
 
 	return {
-		command: commandName,
+		command: entry.schema.name,
 		args: argsResult.data as Record<string, unknown>,
 		options: optionsResult.data as Record<string, unknown>,
 	};

@@ -44,14 +44,13 @@ export function validateElementForCommand(
 	const tag = element.tagName;
 
 	switch (action) {
-		case 'type': {
+		case 'type':
+		case 'fill': {
 			const isContentEditable =
 				element.hasAttribute('contenteditable') &&
 				element.getAttribute('contenteditable') !== 'false';
 			if (tag === 'INPUT') {
-				const inputType = (
-					element as HTMLInputElement
-				).type.toLowerCase();
+				const inputType = (element as HTMLInputElement).type.toLowerCase();
 				if (NON_TYPEABLE_INPUT_TYPES.has(inputType)) {
 					return (
 						`Cannot type into <input type="${inputType}"> — ` +
@@ -71,11 +70,7 @@ export function validateElementForCommand(
 			const isContentEditable =
 				element.hasAttribute('contenteditable') &&
 				element.getAttribute('contenteditable') !== 'false';
-			if (
-				tag !== 'INPUT' &&
-				tag !== 'TEXTAREA' &&
-				!isContentEditable
-			) {
+			if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !isContentEditable) {
 				return (
 					`Cannot clear <${tag.toLowerCase()}> — cy.clear() can only be called on ` +
 					'inputs, textareas, or contenteditable elements.'
@@ -92,9 +87,7 @@ export function validateElementForCommand(
 					'checkboxes and radio buttons.'
 				);
 			}
-			const inputType = (
-				element as HTMLInputElement
-			).type.toLowerCase();
+			const inputType = (element as HTMLInputElement).type.toLowerCase();
 			if (inputType !== 'checkbox' && inputType !== 'radio') {
 				return (
 					`Cannot ${action} <input type="${inputType}"> — cy.${action}() can only be called on ` +
@@ -109,6 +102,23 @@ export function validateElementForCommand(
 				return (
 					`Cannot select on <${tag.toLowerCase()}> — cy.select() can only be called on ` +
 					'<select> elements.'
+				);
+			}
+			break;
+		}
+
+		case 'upload': {
+			if (tag !== 'INPUT') {
+				return (
+					`Cannot upload to <${tag.toLowerCase()}> — cy.selectFile() can only be called on ` +
+					'<input> elements.'
+				);
+			}
+			const inputType = (element as HTMLInputElement).type.toLowerCase();
+			if (inputType !== 'file') {
+				return (
+					`Cannot upload to <input type="${inputType}"> — cy.selectFile() can only be called on ` +
+					'<input type="file"> elements.'
 				);
 			}
 			break;
