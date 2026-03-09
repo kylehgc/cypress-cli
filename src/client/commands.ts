@@ -560,6 +560,64 @@ export const waitforresponse = declareCommand({
 });
 
 // ---------------------------------------------------------------------------
+// Storage commands
+// ---------------------------------------------------------------------------
+
+export const cookieList = declareCommand({
+	name: 'cookie-list',
+	category: 'storage',
+	description: 'List browser cookies, optionally filtered by domain',
+	args: z.object({}),
+	options: z.object({
+		domain: z.string().optional().describe('Filter cookies to a specific domain'),
+	}),
+});
+
+export const cookieGet = declareCommand({
+	name: 'cookie-get',
+	category: 'storage',
+	description: 'Get a browser cookie by name',
+	args: z.object({
+		name: z.string().describe('Cookie name'),
+	}),
+	options: z.object({}),
+});
+
+export const cookieSet = declareCommand({
+	name: 'cookie-set',
+	category: 'storage',
+	description: 'Set a browser cookie',
+	args: z.object({
+		name: z.string().describe('Cookie name'),
+		value: z.string().describe('Cookie value'),
+	}),
+	options: z.object({
+		domain: z.string().optional().describe('Cookie domain'),
+		httpOnly: z.boolean().optional().describe('Set the HttpOnly cookie flag'),
+		secure: z.boolean().optional().describe('Set the Secure cookie flag'),
+		path: z.string().optional().describe('Cookie path'),
+	}),
+});
+
+export const cookieDelete = declareCommand({
+	name: 'cookie-delete',
+	category: 'storage',
+	description: 'Delete a browser cookie by name',
+	args: z.object({
+		name: z.string().describe('Cookie name'),
+	}),
+	options: z.object({}),
+});
+
+export const cookieClear = declareCommand({
+	name: 'cookie-clear',
+	category: 'storage',
+	description: 'Clear all browser cookies',
+	args: z.object({}),
+	options: z.object({}),
+});
+
+// ---------------------------------------------------------------------------
 // Screenshot command
 // ---------------------------------------------------------------------------
 
@@ -661,6 +719,11 @@ export const allCommands = [
 	interceptList,
 	unintercept,
 	waitforresponse,
+	cookieList,
+	cookieGet,
+	cookieSet,
+	cookieDelete,
+	cookieClear,
 	screenshot,
 	drag,
 	upload,
@@ -771,6 +834,19 @@ export function buildRegistry(): ReadonlyMap<string, CommandRegistryEntry> {
 		schema: waitforresponse,
 		positionals: ['pattern'],
 	});
+
+	// Storage
+	registry.set('cookie-list', { schema: cookieList, positionals: [] });
+	registry.set('cookie-get', { schema: cookieGet, positionals: ['name'] });
+	registry.set('cookie-set', {
+		schema: cookieSet,
+		positionals: ['name', 'value'],
+	});
+	registry.set('cookie-delete', {
+		schema: cookieDelete,
+		positionals: ['name'],
+	});
+	registry.set('cookie-clear', { schema: cookieClear, positionals: [] });
 
 	// Screenshot
 	registry.set('screenshot', {

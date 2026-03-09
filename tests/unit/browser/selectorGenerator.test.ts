@@ -568,5 +568,56 @@ describe('selectorGenerator', () => {
 			const result = buildCypressCommand(undefined, 'network');
 			expect(result).toBe('// network requests (read-only)');
 		});
+
+		it('builds cookie-list command', () => {
+			const result = buildCypressCommand(undefined, 'cookie-list');
+			expect(result).toBe('cy.getCookies()');
+		});
+
+		it('builds cookie-list command with domain filter', () => {
+			const result = buildCypressCommand(
+				undefined,
+				'cookie-list',
+				undefined,
+				undefined,
+				{ domain: '127.0.0.1' },
+			);
+			expect(result).toBe(
+				"cy.getCookies().then((cookies) => cookies.filter((cookie) => cookie.domain.replace(/^\\./, '') === '127.0.0.1'.replace(/^\\./, '')))",
+			);
+		});
+
+		it('builds cookie-get command', () => {
+			const result = buildCypressCommand(undefined, 'cookie-get', 'session');
+			expect(result).toBe("cy.getCookie('session')");
+		});
+
+		it('builds cookie-set command with options', () => {
+			const result = buildCypressCommand(
+				undefined,
+				'cookie-set',
+				'session',
+				undefined,
+				{
+					value: 'abc123',
+					domain: '127.0.0.1',
+					httpOnly: true,
+					secure: true,
+					path: '/',
+				},
+			);
+			expect(result).toBe(
+				"cy.setCookie('session', 'abc123', { domain: '127.0.0.1', path: '/', httpOnly: true, secure: true })",
+			);
+		});
+
+		it('builds cookie-delete and cookie-clear commands', () => {
+			expect(buildCypressCommand(undefined, 'cookie-delete', 'session')).toBe(
+				"cy.clearCookie('session')",
+			);
+			expect(buildCypressCommand(undefined, 'cookie-clear')).toBe(
+				'cy.clearCookies()',
+			);
+		});
 	});
 });

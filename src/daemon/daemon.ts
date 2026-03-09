@@ -1136,6 +1136,8 @@ export function buildQueuedCommand(
 			);
 		}
 		case 'network':
+		case 'cookie-list':
+		case 'cookie-clear':
 			return withOptions({ id, action }, options);
 		case 'intercept':
 			// Pattern is the first positional, stored in `text` for the driver
@@ -1172,6 +1174,34 @@ export function buildQueuedCommand(
 					}),
 				},
 				options,
+			);
+		case 'cookie-get':
+		case 'cookie-delete':
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && {
+						text: positionals[0],
+					}),
+				},
+				options,
+			);
+		case 'cookie-set':
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && {
+						text: positionals[0],
+					}),
+				},
+				{
+					...options,
+					...(joinText(positionals.slice(1)) !== undefined && {
+						value: joinText(positionals.slice(1)),
+					}),
+				},
 			);
 		case 'dialog-accept':
 			return withOptions(

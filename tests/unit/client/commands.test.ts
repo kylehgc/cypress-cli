@@ -45,6 +45,11 @@ import {
 	interceptList,
 	unintercept,
 	waitforresponse,
+	cookieList,
+	cookieGet,
+	cookieSet,
+	cookieDelete,
+	cookieClear,
 	fill,
 	dialogAccept,
 	dialogDismiss,
@@ -90,12 +95,12 @@ describe('declareCommand', () => {
 });
 
 describe('command schemas', () => {
-	it('defines all 44 commands', () => {
-		expect(allCommands).toHaveLength(44);
+	it('defines all 49 commands', () => {
+		expect(allCommands).toHaveLength(49);
 	});
 
 	it('registers all commands plus aliases in the registry', () => {
-		expect(commandRegistry.size).toBe(48);
+		expect(commandRegistry.size).toBe(53);
 	});
 
 	describe('categories', () => {
@@ -171,6 +176,14 @@ describe('command schemas', () => {
 			expect(interceptList.category).toBe('network');
 			expect(unintercept.category).toBe('network');
 			expect(waitforresponse.category).toBe('network');
+		});
+
+		it('has storage commands', () => {
+			expect(cookieList.category).toBe('storage');
+			expect(cookieGet.category).toBe('storage');
+			expect(cookieSet.category).toBe('storage');
+			expect(cookieDelete.category).toBe('storage');
+			expect(cookieClear.category).toBe('storage');
 		});
 	});
 
@@ -407,6 +420,57 @@ describe('command schemas', () => {
 
 			const withTimeout = waitforresponse.options.safeParse({ timeout: 10000 });
 			expect(withTimeout.success).toBe(true);
+		});
+
+		it('cookie-list domain filter is optional', () => {
+			expect(cookieList.args.safeParse({})).toMatchObject({ success: true });
+			expect(cookieList.options.safeParse({})).toMatchObject({ success: true });
+			expect(
+				cookieList.options.safeParse({
+					domain: '127.0.0.1',
+				}),
+			).toMatchObject({ success: true });
+		});
+
+		it('cookie-get requires a cookie name', () => {
+			expect(cookieGet.args.safeParse({ name: 'session' })).toMatchObject({
+				success: true,
+			});
+			expect(cookieGet.args.safeParse({})).toMatchObject({ success: false });
+		});
+
+		it('cookie-set requires name and value and accepts cookie flags', () => {
+			expect(
+				cookieSet.args.safeParse({
+					name: 'session',
+					value: 'abc123',
+				}),
+			).toMatchObject({ success: true });
+			expect(
+				cookieSet.options.safeParse({
+					domain: '127.0.0.1',
+					httpOnly: true,
+					secure: true,
+					path: '/',
+				}),
+			).toMatchObject({ success: true });
+			expect(cookieSet.args.safeParse({ name: 'session' })).toMatchObject({
+				success: false,
+			});
+		});
+
+		it('cookie-delete requires a cookie name', () => {
+			expect(cookieDelete.args.safeParse({ name: 'session' })).toMatchObject({
+				success: true,
+			});
+			expect(cookieDelete.args.safeParse({})).toMatchObject({
+				success: false,
+			});
+		});
+
+		it('cookie-clear requires no args or options', () => {
+			expect(cookieClear.args.safeParse({})).toMatchObject({ success: true });
+			expect(cookieClear.options.safeParse({})).toMatchObject({ success: true });
 		});
 
 		it('fill requires ref and text', () => {
@@ -911,6 +975,74 @@ describe('parseCommand', () => {
 			command: 'waitforresponse',
 			args: { pattern: '**/api/**' },
 			options: { timeout: 10000 },
+		});
+	});
+
+	it("parses 'cookie-list --domain 127.0.0.1' correctly", () => {
+		const result = parseCommand(
+			{ _: ['cookie-list'], domain: '127.0.0.1' },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'cookie-list',
+			args: {},
+			options: { domain: '127.0.0.1' },
+		});
+	});
+
+	it("parses 'cookie-get session' correctly", () => {
+		const result = parseCommand(
+			{ _: ['cookie-get', 'session'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'cookie-get',
+			args: { name: 'session' },
+			options: {},
+		});
+	});
+
+	it("parses 'cookie-set session hello world' correctly", () => {
+		const result = parseCommand(
+			{
+				_: ['cookie-set', 'session', 'hello', 'world'],
+				domain: '127.0.0.1',
+				httpOnly: true,
+				secure: true,
+				path: '/',
+			},
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'cookie-set',
+			args: { name: 'session', value: 'hello world' },
+			options: {
+				domain: '127.0.0.1',
+				httpOnly: true,
+				secure: true,
+				path: '/',
+			},
+		});
+	});
+
+	it("parses 'cookie-delete session' correctly", () => {
+		const result = parseCommand(
+			{ _: ['cookie-delete', 'session'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'cookie-delete',
+			args: { name: 'session' },
+			options: {},
+		});
+	});
+
+	it("parses 'cookie-clear' correctly", () => {
+		const result = parseCommand({ _: ['cookie-clear'] }, commandRegistry);
+		expect(result).toEqual({
+			command: 'cookie-clear',
+			args: {},
+			options: {},
 		});
 	});
 

@@ -333,6 +333,41 @@ function _buildNonRefCommand(
 		}
 		case 'network':
 			return '// network requests (read-only)';
+		case 'cookie-list': {
+			const domain = options?.['domain'] as string | undefined;
+			if (domain) {
+				const escapedDomain = domain.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+				return `cy.getCookies().then((cookies) => cookies.filter((cookie) => cookie.domain.replace(/^\\./, '') === '${escapedDomain}'.replace(/^\\./, '')))`;
+			}
+			return 'cy.getCookies()';
+		}
+		case 'cookie-get': {
+			const escapedName = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `cy.getCookie('${escapedName}')`;
+		}
+		case 'cookie-set': {
+			const escapedName = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			const escapedValue = String(options?.['value'] ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			const cookieOptions = _buildCookieOptions(options);
+			if (cookieOptions) {
+				return `cy.setCookie('${escapedName}', '${escapedValue}', ${cookieOptions})`;
+			}
+			return `cy.setCookie('${escapedName}', '${escapedValue}')`;
+		}
+		case 'cookie-delete': {
+			const escapedName = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `cy.clearCookie('${escapedName}')`;
+		}
+		case 'cookie-clear':
+			return 'cy.clearCookies()';
 		case 'dialog-accept': {
 			if (text) {
 				const escapedPrompt = (text ?? '')
@@ -453,6 +488,43 @@ function buildClassSelector(element: Element): string | undefined {
 		.slice(0, 3)
 		.map((className) => `.${escapeIdentifier(className)}`)
 		.join('')}`;
+}
+
+/**
+ * Builds a JavaScript object-literal string for cookie options in generated
+ * Cypress code, supporting the CLI's domain/path/httpOnly/secure flags.
+ */
+function _buildCookieOptions(options?: Record<string, unknown>): string | undefined {
+	if (!options) {
+		return undefined;
+	}
+
+	const entries: string[] = [];
+
+	if (typeof options['domain'] === 'string') {
+		const escapedDomain = options['domain']
+			.replace(/\\/g, '\\\\')
+			.replace(/'/g, "\\'");
+		entries.push(`domain: '${escapedDomain}'`);
+	}
+	if (typeof options['path'] === 'string') {
+		const escapedPath = options['path']
+			.replace(/\\/g, '\\\\')
+			.replace(/'/g, "\\'");
+		entries.push(`path: '${escapedPath}'`);
+	}
+	if (typeof options['httpOnly'] === 'boolean') {
+		entries.push(`httpOnly: ${String(options['httpOnly'])}`);
+	}
+	if (typeof options['secure'] === 'boolean') {
+		entries.push(`secure: ${String(options['secure'])}`);
+	}
+
+	if (entries.length === 0) {
+		return undefined;
+	}
+
+	return `{ ${entries.join(', ')} }`;
 }
 
 function buildStructuralSelector(element: Element): string {
