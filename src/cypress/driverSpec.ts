@@ -58,7 +58,10 @@ const GET_COMMAND_TIMEOUT = 120_000;
 // Network monitoring state
 // ---------------------------------------------------------------------------
 
-/** A captured network request entry. */
+/**
+ * A captured network request entry populated by the passive network monitor.
+ * Stored in `_networkLog` and returned by the `network` command.
+ */
 interface NetworkEntry {
 	url: string;
 	method: string;
@@ -68,14 +71,18 @@ interface NetworkEntry {
 	timestamp: string;
 }
 
-/** Buffer of network requests captured by the passive intercept. */
+/**
+ * Buffer of network requests captured by the passive intercept.
+ * Grows for the lifetime of the session — the LLM agent reads it via
+ * the `network` command as a pull-based inspection mechanism.
+ */
 const _networkLog: NetworkEntry[] = [];
 
 /**
- * Active intercept route patterns.
- * Maps pattern string → true. Used by `unintercept` to replace with passthrough.
+ * Set of active intercept route patterns.
+ * Used by `unintercept` to know which patterns to replace with passthrough.
  */
-const _activeRoutes = new Map<string, boolean>();
+const _activeRoutes = new Set<string>();
 
 /**
  * Registers a passive `cy.intercept('**')` to capture all network requests.
@@ -547,6 +554,7 @@ function executeCommand(cmd: DriverCommand): void {
 				try {
 					staticResponse['body'] = JSON.parse(body);
 				} catch {
+					// Not valid JSON — use the raw string as the response body
 					staticResponse['body'] = body;
 				}
 			}
@@ -560,7 +568,7 @@ function executeCommand(cmd: DriverCommand): void {
 				// Intercept without mock response — just monitor
 				cy.intercept(pattern);
 			}
-			_activeRoutes.set(pattern, true);
+			_activeRoutes.add(pattern);
 			_evalResult = `Intercept registered for "${pattern}"`;
 			break;
 		}
@@ -575,7 +583,7 @@ function executeCommand(cmd: DriverCommand): void {
 				_evalResult = `Intercept removed for "${pattern}"`;
 			} else {
 				// Remove all intercepts by replacing with passthrough
-				for (const p of _activeRoutes.keys()) {
+				for (const p of _activeRoutes) {
 					cy.intercept(p, (req) => {
 						req.continue();
 					});
