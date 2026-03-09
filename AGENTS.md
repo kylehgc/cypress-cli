@@ -58,57 +58,50 @@ Each `src/` subdirectory has a `README.md` explaining its purpose.
    PRs are merged and their code is on `main` before starting.
 4. **Branch** from `main`: `git checkout -b issue-N-short-description main`
 5. **Implement** the code and tests listed in the acceptance criteria.
-6. **Validate** before committing (see check commands below). If the change
-   affects usability, also perform **live validation** (see section below).
+6. **Validate** before committing — run all check commands below **and** live
+   validation. Both are required.
 7. **Commit** with conventional commits: `feat:`, `fix:`, `test:`, `refactor:`,
    `docs:`, `chore:`
 8. **Open a PR** referencing `Closes #N` in the body.
 
 ## Check Commands
 
-Run all of these before opening a PR. All must pass.
+Run **all** of these before opening a PR. All must pass. Do not skip any step.
 
 ```bash
-# Type checking
+# 1. Type checking
 npx tsc --noEmit
 
-# Unit tests
+# 2. Unit tests
 npx vitest run
 
-# Linting
+# 3. Linting
 npx eslint src/ tests/
 
-# Build (if src/injected/ code exists)
+# 4. Build
 npm run build
 ```
 
-If `package.json` doesn't exist yet (you're working on issue #1), these commands
-don't apply — just make sure tsc, vitest, and eslint are configured correctly.
+## Live Validation
 
-## Live Validation (Required for Usability Changes)
+**This is not optional.** After the check commands above pass, you must open
+the CLI against a real web page and manually confirm your changes work.
+Unit tests mock boundaries that hide real-world failures. Do not commit or
+open a PR until you have completed this.
 
-If your issue touches command execution, assertions, CLI output, snapshots,
-selectors, or codegen — or is labeled `P0`, `P1`, `command`, or `testing` —
-you **must** run the CLI against a real web page and confirm it works before
-opening a PR. Tests alone are not sufficient.
-
-### Quick validation steps
+See `docs/LIVE_VALIDATION.md` for the full procedure. Quick version:
 
 ```bash
-# 1. Build the IIFE bundles
-npm run build
-
-# 2. Open a session
+# 5. Open a session (build must have succeeded in step 4)
 node bin/cypress-cli open https://example.cypress.io/commands/actions
 
-# 3. Exercise your feature (example: type + assert)
+# 6. Exercise your feature against the live page.
+#    Use commands relevant to your change. Examples:
 node bin/cypress-cli type e40 'test@test.com'
 node bin/cypress-cli assert e40 have.value 'test@test.com'
-
-# 4. Take a snapshot and verify the file exists
 node bin/cypress-cli snapshot
 
-# 5. Clean up
+# 7. Clean up
 node bin/cypress-cli stop
 ```
 
@@ -122,7 +115,8 @@ Every command should return output in this format:
 [Snapshot](.cypress-cli/page-2026-03-07T19-22-42-679Z.yml)
 ```
 
-**Read `docs/LIVE_VALIDATION.md` for the full procedure and PR template.**
+If any command fails or returns unexpected output, fix the issue before
+proceeding. Do not assume a passing test suite means the feature works.
 
 ## Code Style (Quick Reference)
 
@@ -174,4 +168,4 @@ When reviewing a PR against an issue:
 - [ ] Ported code follows ported code rules (if applicable)
 - [ ] Commit messages use conventional format
 - [ ] No unnecessary files (no `dist/`, no `node_modules/`, no temp files)
-- [ ] Live validation performed and documented (if usability change — see above)
+- [ ] Live validation performed (see Live Validation section above)
