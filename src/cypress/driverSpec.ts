@@ -79,10 +79,11 @@ interface NetworkEntry {
 const _networkLog: NetworkEntry[] = [];
 
 /**
- * Set of active intercept route patterns.
- * Used by `unintercept` to know which patterns to replace with passthrough.
+ * Map of active intercept route patterns to their static response config.
+ * Used by `unintercept` to know which patterns to replace with passthrough,
+ * and by error recovery to replay intercepts in the new test context.
  */
-const _activeRoutes = new Set<string>();
+const _activeRoutes = new Map<string, Record<string, unknown>>();
 
 /**
  * Registers a passive `cy.intercept('**')` to capture all network requests.
@@ -95,8 +96,7 @@ function registerPassiveNetworkMonitor(): void {
 				url: req.url,
 				method: req.method,
 				status: res.statusCode,
-				contentType:
-					(res.headers['content-type'] as string | undefined) ?? '',
+				contentType: (res.headers['content-type'] as string | undefined) ?? '',
 				size: res.body ? String(res.body).length : 0,
 				timestamp: new Date().toISOString(),
 			});
@@ -521,9 +521,8 @@ function executeCommand(cmd: DriverCommand): void {
 			break;
 		case 'run-code':
 			cy.window({ log: false }).then((win: Window) => {
-				const evalFn = (
-					win as Window & { eval: (code: string) => unknown }
-				).eval;
+				const evalFn = (win as Window & { eval: (code: string) => unknown })
+					.eval;
 				const result = evalFn.call(win, cmd.text!);
 				if (result !== undefined) {
 					_evalResult = String(result);
@@ -568,7 +567,7 @@ function executeCommand(cmd: DriverCommand): void {
 				// Intercept without mock response — just monitor
 				cy.intercept(pattern);
 			}
-			_activeRoutes.add(pattern);
+			_activeRoutes.set(pattern, staticResponse);
 			_evalResult = `Intercept registered for "${pattern}"`;
 			break;
 		}
@@ -583,7 +582,7 @@ function executeCommand(cmd: DriverCommand): void {
 				_evalResult = `Intercept removed for "${pattern}"`;
 			} else {
 				// Remove all intercepts by replacing with passthrough
-				for (const p of _activeRoutes) {
+				for (const p of _activeRoutes.keys()) {
 					cy.intercept(p, (req) => {
 						req.continue();
 					});
@@ -669,6 +668,7 @@ function pollForCommands(): void {
 							cmd.action,
 							cmd.text,
 							chainer,
+							cmd.options,
 						);
 					} catch {
 						// Codegen metadata is best-effort; command execution can continue.
@@ -681,6 +681,7 @@ function pollForCommands(): void {
 					cmd.action,
 					cmd.text,
 					chainer,
+					cmd.options,
 				);
 			}
 
@@ -861,6 +862,17 @@ function enqueueRecoveryTest(currentTest: unknown): void {
 		const errorMessage = enhanceCrossOriginError(
 			error ?? 'Unknown error (session recovered)',
 		);
+
+		// Re-register passive network monitor and replay active routes
+		// (all cy.intercept() registrations are lost on test boundary).
+		registerPassiveNetworkMonitor();
+		for (const [pattern, staticResponse] of _activeRoutes) {
+			if (Object.keys(staticResponse).length > 0) {
+				cy.intercept(pattern, staticResponse);
+			} else {
+				cy.intercept(pattern);
+			}
+		}
 
 		// Re-inject snapshot lib and take a fresh full snapshot so the
 		// error response shows the complete page state for context.

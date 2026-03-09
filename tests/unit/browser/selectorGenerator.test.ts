@@ -193,7 +193,12 @@ describe('selectorGenerator', () => {
 		});
 
 		it('builds assert command with chainer only', () => {
-			const result = buildCypressCommand('#el', 'assert', undefined, 'be.visible');
+			const result = buildCypressCommand(
+				'#el',
+				'assert',
+				undefined,
+				'be.visible',
+			);
 			expect(result).toBe("cy.get('#el').should('be.visible')");
 		});
 
@@ -235,12 +240,20 @@ describe('selectorGenerator', () => {
 
 	describe('buildCypressCommand (non-ref commands)', () => {
 		it('builds navigate command', () => {
-			const result = buildCypressCommand(undefined, 'navigate', 'https://example.com');
+			const result = buildCypressCommand(
+				undefined,
+				'navigate',
+				'https://example.com',
+			);
 			expect(result).toBe("cy.visit('https://example.com')");
 		});
 
 		it('builds navigate command escaping quotes in URL', () => {
-			const result = buildCypressCommand(undefined, 'navigate', "https://example.com/path?q='test'");
+			const result = buildCypressCommand(
+				undefined,
+				'navigate',
+				"https://example.com/path?q='test'",
+			);
 			expect(result).toBe("cy.visit('https://example.com/path?q=\\'test\\'')");
 		});
 
@@ -265,12 +278,22 @@ describe('selectorGenerator', () => {
 		});
 
 		it('builds asserturl command with chainer and value', () => {
-			const result = buildCypressCommand(undefined, 'asserturl', '/dashboard', 'include');
+			const result = buildCypressCommand(
+				undefined,
+				'asserturl',
+				'/dashboard',
+				'include',
+			);
 			expect(result).toBe("cy.url().should('include', '/dashboard')");
 		});
 
 		it('builds asserturl command with chainer only', () => {
-			const result = buildCypressCommand(undefined, 'asserturl', undefined, 'not.be.empty');
+			const result = buildCypressCommand(
+				undefined,
+				'asserturl',
+				undefined,
+				'not.be.empty',
+			);
 			expect(result).toBe("cy.url().should('not.be.empty')");
 		});
 
@@ -280,12 +303,22 @@ describe('selectorGenerator', () => {
 		});
 
 		it('builds asserttitle command with chainer and value', () => {
-			const result = buildCypressCommand(undefined, 'asserttitle', 'Dashboard', 'eq');
+			const result = buildCypressCommand(
+				undefined,
+				'asserttitle',
+				'Dashboard',
+				'eq',
+			);
 			expect(result).toBe("cy.title().should('eq', 'Dashboard')");
 		});
 
 		it('builds asserttitle command with chainer only', () => {
-			const result = buildCypressCommand(undefined, 'asserttitle', undefined, 'not.be.empty');
+			const result = buildCypressCommand(
+				undefined,
+				'asserttitle',
+				undefined,
+				'not.be.empty',
+			);
 			expect(result).toBe("cy.title().should('not.be.empty')");
 		});
 
@@ -339,6 +372,65 @@ describe('selectorGenerator', () => {
 		it('handles unknown non-ref actions with fallback', () => {
 			const result = buildCypressCommand(undefined, 'unknownAction');
 			expect(result).toBe('cy.unknownAction()');
+		});
+
+		it('builds intercept command with pattern only', () => {
+			const result = buildCypressCommand(undefined, 'intercept', '**/api/**');
+			expect(result).toBe("cy.intercept('**/api/**')");
+		});
+
+		it('builds intercept command with status option', () => {
+			const result = buildCypressCommand(
+				undefined,
+				'intercept',
+				'**/api/users',
+				undefined,
+				{ status: 200 },
+			);
+			expect(result).toBe("cy.intercept('**/api/users', { statusCode: 200 })");
+		});
+
+		it('builds intercept command with all options', () => {
+			const result = buildCypressCommand(
+				undefined,
+				'intercept',
+				'**/api/users',
+				undefined,
+				{
+					status: 200,
+					body: '{"users":[]}',
+					'content-type': 'application/json',
+				},
+			);
+			expect(result).toBe(
+				"cy.intercept('**/api/users', { statusCode: 200, body: {\"users\":[]}, headers: { 'content-type': 'application/json' } })",
+			);
+		});
+
+		it('builds intercept command with plain string body', () => {
+			const result = buildCypressCommand(
+				undefined,
+				'intercept',
+				'**/api/health',
+				undefined,
+				{ body: 'OK' },
+			);
+			expect(result).toBe("cy.intercept('**/api/health', { body: 'OK' })");
+		});
+
+		it('builds unintercept command with pattern', () => {
+			const result = buildCypressCommand(undefined, 'unintercept', '**/api/**');
+			expect(result).toBe("// cy.intercept('**/api/**', passthrough)");
+		});
+
+		it('builds unintercept command without pattern', () => {
+			const result = buildCypressCommand(undefined, 'unintercept');
+			expect(result).toBe('// remove all intercepts');
+		});
+
+		it('builds network command as read-only comment', () => {
+			const result = buildCypressCommand(undefined, 'network');
+			expect(result).toBe('// network requests (read-only)');
 		});
 	});
 });

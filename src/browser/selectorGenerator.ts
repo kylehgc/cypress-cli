@@ -105,6 +105,7 @@ export function buildFallbackSelector(element: Element): string {
  * @param action - The Cypress action (e.g. 'click', 'type', 'navigate')
  * @param text - Optional text argument for commands like type/select/navigate
  * @param chainer - Optional Chai chainer for assert commands (e.g. 'have.text')
+ * @param options - Optional command options (e.g. status, body for intercept)
  * @returns A Cypress command string for codegen
  */
 export function buildCypressCommand(
@@ -112,10 +113,11 @@ export function buildCypressCommand(
 	action: string,
 	text?: string,
 	chainer?: string,
+	options?: Record<string, unknown>,
 ): string {
 	// Non-ref commands: no selector needed
 	if (selector === undefined) {
-		return _buildNonRefCommand(action, text, chainer);
+		return _buildNonRefCommand(action, text, chainer, options);
 	}
 
 	const escapedSelector = selector.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -169,6 +171,7 @@ function _buildNonRefCommand(
 	action: string,
 	text?: string,
 	chainer?: string,
+	options?: Record<string, unknown>,
 ): string {
 	switch (action) {
 		case 'navigate': {
@@ -221,6 +224,10 @@ function _buildNonRefCommand(
 		}
 		case 'intercept': {
 			const escapedPattern = (text ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+			const staticResponse = _buildStaticResponse(options);
+			if (staticResponse) {
+				return `cy.intercept('${escapedPattern}', ${staticResponse})`;
+			}
 			return `cy.intercept('${escapedPattern}')`;
 		}
 		case 'unintercept': {
@@ -235,6 +242,43 @@ function _buildNonRefCommand(
 		default:
 			return `cy.${action}()`;
 	}
+}
+
+/**
+ * Builds a static response object literal string for cy.intercept() codegen.
+ * Returns undefined if no response options are present.
+ */
+function _buildStaticResponse(
+	options?: Record<string, unknown>,
+): string | undefined {
+	if (!options) return undefined;
+	const parts: string[] = [];
+
+	if (options['status'] !== undefined) {
+		parts.push(`statusCode: ${Number(options['status'])}`);
+	}
+	if (typeof options['body'] === 'string') {
+		try {
+			// If it's valid JSON, inline the parsed object
+			const parsed = JSON.parse(options['body'] as string);
+			parts.push(`body: ${JSON.stringify(parsed)}`);
+		} catch {
+			// Plain string body
+			const escaped = (options['body'] as string)
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			parts.push(`body: '${escaped}'`);
+		}
+	}
+	if (typeof options['content-type'] === 'string') {
+		const escaped = (options['content-type'] as string)
+			.replace(/\\/g, '\\\\')
+			.replace(/'/g, "\\'");
+		parts.push(`headers: { 'content-type': '${escaped}' }`);
+	}
+
+	if (parts.length === 0) return undefined;
+	return `{ ${parts.join(', ')} }`;
 }
 
 function isUsableSelector(selector: string, element: Element): boolean {
