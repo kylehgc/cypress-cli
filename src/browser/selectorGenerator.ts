@@ -219,7 +219,7 @@ export function buildCypressCommand(
 			const escapedExpr = (text ?? '')
 				.replace(/\\/g, '\\\\')
 				.replace(/'/g, "\\'");
-			return `${getExpr}.then(($el) => { const fn = eval('(${escapedExpr})'); return typeof fn === 'function' ? fn($el[0]) : fn; })`;
+			return `${getExpr}.then(($el) => { return cy.window().then((win) => { const fn = win.eval('(${escapedExpr})'); return typeof fn === 'function' ? fn($el[0]) : fn; }); })`;
 		}
 		default:
 			return `${getExpr}.${action}()`;

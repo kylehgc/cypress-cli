@@ -272,7 +272,7 @@ describe('selectorGenerator', () => {
 				'el => el.textContent',
 			);
 			expect(result).toBe(
-				"cy.get('#my-el').then(($el) => { const fn = eval('(el => el.textContent)'); return typeof fn === 'function' ? fn($el[0]) : fn; })",
+				"cy.get('#my-el').then(($el) => { return cy.window().then((win) => { const fn = win.eval('(el => el.textContent)'); return typeof fn === 'function' ? fn($el[0]) : fn; }); })",
 			);
 		});
 	});
