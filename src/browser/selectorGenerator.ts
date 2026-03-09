@@ -9,6 +9,22 @@
 import unique from '@cypress/unique-selector';
 
 /**
+ * Maps standard DOM key names to Cypress special-key names for codegen.
+ * @see https://docs.cypress.io/api/commands/type#Arguments
+ */
+const KEY_MAP: Record<string, string> = {
+	Escape: 'esc',
+	ArrowUp: 'upArrow',
+	ArrowDown: 'downArrow',
+	ArrowLeft: 'leftArrow',
+	ArrowRight: 'rightArrow',
+	Delete: 'del',
+	' ': 'space',
+	PageUp: 'pageUp',
+	PageDown: 'pageDown',
+};
+
+/**
  * Default selector priority order matching Cypress's Selector Playground.
  *
  * @see https://github.com/cypress-io/cypress/blob/develop/packages/driver/src/cypress/element_selector.ts
@@ -230,7 +246,8 @@ function _buildNonRefCommand(
 		case 'reload':
 			return 'cy.reload()';
 		case 'press': {
-			const escapedKey = (text ?? '')
+			const mappedKey = KEY_MAP[text ?? ''] ?? text ?? '';
+			const escapedKey = mappedKey
 				.replace(/\\/g, '\\\\')
 				.replace(/'/g, "\\'");
 			return `cy.get('body').type('{${escapedKey}}')`;
@@ -316,7 +333,6 @@ function _buildNonRefCommand(
 			return [
 				"cy.once('window:confirm', () => false)",
 				"cy.once('window:alert', () => false)",
-				"cy.window().then((win) => cy.stub(win, 'prompt').returns(null))",
 			].join(';\n');
 		case 'resize': {
 			const w = Number(options?.['width'] ?? 0);

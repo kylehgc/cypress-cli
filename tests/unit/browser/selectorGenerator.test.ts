@@ -310,6 +310,41 @@ describe('selectorGenerator', () => {
 			expect(result).toBe("cy.get('body').type('{Enter}')");
 		});
 
+		it('maps Escape to Cypress esc key', () => {
+			const result = buildCypressCommand(undefined, 'press', 'Escape');
+			expect(result).toBe("cy.get('body').type('{esc}')");
+		});
+
+		it('maps ArrowUp to Cypress upArrow key', () => {
+			const result = buildCypressCommand(undefined, 'press', 'ArrowUp');
+			expect(result).toBe("cy.get('body').type('{upArrow}')");
+		});
+
+		it('maps ArrowDown to Cypress downArrow key', () => {
+			const result = buildCypressCommand(undefined, 'press', 'ArrowDown');
+			expect(result).toBe("cy.get('body').type('{downArrow}')");
+		});
+
+		it('maps Delete to Cypress del key', () => {
+			const result = buildCypressCommand(undefined, 'press', 'Delete');
+			expect(result).toBe("cy.get('body').type('{del}')");
+		});
+
+		it('passes through unmapped keys unchanged', () => {
+			const result = buildCypressCommand(undefined, 'press', 'Tab');
+			expect(result).toBe("cy.get('body').type('{Tab}')");
+		});
+
+		it('builds dialog-dismiss without prompt stub', () => {
+			const result = buildCypressCommand(undefined, 'dialog-dismiss');
+			expect(result).toBe(
+				[
+					"cy.once('window:confirm', () => false)",
+					"cy.once('window:alert', () => false)",
+				].join(';\n'),
+			);
+		});
+
 		it('builds asserturl command with chainer and value', () => {
 			const result = buildCypressCommand(
 				undefined,
