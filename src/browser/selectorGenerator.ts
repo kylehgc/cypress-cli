@@ -134,11 +134,15 @@ export function buildCypressCommand(
 		case 'blur':
 			return `${getExpr}.${action}()`;
 		case 'type': {
-			const escapedText = (text ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+			const escapedText = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
 			return `${getExpr}.type('${escapedText}')`;
 		}
 		case 'select': {
-			const escapedText = (text ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+			const escapedText = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
 			return `${getExpr}.select('${escapedText}')`;
 		}
 		case 'hover':
@@ -147,7 +151,9 @@ export function buildCypressCommand(
 			return `${getExpr}.scrollIntoView()`;
 		case 'assert': {
 			if (chainer) {
-				const escapedChainer = chainer.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+				const escapedChainer = chainer
+					.replace(/\\/g, '\\\\')
+					.replace(/'/g, "\\'");
 				if (text) {
 					const escapedText = text.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 					return `${getExpr}.should('${escapedChainer}', '${escapedText}')`;
@@ -175,7 +181,9 @@ function _buildNonRefCommand(
 ): string {
 	switch (action) {
 		case 'navigate': {
-			const escapedUrl = (text ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+			const escapedUrl = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
 			return `cy.visit('${escapedUrl}')`;
 		}
 		case 'back':
@@ -185,12 +193,16 @@ function _buildNonRefCommand(
 		case 'reload':
 			return 'cy.reload()';
 		case 'press': {
-			const escapedKey = (text ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+			const escapedKey = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
 			return `cy.get('body').type('{${escapedKey}}')`;
 		}
 		case 'asserturl': {
 			if (chainer) {
-				const escapedChainer = chainer.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+				const escapedChainer = chainer
+					.replace(/\\/g, '\\\\')
+					.replace(/'/g, "\\'");
 				if (text) {
 					const escapedText = text.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 					return `cy.url().should('${escapedChainer}', '${escapedText}')`;
@@ -201,7 +213,9 @@ function _buildNonRefCommand(
 		}
 		case 'asserttitle': {
 			if (chainer) {
-				const escapedChainer = chainer.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+				const escapedChainer = chainer
+					.replace(/\\/g, '\\\\')
+					.replace(/'/g, "\\'");
 				if (text) {
 					const escapedText = text.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 					return `cy.title().should('${escapedChainer}', '${escapedText}')`;
@@ -213,17 +227,23 @@ function _buildNonRefCommand(
 		case 'wait':
 			return `cy.wait(${Number(text) || 0})`;
 		case 'scrollto': {
-			const escapedPos = (text ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+			const escapedPos = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
 			return `cy.scrollTo('${escapedPos}')`;
 		}
 		case 'snapshot':
 			return '// snapshot (read-only)';
 		case 'run-code': {
-			const escapedCode = (text ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+			const escapedCode = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
 			return `cy.window().then((win) => win.eval('${escapedCode}'))`;
 		}
 		case 'intercept': {
-			const escapedPattern = (text ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+			const escapedPattern = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
 			const staticResponse = _buildStaticResponse(options);
 			if (staticResponse) {
 				return `cy.intercept('${escapedPattern}', ${staticResponse})`;

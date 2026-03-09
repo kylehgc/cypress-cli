@@ -1,231 +1,111 @@
 ---
 name: cypress-cli
-description: Automates live browser interactions through Cypress for test generation. Use this when you need to navigate a page, inspect an aria snapshot, interact with elements by ref, assert behavior, and export a Cypress test file.
-allowed-tools: Bash(cypress-cli:*)
+description: Interact with live web pages through Cypress commands via the cypress-cli tool
+user-invocable: true
 ---
 
-# Browser Automation with cypress-cli
+# cypress-cli Skill
 
-Use `cypress-cli` when you need to drive a real browser through Cypress and turn
-the interaction history into Cypress test code.
+## What this skill does
 
-## Quick start
+This skill teaches you how to use the `cypress-cli` tool to interact with live
+web pages through real Cypress commands. It is the primary way to browse,
+inspect, and test web pages in this project.
 
-```bash
-# Start a session and open a page
-cypress-cli open https://example.cypress.io/commands/actions
+## When to use this skill
 
-# Capture the current aria snapshot and inspect refs
-cypress-cli snapshot
+- When you need to open a web page and inspect its DOM
+- When you need to interact with elements (click, type, check, select, etc.)
+- When you need to assert element state
+- When you need to generate Cypress test code from a session
+- When you need to execute arbitrary Cypress code against a live page
 
-# Interact using refs from the snapshot
-cypress-cli type e40 "hello@example.com"
-cypress-cli click e45
+## Commands
 
-# Export the recorded interaction history as a Cypress test
-cypress-cli export --file generated/actions.cy.ts
-
-# Stop the session when finished
-cypress-cli stop
-```
+| Command    | Example                                         |
+| ---------- | ----------------------------------------------- |
+| `open`     | `cypress-cli open https://example.com`          |
+| `snapshot` | `cypress-cli snapshot`                          |
+| `click`    | `cypress-cli click e5`                          |
+| `type`     | `cypress-cli type e12 'hello'`                  |
+| `clear`    | `cypress-cli clear e12`                         |
+| `check`    | `cypress-cli check e8`                          |
+| `uncheck`  | `cypress-cli uncheck e8`                        |
+| `select`   | `cypress-cli select e15 'Option A'`             |
+| `scroll`   | `cypress-cli scroll e3 0 500`                   |
+| `hover`    | `cypress-cli hover e7`                          |
+| `navigate` | `cypress-cli navigate https://other.com`        |
+| `back`     | `cypress-cli back`                              |
+| `forward`  | `cypress-cli forward`                           |
+| `reload`   | `cypress-cli reload`                            |
+| `assert`   | `cypress-cli assert e5 have.text 'Submit'`      |
+| `run-code` | `cypress-cli run-code "cy.get('#foo').click()"` |
+| `export`   | `cypress-cli export`                            |
+| `stop`     | `cypress-cli stop`                              |
 
 ## How to read snapshots
 
-After `open`, `snapshot`, and most interaction commands, the CLI writes an aria
-snapshot to a YAML file on disk and returns the path. The CLI output format is:
+Every command returns output in this format:
 
-```
+```text
 ### Page
-- Page URL: https://example.cypress.io/commands/actions
-- Page Title: Commands | Actions
-# Ran Cypress code:
-#   cy.get('[data-cy="submit"]').click()
+- Page URL: https://example.com
+- Page Title: Example Page
 ### Snapshot
-[Snapshot](.cypress-cli/page-2026-03-07T19-22-42-679Z.yml)
+Snapshot → .cypress-cli/page-YYYY-MM-DDTHH-MM-SS-mmmZ.yml
 ```
 
-Read the snapshot file to see the aria tree:
+The `### Snapshot` section contains a markdown-formatted link to the YAML
+snapshot file on disk (e.g., `.cypress-cli/page-<timestamp>.yml`).
+
+The snapshot file (YAML) contains the page's aria tree with element references:
 
 ```yaml
-- main:
-  - heading "Actions" [level=1] [ref=e1]
-  - textbox "Email" [ref=e40]
-  - button "Submit" [ref=e45]
+- document [ref=e1]:
+    - heading "Welcome" [level=1] [ref=e2]
+    - textbox "Email" [ref=e3]
+    - button "Submit" [ref=e4]
 ```
 
-- `ref=eN` is the handle to pass to commands like `click`, `type`, `assert`, or
-  `waitfor`.
-- Refs come from the current snapshot only. When the page changes, take a new
-  snapshot before reusing a ref.
-- Navigation commands (`snapshot`, `navigate`, `back`, `forward`, `reload`)
-  return a full aria tree. Action commands (`click`, `type`, etc.) return an
-  incremental diff from the previous snapshot.
-- The CLI never prints inline YAML — always read the file at the path provided.
+Use the `ref` values (e.g., `e3`, `e4`) to target elements in subsequent
+commands. Read the snapshot file to see the full page structure.
 
-## Command reference
+**Action commands** (click, type, check, etc.) return a **diff** showing only
+what changed. **Snapshot, navigation, and reload** return the **full tree**.
 
-### Available now
-
-#### Core
+## Workflow
 
 ```bash
-cypress-cli open [url]
+# 1. Open a page
+cypress-cli open https://example.com
+
+# 2. Read the snapshot file to see the page structure
+cat .cypress-cli/page-*.yml
+
+# 3. Interact with elements using ref values
+cypress-cli type e3 'user@test.com'
+cypress-cli click e4
+
+# 4. Take a full snapshot anytime
+cypress-cli snapshot
+
+# 5. Assert element state
+cypress-cli assert e3 have.value 'user@test.com'
+
+# 6. Run arbitrary Cypress code
+cypress-cli run-code "cy.get('#modal').should('be.visible')"
+
+# 7. Export session as a Cypress test file
+cypress-cli export
+
+# 8. Stop the session
 cypress-cli stop
-cypress-cli status
-cypress-cli install --skills
-cypress-cli snapshot [--filename path]
 ```
 
-#### Navigation
+## Tips
 
-```bash
-cypress-cli navigate <url>
-cypress-cli back
-cypress-cli forward
-cypress-cli reload
-```
-
-#### Interaction
-
-```bash
-cypress-cli click <ref> [--force] [--multiple]
-cypress-cli dblclick <ref> [--force]
-cypress-cli rightclick <ref> [--force]
-cypress-cli type <ref> <text> [--delay ms] [--force]
-cypress-cli clear <ref> [--force]
-cypress-cli check <ref> [--force]
-cypress-cli uncheck <ref> [--force]
-cypress-cli select <ref> <value> [--force]
-cypress-cli focus <ref>
-cypress-cli blur <ref>
-cypress-cli scrollto <ref|position> [--duration ms]
-cypress-cli hover <ref> [--force]
-```
-
-#### Keyboard
-
-```bash
-cypress-cli press <key>
-```
-
-#### Assertions
-
-```bash
-cypress-cli assert <ref> <chainer> [value]
-cypress-cli asserturl <chainer> <value>
-cypress-cli asserttitle <chainer> <value>
-```
-
-#### Wait and export
-
-```bash
-cypress-cli wait <ms>
-cypress-cli waitfor <ref> [--timeout ms]
-cypress-cli export [--file path] [--format ts|js] [--describe name] [--it name] [--baseUrl url]
-cypress-cli history
-cypress-cli undo
-```
-
-#### Execution
-
-```bash
-cypress-cli run-code <code>
-```
-
-### Planned commands (roadmap only — do not invoke until implemented)
-
-These commands are planned for parity with `playwright-cli`, but are not part of
-the current release. If you need them, explain that support is planned rather
-than pretending they exist.
-
-```bash
-# Additional interaction and utility commands
-eval, fill, drag, upload, screenshot, resize, dialog-accept, dialog-dismiss
-
-# Aliases
-close, goto, go-back, go-forward
-
-# Storage
-state-save, state-load
-cookie-list, cookie-get, cookie-set, cookie-delete, cookie-clear
-localstorage-list, localstorage-get, localstorage-set, localstorage-delete, localstorage-clear
-sessionstorage-list, sessionstorage-get, sessionstorage-set, sessionstorage-delete, sessionstorage-clear
-
-# Network and DevTools
-console, network, route, route-list, unroute
-
-# Low-level / future Cypress-specific primitives
-keydown, keyup, mousemove, mousedown, mouseup, mousewheel, delete-data, run
-```
-
-## Cypress-specific patterns
-
-### `cy.task()` bridge
-
-- The CLI talks to a persistent daemon over a Unix socket.
-- The daemon hands commands to Cypress through a `cy.task()` polling loop.
-- This means command results are real Cypress executions, not simulated DOM
-  actions.
-
-### Retry and wait behavior
-
-- Assertions and waits rely on Cypress retry semantics, so prefer `assert`,
-  `asserturl`, `asserttitle`, and `waitfor` over custom sleep loops.
-- Use `wait <ms>` only when an explicit time delay is the best available option.
-- For actionability problems (covered elements, hidden elements), retry with
-  `--force` only when you have evidence the action should still occur.
-
-### Export workflow
-
-- Every successful action can contribute Cypress code to the session history.
-- `history` shows recorded steps.
-- `undo` removes the most recent recorded step from export history.
-- `export` writes a `.cy.ts` or `.cy.js` file using the recorded command list.
-
-## Example: form submission
-
-```bash
-cypress-cli open https://example.cypress.io/commands/actions
-cypress-cli snapshot
-cypress-cli type e40 "user@example.com"
-cypress-cli type e41 "secret-password"
-cypress-cli click e45
-cypress-cli asserturl include "/commands/actions"
-```
-
-## Example: navigation and assertion
-
-```bash
-cypress-cli open https://example.cypress.io
-cypress-cli navigate https://example.cypress.io/commands/navigation
-cypress-cli snapshot
-cypress-cli click e12
-cypress-cli back
-cypress-cli forward
-cypress-cli asserttitle include "Cypress"
-```
-
-## Example: export a generated Cypress test
-
-```bash
-cypress-cli open https://example.cypress.io/commands/actions
-cypress-cli snapshot
-cypress-cli click e5
-cypress-cli type e8 "generated by cypress-cli"
-cypress-cli export --file generated/actions.cy.ts --describe "Actions page" --it "replays the recorded workflow"
-```
-
-## Installing this skill into a project
-
-```bash
-cypress-cli install --skills
-```
-
-This copies the packaged skill directory into `.github/skills/cypress-cli` in
-the current project so repository-scoped coding agents can discover it.
-
-## Task-specific guides
-
-- [Test generation](references/test-generation.md)
-- [Storage state](references/storage-state.md)
-- [Network mocking](references/network-mocking.md)
+- **Always read the snapshot file** after `open` to discover element refs
+- **Snapshot files accumulate** in `.cypress-cli/` — each command writes a new one
+- Use `--json` flag on any command for machine-readable output
+- The `run-code` command accepts any valid Cypress chain as a string
+- If a command fails, the response includes an error message and a recovery snapshot
