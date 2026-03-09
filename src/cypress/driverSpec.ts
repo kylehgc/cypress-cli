@@ -100,6 +100,15 @@ const _interceptAliases = new Map<string, string>();
 /** Counter for generating unique intercept alias names. */
 let _interceptAliasCounter = 0;
 
+/** Commands that return structured data only and should not capture snapshots. */
+const STRUCTURED_DATA_ONLY_COMMANDS = new Set([
+	'cookie-list',
+	'cookie-get',
+	'cookie-set',
+	'cookie-delete',
+	'cookie-clear',
+]);
+
 /**
  * Generates a unique, Cypress-safe alias name from a URL pattern.
  * Strips glob characters and path separators, converts to camelCase.
@@ -122,6 +131,15 @@ function _generateAlias(pattern: string): string {
 					.join('')
 			: 'intercept';
 	return `${camel}${_interceptAliasCounter}`;
+}
+
+/**
+ * Compares cookie domains while normalizing the leading-dot form used by
+ * browsers (e.g. `.example.com`) and the plain host form often used by CLI
+ * filters (`example.com`).
+ */
+function domainsMatch(actualDomain: string, expectedDomain: string): boolean {
+	return actualDomain.replace(/^\./, '') === expectedDomain.replace(/^\./, '');
 }
 
 /**
@@ -691,6 +709,80 @@ function executeCommand(cmd: DriverCommand): void {
 			}
 			break;
 		}
+		case 'cookie-list': {
+			const domain = cmd.options?.['domain'] as string | undefined;
+			cy.getCookies().then((cookies) => {
+				const filtered = domain
+					? cookies.filter((cookie) => domainsMatch(cookie.domain, domain))
+					: cookies;
+				_evalResult = JSON.stringify(filtered);
+			});
+			break;
+		}
+		case 'cookie-get': {
+			const name = cmd.text!;
+			cy.getCookie(name).then((cookie) => {
+				if (!cookie) {
+					_asyncCommandError = `Cookie "${name}" not found.`;
+					return;
+				}
+				_evalResult = JSON.stringify(cookie);
+			});
+			break;
+		}
+		case 'cookie-set': {
+			const name = cmd.text!;
+			const value = cmd.options?.['value'];
+			const cookieOptions: Partial<Cypress.SetCookieOptions> = {};
+			if (typeof cmd.options?.['domain'] === 'string') {
+				cookieOptions.domain = cmd.options['domain'];
+			}
+			if (typeof cmd.options?.['path'] === 'string') {
+				cookieOptions.path = cmd.options['path'];
+			}
+			if (typeof cmd.options?.['httpOnly'] === 'boolean') {
+				cookieOptions.httpOnly = cmd.options['httpOnly'];
+			}
+			if (typeof cmd.options?.['secure'] === 'boolean') {
+				cookieOptions.secure = cmd.options['secure'];
+			}
+
+			const hasOptions = Object.keys(cookieOptions).length > 0;
+			const setCookie = hasOptions
+				? cy.setCookie(name, String(value ?? ''), cookieOptions)
+				: cy.setCookie(name, String(value ?? ''));
+
+			setCookie.then((cookie) => {
+				_evalResult = JSON.stringify(cookie);
+			});
+			break;
+		}
+		case 'cookie-delete': {
+			const name = cmd.text!;
+			cy.getCookie(name).then((cookie) => {
+				if (!cookie) {
+					_asyncCommandError = `Cookie "${name}" not found.`;
+					return;
+				}
+				cy.clearCookie(name).then(() => {
+					_evalResult = JSON.stringify({
+						name,
+						cleared: true,
+					});
+				});
+			});
+			break;
+		}
+		case 'cookie-clear': {
+			cy.getCookies().then((cookies) => {
+				cy.clearCookies().then(() => {
+					_evalResult = JSON.stringify({
+						cleared: cookies.length,
+					});
+				});
+			});
+			break;
+		}
 		case 'intercept': {
 			const pattern = cmd.text!;
 			const statusCode =
@@ -1063,10 +1155,7 @@ function pollForCommands(): void {
 				'reload',
 				'resize',
 			]);
-			const snap = FULL_TREE_COMMANDS.has(cmd.action!)
-				? takeFullSnapshot()
-				: takeSnapshot();
-			snap.then((snapshotYaml: string) => {
+			const reportResult = (snapshotYaml?: string) => {
 				// Pick up any async error from assertion commands or ref validation
 				const error = _asyncCommandError;
 
@@ -1077,13 +1166,13 @@ function pollForCommands(): void {
 							? {
 									success: false,
 									error,
-									snapshot: snapshotYaml,
+									...(snapshotYaml !== undefined && { snapshot: snapshotYaml }),
 									url: pageUrl,
 									title: pageTitle,
 								}
 							: {
 									success: true,
-									snapshot: snapshotYaml,
+									...(snapshotYaml !== undefined && { snapshot: snapshotYaml }),
 									selector,
 									cypressCommand,
 									url: pageUrl,
@@ -1098,6 +1187,20 @@ function pollForCommands(): void {
 						});
 					});
 				});
+			};
+
+			if (STRUCTURED_DATA_ONLY_COMMANDS.has(cmd.action!)) {
+				cy.then(() => {
+					reportResult();
+				});
+				return;
+			}
+
+			const snap = FULL_TREE_COMMANDS.has(cmd.action!)
+				? takeFullSnapshot()
+				: takeSnapshot();
+			snap.then((snapshotYaml: string) => {
+				reportResult(snapshotYaml);
 			});
 		},
 	);

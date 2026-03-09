@@ -48,7 +48,15 @@ describe('buildQueuedCommand', () => {
 	});
 
 	it('handles no-arg actions', () => {
-		const actions = ['back', 'forward', 'reload', 'snapshot', 'network'] as const;
+		const actions = [
+			'back',
+			'cookie-clear',
+			'cookie-list',
+			'forward',
+			'network',
+			'reload',
+			'snapshot',
+		] as const;
 
 		for (const action of actions) {
 			expect(buildQueuedCommand(2, makeArgs(action))).toEqual({
@@ -252,16 +260,53 @@ describe('buildQueuedCommand', () => {
 		});
 	});
 
+	it('maps cookie commands to text and option payloads', () => {
+		expect(buildQueuedCommand(21, makeArgs('cookie-get', ['session']))).toEqual({
+			id: 21,
+			action: 'cookie-get',
+			text: 'session',
+		});
+
+		expect(
+			buildQueuedCommand(
+				22,
+				makeArgs('cookie-set', ['session', 'hello', 'world'], {
+					domain: '127.0.0.1',
+					httpOnly: true,
+					secure: true,
+					path: '/',
+				}),
+			),
+		).toEqual({
+			id: 22,
+			action: 'cookie-set',
+			text: 'session',
+			options: {
+				domain: '127.0.0.1',
+				httpOnly: true,
+				secure: true,
+				path: '/',
+				value: 'hello world',
+			},
+		});
+
+		expect(buildQueuedCommand(23, makeArgs('cookie-delete', ['session']))).toEqual({
+			id: 23,
+			action: 'cookie-delete',
+			text: 'session',
+		});
+	});
+
 	it('maps resize width/height from positionals while merging options', () => {
 		expect(
 			buildQueuedCommand(
-				21,
+				24,
 				makeArgs('resize', ['1200', '800'], {
 					reset: true,
 				}),
 			),
 		).toEqual({
-			id: 21,
+			id: 24,
 			action: 'resize',
 			options: {
 				reset: true,
@@ -272,21 +317,21 @@ describe('buildQueuedCommand', () => {
 	});
 
 	it('maps upload and blocks paths that resolve outside cwd', () => {
-		expect(buildQueuedCommand(22, makeArgs('upload', ['e3', 'package.json']))).toEqual({
-			id: 22,
+		expect(buildQueuedCommand(25, makeArgs('upload', ['e3', 'package.json']))).toEqual({
+			id: 25,
 			action: 'upload',
 			ref: 'e3',
 			text: 'package.json',
 		});
 
 		expect(() =>
-			buildQueuedCommand(23, makeArgs('upload', ['e3', '../outside.txt'])),
+			buildQueuedCommand(26, makeArgs('upload', ['e3', '../outside.txt'])),
 		).toThrow('resolves outside the working directory');
 	});
 
 	it('falls back to default mapping for unknown actions', () => {
-		expect(buildQueuedCommand(24, makeArgs('custom', ['e55', 'foo', 'bar']))).toEqual({
-			id: 24,
+		expect(buildQueuedCommand(27, makeArgs('custom', ['e55', 'foo', 'bar']))).toEqual({
+			id: 27,
 			action: 'custom',
 			ref: 'e55',
 			text: 'foo bar',

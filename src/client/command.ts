@@ -12,7 +12,8 @@ export type CommandCategory =
 	| 'execution'
 	| 'export'
 	| 'wait'
-	| 'network';
+	| 'network'
+	| 'storage';
 
 /**
  * Configuration object passed to declareCommand to define a CLI command.

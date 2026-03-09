@@ -115,6 +115,16 @@ or require a running Cypress session.
 | `intercept-list`  | `cypress-cli intercept-list`                                 | List active intercept routes                              |
 | `network`         | `cypress-cli network [--clear]`                              | List captured network requests; `--clear` empties the log |
 
+### Storage
+
+| Command         | Syntax                                                                                           | Description                                          |
+| --------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| `cookie-list`   | `cypress-cli cookie-list [--domain domain]`                                                      | List cookies, optionally filtered by domain          |
+| `cookie-get`    | `cypress-cli cookie-get <name>`                                                                  | Get a cookie by name (`cy.getCookie()`)              |
+| `cookie-set`    | `cypress-cli cookie-set <name> <value> [--domain d] [--httpOnly] [--secure] [--path p]`         | Set a cookie (`cy.setCookie()`)                      |
+| `cookie-delete` | `cypress-cli cookie-delete <name>`                                                               | Delete a cookie by name (`cy.clearCookie()`)         |
+| `cookie-clear`  | `cypress-cli cookie-clear`                                                                       | Clear all cookies (`cy.clearCookies()`)              |
+
 ## Command Schemas (zod)
 
 Each command is defined with a zod schema for validation. Example:

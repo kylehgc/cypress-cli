@@ -82,6 +82,7 @@ cypress-cli repl
 | Execution   | `run-code`                                                                 |
 | Wait        | `wait`, `waitfor`                                                          |
 | Network     | `intercept`, `waitforresponse`, `unintercept`, `intercept-list`, `network` |
+| Storage     | `cookie-list`, `cookie-get`, `cookie-set`, `cookie-delete`, `cookie-clear` |
 | Export      | `export`, `history`, `undo`                                                |
 
 See [docs/COMMANDS.md](docs/COMMANDS.md) for full syntax, schemas, and Cypress API mappings.
