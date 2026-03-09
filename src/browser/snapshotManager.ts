@@ -32,10 +32,10 @@ export interface AriaSnapshotApi {
  * `renderAriaTree()` can produce incremental diffs.  Starts as `undefined`
  * (first snapshot in a session returns a full tree).
  *
- * Keyed to `_lastWindow` so that a full-page navigation (which gives
- * Cypress a new AUT `Window` and resets the IIFE's internal ref counter)
- * automatically discards the stale previous snapshot instead of producing
- * incorrect `[unchanged]` markers from ref collisions.
+ * Keyed to `_lastWindow` so that a full-page navigation (which creates a
+ * new AUT `Window` and re-injects the IIFE, resetting the ref counter and
+ * clearing element caches) automatically discards the stale previous
+ * snapshot instead of producing incorrect `[unchanged]` markers.
  */
 let _previousSnapshot: unknown;
 
