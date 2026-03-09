@@ -72,9 +72,15 @@ interface NetworkEntry {
 }
 
 /**
+ * Maximum number of network entries to retain in `_networkLog`.
+ * Older entries are evicted FIFO when this limit is exceeded.
+ */
+const MAX_NETWORK_LOG_SIZE = 1000;
+
+/**
  * Buffer of network requests captured by the passive intercept.
- * Grows for the lifetime of the session — the LLM agent reads it via
- * the `network` command as a pull-based inspection mechanism.
+ * Capped at `MAX_NETWORK_LOG_SIZE` entries — oldest entries are
+ * evicted when the cap is reached.
  */
 const _networkLog: NetworkEntry[] = [];
 
@@ -133,6 +139,10 @@ function registerPassiveNetworkMonitor(): void {
 				size: res.body ? String(res.body).length : 0,
 				timestamp: new Date().toISOString(),
 			});
+			// Evict oldest entries when cap is exceeded
+			if (_networkLog.length > MAX_NETWORK_LOG_SIZE) {
+				_networkLog.splice(0, _networkLog.length - MAX_NETWORK_LOG_SIZE);
+			}
 		});
 		req.continue();
 	});
@@ -275,15 +285,18 @@ let _recoveryCount = 0;
 function safeJsonSerialize(value: unknown): string {
 	if (value === undefined) return 'undefined';
 	if (value === null) return 'null';
-	if (typeof value === 'function') return `[Function: ${value.name || 'anonymous'}]`;
+	if (typeof value === 'function')
+		return `[Function: ${value.name || 'anonymous'}]`;
 	if (typeof value === 'symbol') return value.toString();
 	if (typeof value === 'bigint') return `${value.toString()}n`;
 	try {
 		return JSON.stringify(value, (_key, v) => {
 			if (typeof v === 'bigint') return `${v.toString()}n`;
-			if (typeof v === 'function') return `[Function: ${v.name || 'anonymous'}]`;
+			if (typeof v === 'function')
+				return `[Function: ${v.name || 'anonymous'}]`;
 			if (typeof v === 'symbol') return v.toString();
-			if (v instanceof HTMLElement) return `[HTMLElement: <${v.tagName.toLowerCase()}>]`;
+			if (v instanceof HTMLElement)
+				return `[HTMLElement: <${v.tagName.toLowerCase()}>]`;
 			if (v instanceof Node) return `[Node: ${v.nodeName}]`;
 			return v;
 		});
@@ -637,26 +650,22 @@ function executeCommand(cmd: DriverCommand): void {
 							).eval;
 							const element = $el[0];
 							const fn = evalFn.call(win, `(${cmd.text!})`);
-							const result =
-								typeof fn === 'function' ? fn(element) : fn;
+							const result = typeof fn === 'function' ? fn(element) : fn;
 							_evalResult = safeJsonSerialize(result);
 						} catch (e) {
-							_asyncCommandError =
-								e instanceof Error ? e.message : String(e);
+							_asyncCommandError = e instanceof Error ? e.message : String(e);
 						}
 					});
 				});
 			} else {
 				cy.window({ log: false }).then((win: Window) => {
 					try {
-						const evalFn = (
-							win as Window & { eval: (code: string) => unknown }
-						).eval;
+						const evalFn = (win as Window & { eval: (code: string) => unknown })
+							.eval;
 						const result = evalFn.call(win, cmd.text!);
 						_evalResult = safeJsonSerialize(result);
 					} catch (e) {
-						_asyncCommandError =
-							e instanceof Error ? e.message : String(e);
+						_asyncCommandError = e instanceof Error ? e.message : String(e);
 					}
 				});
 			}
@@ -664,10 +673,24 @@ function executeCommand(cmd: DriverCommand): void {
 		case 'snapshot':
 			// No-op: snapshot is always taken after command execution
 			break;
-		case 'network':
-			// Return captured network requests as JSON
-			_evalResult = JSON.stringify(_networkLog, null, 2);
+		case 'network': {
+			// Handle --clear option: empty the log and return confirmation
+			if (cmd.options?.['clear']) {
+				const count = _networkLog.length;
+				_networkLog.length = 0;
+				_evalResult = JSON.stringify({
+					cleared: count,
+					activeRouteCount: _activeRoutes.size,
+				});
+			} else {
+				// Return captured network requests as JSON with metadata
+				_evalResult = JSON.stringify({
+					entries: _networkLog,
+					activeRouteCount: _activeRoutes.size,
+				});
+			}
 			break;
+		}
 		case 'intercept': {
 			const pattern = cmd.text!;
 			const statusCode =
@@ -704,7 +727,10 @@ function executeCommand(cmd: DriverCommand): void {
 				cy.intercept(pattern).as(alias);
 			}
 			_activeRoutes.set(pattern, staticResponse);
-			_evalResult = `Intercept registered for "${pattern}" as @${alias}`;
+			_evalResult = JSON.stringify({
+				message: `Intercept registered for "${pattern}" as @${alias}`,
+				activeRouteCount: _activeRoutes.size,
+			});
 			break;
 		}
 		case 'waitforresponse': {
@@ -735,7 +761,10 @@ function executeCommand(cmd: DriverCommand): void {
 				});
 				_activeRoutes.delete(pattern);
 				_interceptAliases.delete(pattern);
-				_evalResult = `Intercept removed for "${pattern}"`;
+				_evalResult = JSON.stringify({
+					message: `Intercept removed for "${pattern}"`,
+					activeRouteCount: _activeRoutes.size,
+				});
 			} else {
 				// Remove all intercepts by replacing with passthrough
 				for (const p of _activeRoutes.keys()) {
@@ -746,7 +775,10 @@ function executeCommand(cmd: DriverCommand): void {
 				const count = _activeRoutes.size;
 				_activeRoutes.clear();
 				_interceptAliases.clear();
-				_evalResult = `All ${count} intercept(s) removed`;
+				_evalResult = JSON.stringify({
+					message: `All ${count} intercept(s) removed`,
+					activeRouteCount: 0,
+				});
 			}
 			break;
 		}

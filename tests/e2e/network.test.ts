@@ -33,13 +33,15 @@ describe('E2E: network', () => {
 		const evalResult = getEvalResult(response);
 		expect(evalResult).toBeTruthy();
 
-		// Should be a JSON array of network entries
-		const entries = JSON.parse(evalResult!);
-		expect(Array.isArray(entries)).toBe(true);
-		expect(entries.length).toBeGreaterThan(0);
+		// Should be a JSON object with entries array and activeRouteCount
+		const parsed = JSON.parse(evalResult!);
+		expect(parsed).toHaveProperty('entries');
+		expect(parsed).toHaveProperty('activeRouteCount');
+		expect(Array.isArray(parsed.entries)).toBe(true);
+		expect(parsed.entries.length).toBeGreaterThan(0);
 
 		// Each entry should have the expected shape
-		const entry = entries[0];
+		const entry = parsed.entries[0];
 		expect(entry).toHaveProperty('url');
 		expect(entry).toHaveProperty('method');
 		expect(entry).toHaveProperty('status');
@@ -61,7 +63,9 @@ describe('E2E: network', () => {
 		expect(isSuccess(interceptRes)).toBe(true);
 
 		const evalResult = getEvalResult(interceptRes);
-		expect(evalResult).toContain('Intercept registered');
+		const parsed = JSON.parse(evalResult!);
+		expect(parsed.message).toContain('Intercept registered');
+		expect(parsed.activeRouteCount).toBe(1);
 	}, 60_000);
 
 	it('intercept-list returns active mocks', async () => {
@@ -85,7 +89,9 @@ describe('E2E: network', () => {
 		expect(isSuccess(uninterceptRes)).toBe(true);
 
 		const evalResult = getEvalResult(uninterceptRes);
-		expect(evalResult).toContain('Intercept removed');
+		const parsed = JSON.parse(evalResult!);
+		expect(parsed.message).toContain('Intercept removed');
+		expect(parsed.activeRouteCount).toBe(0);
 
 		// Verify intercept-list is now empty
 		const listRes = await ctx.sendCommand(104, ['intercept-list']);

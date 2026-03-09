@@ -442,6 +442,9 @@ export class Daemon {
 						this._trackInterceptState(session, command);
 					}
 
+					// Detect intercept state drift between daemon and driver
+					this._checkInterceptDrift(session, command, result);
+
 					// Write snapshot to file if present
 					let snapshotFile: string | undefined;
 					if (result.snapshot) {
@@ -709,6 +712,47 @@ export class Daemon {
 			session.addIntercept(entry);
 		} else if (command.action === 'unintercept') {
 			session.removeIntercept(command.text || undefined);
+		}
+	}
+
+	/**
+	 * Check for drift between the daemon's intercept registry and the
+	 * driver's actual active route count reported in evalResult.
+	 *
+	 * Only runs for the commands that intentionally report `activeRouteCount`
+	 * in their response: `network`, `intercept`, and `unintercept`. Guarding
+	 * by action prevents false positives when an arbitrary `eval` command
+	 * happens to return an object with an `activeRouteCount` key.
+	 */
+	private _checkInterceptDrift(
+		session: Session,
+		command: QueuedCommand,
+		result: CommandResult,
+	): void {
+		const DRIFT_TRACKED_ACTIONS = new Set(['network', 'intercept', 'unintercept']);
+		if (!DRIFT_TRACKED_ACTIONS.has(command.action)) return;
+
+		if (!result.evalResult) return;
+
+		try {
+			const parsed = JSON.parse(result.evalResult) as Record<string, unknown>;
+			const driverCount = parsed['activeRouteCount'];
+			if (typeof driverCount !== 'number') return;
+
+			const daemonCount = session.intercepts.length;
+			if (driverCount !== daemonCount) {
+				// Drift detected — if driver has fewer routes than daemon,
+				// remove excess daemon entries (most likely cause: socket
+				// drop during unintercept lost the confirmation).
+				if (driverCount === 0 && daemonCount > 0) {
+					session.removeIntercept();
+				}
+				// Note: if driver has MORE routes than daemon, we cannot
+				// reconstruct the missing entries without querying the
+				// driver. This is a safety net, not full reconciliation.
+			}
+		} catch {
+			// evalResult is not JSON or doesn't have the expected shape — ignore
 		}
 	}
 
@@ -1033,10 +1077,10 @@ function buildQueuedCommand(
 		case 'eval': {
 			const lastToken = positionals[positionals.length - 1];
 			const hasTrailingRef =
-				positionals.length >= 2 && lastToken !== undefined && looksLikeRef(lastToken);
-			const exprParts = hasTrailingRef
-				? positionals.slice(0, -1)
-				: positionals;
+				positionals.length >= 2 &&
+				lastToken !== undefined &&
+				looksLikeRef(lastToken);
+			const exprParts = hasTrailingRef ? positionals.slice(0, -1) : positionals;
 			const exprText = joinText(exprParts);
 			return withOptions(
 				{

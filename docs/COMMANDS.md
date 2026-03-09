@@ -93,10 +93,10 @@ or require a running Cypress session.
 
 ### Execution
 
-| Command    | Syntax                                       | Description                                                       |
-| ---------- | -------------------------------------------- | ----------------------------------------------------------------- |
-| `run-code` | `cypress-cli run-code <code>`                | Execute JS in browser (`cy.window().then(win => win.eval(code))`) |
-| `eval`     | `cypress-cli eval <expression> [ref]`        | Evaluate JS expression on page or on a specific element           |
+| Command    | Syntax                                | Description                                                       |
+| ---------- | ------------------------------------- | ----------------------------------------------------------------- |
+| `run-code` | `cypress-cli run-code <code>`         | Execute JS in browser (`cy.window().then(win => win.eval(code))`) |
+| `eval`     | `cypress-cli eval <expression> [ref]` | Evaluate JS expression on page or on a specific element           |
 
 ### Wait
 
@@ -107,13 +107,13 @@ or require a running Cypress session.
 
 ### Network
 
-| Command           | Syntax                                                       | Description                                         |
-| ----------------- | ------------------------------------------------------------ | --------------------------------------------------- |
-| `intercept`       | `cypress-cli intercept <pattern> [--status N] [--body JSON]` | Intercept/mock requests (`cy.intercept().as()`)     |
-| `waitforresponse` | `cypress-cli waitforresponse <pattern> [--timeout ms]`       | Wait for intercepted response (`cy.wait('@alias')`) |
-| `unintercept`     | `cypress-cli unintercept [pattern]`                          | Remove intercept(s)                                 |
-| `intercept-list`  | `cypress-cli intercept-list`                                 | List active intercept routes                        |
-| `network`         | `cypress-cli network`                                        | List captured network requests                      |
+| Command           | Syntax                                                       | Description                                               |
+| ----------------- | ------------------------------------------------------------ | --------------------------------------------------------- |
+| `intercept`       | `cypress-cli intercept <pattern> [--status N] [--body JSON]` | Intercept/mock requests (`cy.intercept().as()`)           |
+| `waitforresponse` | `cypress-cli waitforresponse <pattern> [--timeout ms]`       | Wait for intercepted response (`cy.wait('@alias')`)       |
+| `unintercept`     | `cypress-cli unintercept [pattern]`                          | Remove intercept(s)                                       |
+| `intercept-list`  | `cypress-cli intercept-list`                                 | List active intercept routes                              |
+| `network`         | `cypress-cli network [--clear]`                              | List captured network requests; `--clear` empties the log |
 
 ## Command Schemas (zod)
 
@@ -296,16 +296,16 @@ incrementally and understand exactly which Cypress command was executed.
 
 Examples:
 
-| CLI command                    | `cypressCommand` value                                  |
-| ------------------------------ | ------------------------------------------------------- |
-| `click e5`                     | `cy.get('[data-cy="submit"]').click()`                  |
-| `type e3 "hello"`              | `cy.get('#search').type('hello')`                       |
-| `navigate https://example.com` | `cy.visit('https://example.com')`                       |
-| `assert e5 have.text "Hello"`  | `cy.get('.heading').should('have.text', 'Hello')`       |
-| `run-code "document.title"`    | `cy.window().then((win) => win.eval('document.title'))` |
-| `eval "document.title"`        | `cy.window().then((win) => win.eval('document.title'))` |
-| `eval "el => el.textContent" e5` | `cy.get('#heading').then(($el) => { ... })` |
-| `snapshot`                     | _(not included — meta-command)_                         |
+| CLI command                      | `cypressCommand` value                                  |
+| -------------------------------- | ------------------------------------------------------- |
+| `click e5`                       | `cy.get('[data-cy="submit"]').click()`                  |
+| `type e3 "hello"`                | `cy.get('#search').type('hello')`                       |
+| `navigate https://example.com`   | `cy.visit('https://example.com')`                       |
+| `assert e5 have.text "Hello"`    | `cy.get('.heading').should('have.text', 'Hello')`       |
+| `run-code "document.title"`      | `cy.window().then((win) => win.eval('document.title'))` |
+| `eval "document.title"`          | `cy.window().then((win) => win.eval('document.title'))` |
+| `eval "el => el.textContent" e5` | `cy.get('#heading').then(($el) => { ... })`             |
+| `snapshot`                       | _(not included — meta-command)_                         |
 
 The selector in `cypressCommand` comes from `@cypress/unique-selector` (the
 stable selector, not the ephemeral ref). The CLI and REPL display the generated
