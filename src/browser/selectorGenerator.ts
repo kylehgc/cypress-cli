@@ -215,6 +215,12 @@ export function buildCypressCommand(
 			}
 			return `// drag ${selector ?? 'source'} → target (missing target selector)`;
 		}
+		case 'eval': {
+			const escapedExpr = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `${getExpr}.then(($el) => { return cy.window().then((win) => { const fn = win.eval('(${escapedExpr})'); return typeof fn === 'function' ? fn($el[0]) : fn; }); })`;
+		}
 		default:
 			return `${getExpr}.${action}()`;
 	}
@@ -289,6 +295,12 @@ function _buildNonRefCommand(
 				.replace(/\\/g, '\\\\')
 				.replace(/'/g, "\\'");
 			return `cy.window().then((win) => win.eval('${escapedCode}'))`;
+		}
+		case 'eval': {
+			const escapedExpr = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `cy.window().then((win) => win.eval('${escapedExpr}'))`;
 		}
 		case 'intercept': {
 			const escapedPattern = (text ?? '')

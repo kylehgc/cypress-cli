@@ -52,6 +52,7 @@ import {
 	screenshot,
 	drag,
 	upload,
+	eval_,
 } from '../../../src/client/commands.js';
 import { z } from 'zod';
 
@@ -89,12 +90,12 @@ describe('declareCommand', () => {
 });
 
 describe('command schemas', () => {
-	it('defines all 43 commands', () => {
-		expect(allCommands).toHaveLength(43);
+	it('defines all 44 commands', () => {
+		expect(allCommands).toHaveLength(44);
 	});
 
 	it('registers all commands plus aliases in the registry', () => {
-		expect(commandRegistry.size).toBe(47);
+		expect(commandRegistry.size).toBe(48);
 	});
 
 	describe('categories', () => {
@@ -161,6 +162,7 @@ describe('command schemas', () => {
 
 		it('has execution commands', () => {
 			expect(runCode.category).toBe('execution');
+			expect(eval_.category).toBe('execution');
 		});
 
 		it('has network commands', () => {
@@ -317,6 +319,22 @@ describe('command schemas', () => {
 			expect(multiLine.success).toBe(true);
 
 			const missing = runCode.args.safeParse({});
+			expect(missing.success).toBe(false);
+		});
+
+		it('eval requires expression, ref is optional', () => {
+			const good = eval_.args.safeParse({
+				expression: 'document.title',
+			});
+			expect(good.success).toBe(true);
+
+			const withRef = eval_.args.safeParse({
+				expression: 'el => el.textContent',
+				ref: 'e5',
+			});
+			expect(withRef.success).toBe(true);
+
+			const missing = eval_.args.safeParse({});
 			expect(missing.success).toBe(false);
 		});
 
@@ -772,6 +790,30 @@ describe('parseCommand', () => {
 		expect(result).toEqual({
 			command: 'run-code',
 			args: { code: 'const x = 1; x' },
+			options: {},
+		});
+	});
+
+	it("parses 'eval document.title' without ref", () => {
+		const result = parseCommand(
+			{ _: ['eval', 'document.title'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'eval',
+			args: { expression: 'document.title' },
+			options: {},
+		});
+	});
+
+	it("parses 'eval el => el.textContent e5' with ref", () => {
+		const result = parseCommand(
+			{ _: ['eval', 'el => el.textContent', 'e5'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'eval',
+			args: { expression: 'el => el.textContent', ref: 'e5' },
 			options: {},
 		});
 	});

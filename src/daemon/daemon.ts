@@ -1030,6 +1030,24 @@ function buildQueuedCommand(
 				},
 				options,
 			);
+		case 'eval': {
+			const lastToken = positionals[positionals.length - 1];
+			const hasTrailingRef =
+				positionals.length >= 2 && lastToken !== undefined && looksLikeRef(lastToken);
+			const exprParts = hasTrailingRef
+				? positionals.slice(0, -1)
+				: positionals;
+			const exprText = joinText(exprParts);
+			return withOptions(
+				{
+					id,
+					action,
+					...(exprText !== undefined && { text: exprText }),
+					...(hasTrailingRef && { ref: lastToken }),
+				},
+				options,
+			);
+		}
 		case 'assert': {
 			const legacyChainer =
 				typeof options['chainer'] === 'string' ? options['chainer'] : undefined;

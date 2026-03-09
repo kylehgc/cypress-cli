@@ -93,9 +93,10 @@ or require a running Cypress session.
 
 ### Execution
 
-| Command    | Syntax                        | Description                                                       |
-| ---------- | ----------------------------- | ----------------------------------------------------------------- |
-| `run-code` | `cypress-cli run-code <code>` | Execute JS in browser (`cy.window().then(win => win.eval(code))`) |
+| Command    | Syntax                                       | Description                                                       |
+| ---------- | -------------------------------------------- | ----------------------------------------------------------------- |
+| `run-code` | `cypress-cli run-code <code>`                | Execute JS in browser (`cy.window().then(win => win.eval(code))`) |
+| `eval`     | `cypress-cli eval <expression> [ref]`        | Evaluate JS expression on page or on a specific element           |
 
 ### Wait
 
@@ -274,7 +275,7 @@ type CommandResponse = {
 	error?: string; // Error message if command failed
 	selector?: string; // Resolved selector (for codegen tracking)
 	cypressCommand?: string; // The Cypress command that was executed (for inline codegen)
-	evalResult?: string; // Return value from run-code eval (stringified)
+	evalResult?: string; // Return value from run-code or eval (JSON-stringified for eval)
 	snapshotFilePath?: string; // Relative path to snapshot YAML file on disk
 	filePath?: string; // Relative path to generated test file on disk (export command only)
 	installedPath?: string; // Relative path to installed skill directory (install command only)
@@ -302,6 +303,8 @@ Examples:
 | `navigate https://example.com` | `cy.visit('https://example.com')`                       |
 | `assert e5 have.text "Hello"`  | `cy.get('.heading').should('have.text', 'Hello')`       |
 | `run-code "document.title"`    | `cy.window().then((win) => win.eval('document.title'))` |
+| `eval "document.title"`        | `cy.window().then((win) => win.eval('document.title'))` |
+| `eval "el => el.textContent" e5` | `cy.get('#heading').then(($el) => { ... })` |
 | `snapshot`                     | _(not included — meta-command)_                         |
 
 The selector in `cypressCommand` comes from `@cypress/unique-selector` (the

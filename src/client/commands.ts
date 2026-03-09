@@ -446,6 +446,21 @@ export const runCode = declareCommand({
 	options: z.object({}),
 });
 
+export const eval_ = declareCommand({
+	name: 'eval',
+	category: 'execution',
+	description:
+		'Evaluate a JavaScript expression on the page, or on a specific element',
+	args: z.object({
+		expression: z.string().describe('JavaScript expression to evaluate'),
+		ref: z
+			.string()
+			.optional()
+			.describe('Element ref — passed as first argument to the expression'),
+	}),
+	options: z.object({}),
+});
+
 // ---------------------------------------------------------------------------
 // Wait commands
 // ---------------------------------------------------------------------------
@@ -633,6 +648,7 @@ export const allCommands = [
 	history,
 	undo,
 	runCode,
+	eval_,
 	wait,
 	waitfor,
 	network,
@@ -726,6 +742,10 @@ export function buildRegistry(): ReadonlyMap<string, CommandRegistryEntry> {
 
 	// Execution
 	registry.set('run-code', { schema: runCode, positionals: ['code'] });
+	registry.set('eval', {
+		schema: eval_,
+		positionals: ['expression', 'ref'],
+	});
 
 	// Wait
 	registry.set('wait', { schema: wait, positionals: ['ms'] });
