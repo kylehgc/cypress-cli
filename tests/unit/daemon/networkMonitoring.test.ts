@@ -3,15 +3,20 @@
  *
  * Tests:
  * - `network` command schema accepts `--clear` option
- * - Session intercept registry reconciliation patterns
+ * - `_checkInterceptDrift()` in daemon.ts correctly detects and reconciles drift
  * - Response format with `activeRouteCount` for drift detection
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
 
 import { parseCommand } from '../../../src/client/command.js';
 import { network, commandRegistry } from '../../../src/client/commands.js';
 import { Session } from '../../../src/daemon/session.js';
+import { Daemon } from '../../../src/daemon/daemon.js';
+import type { CommandResult } from '../../../src/daemon/commandQueue.js';
 
 // ---------------------------------------------------------------------------
 // `network` command schema
@@ -55,47 +60,103 @@ describe('network command schema', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Session intercept registry - drift reconciliation patterns
+// _checkInterceptDrift() — actual drift detection logic in daemon.ts
 // ---------------------------------------------------------------------------
 
-describe('Session intercept drift reconciliation', () => {
+describe('_checkInterceptDrift()', () => {
+	let socketDir: string;
+	let daemon: Daemon;
 	let session: Session;
 
-	beforeEach(() => {
-		session = new Session({ id: 'test-session' });
+	beforeEach(async () => {
+		socketDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cypress-cli-drift-'));
+		daemon = new Daemon({ sessionId: 'drift-test', socketDir, idleTimeout: 0 });
+		session = new Session({ id: 'drift-session' });
 	});
 
-	it('removeIntercept() with no args clears all entries', () => {
+	afterEach(async () => {
+		await daemon.stop();
+		await fs.rm(socketDir, { recursive: true, force: true }).catch(() => {});
+	});
+
+	/** Helper: call the private _checkInterceptDrift method */
+	function checkDrift(
+		cmd: { action: string; id?: number },
+		evalResult: string,
+	): void {
+		const command = { id: 1, ...cmd };
+		const result: CommandResult = { success: true, evalResult };
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(daemon as any)._checkInterceptDrift(session, command, result);
+	}
+
+	it('clears daemon registry when network reports activeRouteCount:0 and daemon has stale entries', () => {
 		session.addIntercept({ pattern: '**/api/users', statusCode: 200 });
 		session.addIntercept({ pattern: '**/api/posts', statusCode: 200 });
 		expect(session.intercepts).toHaveLength(2);
 
-		const removed = session.removeIntercept();
-		expect(removed).toHaveLength(2);
+		checkDrift(
+			{ action: 'network' },
+			JSON.stringify({ entries: [], activeRouteCount: 0 }),
+		);
+
 		expect(session.intercepts).toHaveLength(0);
 	});
 
-	it('drift scenario: daemon has stale entries after socket drop', () => {
-		// Simulate: daemon tracked two intercepts
+	it('clears daemon registry when unintercept reports activeRouteCount:0 and daemon has stale entries', () => {
 		session.addIntercept({ pattern: '**/api/users', statusCode: 200 });
-		session.addIntercept({ pattern: '**/api/posts', statusCode: 200 });
+		expect(session.intercepts).toHaveLength(1);
 
-		// Driver reports 0 active routes (unintercept succeeded but
-		// confirmation was lost) — daemon should clear its registry
-		const driverActiveRouteCount = 0;
-		if (driverActiveRouteCount === 0 && session.intercepts.length > 0) {
-			session.removeIntercept();
-		}
+		checkDrift(
+			{ action: 'unintercept' },
+			JSON.stringify({ message: 'Intercept removed', activeRouteCount: 0 }),
+		);
+
 		expect(session.intercepts).toHaveLength(0);
 	});
 
-	it('no drift: daemon and driver counts match', () => {
+	it('does NOT clear registry when counts match', () => {
+		session.addIntercept({ pattern: '**/api/users', statusCode: 200 });
+		expect(session.intercepts).toHaveLength(1);
+
+		checkDrift(
+			{ action: 'intercept' },
+			JSON.stringify({ message: 'Intercept registered', activeRouteCount: 1 }),
+		);
+
+		expect(session.intercepts).toHaveLength(1);
+	});
+
+	it('ignores commands that are not network/intercept/unintercept', () => {
+		session.addIntercept({ pattern: '**/api/users', statusCode: 200 });
+		expect(session.intercepts).toHaveLength(1);
+
+		// Even if an eval command returns activeRouteCount:0, it must NOT clear registry
+		checkDrift(
+			{ action: 'eval' },
+			JSON.stringify({ activeRouteCount: 0 }),
+		);
+
+		expect(session.intercepts).toHaveLength(1);
+	});
+
+	it('ignores eval result that is not JSON', () => {
 		session.addIntercept({ pattern: '**/api/users', statusCode: 200 });
 
-		// Driver reports 1 active route — counts match, no action needed
-		const driverActiveRouteCount = 1;
-		const daemonCount = session.intercepts.length;
-		expect(driverActiveRouteCount).toBe(daemonCount);
+		checkDrift({ action: 'network' }, 'not-json');
+
+		expect(session.intercepts).toHaveLength(1);
+	});
+
+	it('ignores result with no evalResult', () => {
+		session.addIntercept({ pattern: '**/api/users', statusCode: 200 });
+
+		const command = { id: 1, action: 'network' };
+		const result: CommandResult = { success: true };
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(daemon as any)._checkInterceptDrift(session, command, result);
+
+		expect(session.intercepts).toHaveLength(1);
 	});
 });
 

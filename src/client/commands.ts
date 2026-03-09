@@ -500,7 +500,7 @@ export const network = declareCommand({
 		clear: z
 			.boolean()
 			.optional()
-			.describe('Clear the network log after returning'),
+			.describe('Clear the network log instead of listing it (returns cleared count)'),
 	}),
 });
 
