@@ -617,6 +617,31 @@ export const cookieClear = declareCommand({
 	options: z.object({}),
 });
 
+export const stateSave = declareCommand({
+	name: 'state-save',
+	category: 'storage',
+	description:
+		'Save browser state (cookies, localStorage, sessionStorage) to a JSON file',
+	args: z.object({
+		filename: z
+			.string()
+			.optional()
+			.describe('Output file path (default: .cypress-cli/state.json)'),
+	}),
+	options: z.object({}),
+});
+
+export const stateLoad = declareCommand({
+	name: 'state-load',
+	category: 'storage',
+	description:
+		'Load browser state (cookies, localStorage, sessionStorage) from a JSON file',
+	args: z.object({
+		filename: z.string().describe('Path to state JSON file'),
+	}),
+	options: z.object({}),
+});
+
 // ---------------------------------------------------------------------------
 // Screenshot command
 // ---------------------------------------------------------------------------
@@ -724,6 +749,8 @@ export const allCommands = [
 	cookieSet,
 	cookieDelete,
 	cookieClear,
+	stateSave,
+	stateLoad,
 	screenshot,
 	drag,
 	upload,
@@ -847,6 +874,11 @@ export function buildRegistry(): ReadonlyMap<string, CommandRegistryEntry> {
 		positionals: ['name'],
 	});
 	registry.set('cookie-clear', { schema: cookieClear, positionals: [] });
+	registry.set('state-save', { schema: stateSave, positionals: ['filename'] });
+	registry.set('state-load', {
+		schema: stateLoad,
+		positionals: ['filename'],
+	});
 
 	// Screenshot
 	registry.set('screenshot', {
