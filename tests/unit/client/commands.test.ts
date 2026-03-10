@@ -58,6 +58,8 @@ import {
 	drag,
 	upload,
 	eval_,
+	stateSave,
+	stateLoad,
 } from '../../../src/client/commands.js';
 import { z } from 'zod';
 
@@ -95,12 +97,12 @@ describe('declareCommand', () => {
 });
 
 describe('command schemas', () => {
-	it('defines all 49 commands', () => {
-		expect(allCommands).toHaveLength(49);
+	it('defines all 51 commands', () => {
+		expect(allCommands).toHaveLength(51);
 	});
 
 	it('registers all commands plus aliases in the registry', () => {
-		expect(commandRegistry.size).toBe(53);
+		expect(commandRegistry.size).toBe(55);
 	});
 
 	describe('categories', () => {
@@ -184,6 +186,8 @@ describe('command schemas', () => {
 			expect(cookieSet.category).toBe('storage');
 			expect(cookieDelete.category).toBe('storage');
 			expect(cookieClear.category).toBe('storage');
+			expect(stateSave.category).toBe('storage');
+			expect(stateLoad.category).toBe('storage');
 		});
 	});
 
@@ -549,6 +553,29 @@ describe('command schemas', () => {
 
 			const missingRef = upload.args.safeParse({ file: 'test.pdf' });
 			expect(missingRef.success).toBe(false);
+		});
+
+		it('state-save has optional filename', () => {
+			const noArgs = stateSave.args.safeParse({});
+			expect(noArgs.success).toBe(true);
+
+			const withFilename = stateSave.args.safeParse({
+				filename: 'my-state.json',
+			});
+			expect(withFilename.success).toBe(true);
+			if (withFilename.success) {
+				expect(withFilename.data.filename).toBe('my-state.json');
+			}
+		});
+
+		it('state-load requires filename', () => {
+			const good = stateLoad.args.safeParse({
+				filename: 'my-state.json',
+			});
+			expect(good.success).toBe(true);
+
+			const missing = stateLoad.args.safeParse({});
+			expect(missing.success).toBe(false);
 		});
 	});
 });

@@ -427,6 +427,21 @@ export class Daemon {
 			return;
 		}
 
+		// state-load: read file from disk and attach data to command options
+		if (action === 'state-load') {
+			const filename = command.text;
+			if (!filename) {
+				const errorMsg: ErrorMessage = {
+					id: message.id,
+					error: 'state-load requires a filename argument.',
+				};
+				conn.send(errorMsg);
+				return;
+			}
+			this._handleStateLoad(conn, message, command, session, filename);
+			return;
+		}
+
 		const snapshotFilename =
 			typeof command.options?.['filename'] === 'string'
 				? command.options['filename']
@@ -460,6 +475,23 @@ export class Daemon {
 						);
 					}
 
+					// state-save: write evalResult (state JSON) to a file
+					let stateFilePath: string | undefined;
+					if (
+						action === 'state-save' &&
+						result.success &&
+						result.evalResult
+					) {
+						const stateFilename =
+							typeof command.options?.['filename'] === 'string'
+								? command.options['filename']
+								: undefined;
+						stateFilePath = await this._writeStateFile(
+							result.evalResult,
+							stateFilename,
+						);
+					}
+
 					// Send result back to client
 					const response: ResponseMessage = {
 						id: message.id,
@@ -482,6 +514,9 @@ export class Daemon {
 							}),
 							...(snapshotFile !== undefined && {
 								snapshotFilePath: snapshotFile,
+							}),
+							...(stateFilePath !== undefined && {
+								filePath: stateFilePath,
 							}),
 							...(result.url !== undefined && {
 								url: result.url,
@@ -557,6 +592,150 @@ export class Daemon {
 		result: CommandResult,
 	): void {
 		checkInterceptDrift(session, command, result);
+	}
+
+	/**
+	 * Write browser state JSON to a file inside the snapshot directory.
+	 *
+	 * @param stateJson - The JSON string containing browser state
+	 * @param filename - Optional explicit filename; defaults to `state.json`
+	 * @returns The relative file path of the written state file
+	 */
+	private async _writeStateFile(
+		stateJson: string,
+		filename?: string,
+	): Promise<string> {
+		const baseDir = path.resolve(this._snapshotDir);
+		const name = filename ?? 'state.json';
+
+		if (path.isAbsolute(name)) {
+			throw new Error(
+				`Invalid state filename "${name}": absolute paths are not allowed`,
+			);
+		}
+
+		const filePath = path.resolve(baseDir, name);
+
+		const relative = path.relative(baseDir, filePath);
+		if (relative.startsWith('..') || path.isAbsolute(relative)) {
+			throw new Error(
+				`Invalid state filename "${name}": path traversal is not allowed`,
+			);
+		}
+
+		await fs.mkdir(path.dirname(filePath), { recursive: true });
+		await fs.writeFile(filePath, stateJson, 'utf-8');
+		return path.relative(process.cwd(), filePath);
+	}
+
+	/**
+	 * Handle the state-load command: read the state file from disk, validate it,
+	 * and forward the state data to Cypress for restoration.
+	 */
+	private async _handleStateLoad(
+		conn: SocketConnection,
+		message: CommandMessage,
+		command: QueuedCommand,
+		session: Session,
+		filename: string,
+	): Promise<void> {
+		try {
+			const baseDir = path.resolve(this._snapshotDir);
+			let filePath: string;
+
+			// Support both relative (within snapshot dir) and absolute-looking paths
+			if (path.isAbsolute(filename)) {
+				filePath = filename;
+			} else {
+				filePath = path.resolve(baseDir, filename);
+			}
+
+			let stateJson: string;
+			try {
+				stateJson = await fs.readFile(filePath, 'utf-8');
+			} catch (err) {
+				const nodeErr = err as NodeJS.ErrnoException;
+				if (nodeErr.code === 'ENOENT') {
+					// Also try as a relative path from cwd
+					const cwdPath = path.resolve(process.cwd(), filename);
+					try {
+						stateJson = await fs.readFile(cwdPath, 'utf-8');
+					} catch {
+						const errorMsg: ErrorMessage = {
+							id: message.id,
+							error: `State file not found: "${filename}"`,
+						};
+						conn.send(errorMsg);
+						return;
+					}
+				} else {
+					throw err;
+				}
+			}
+
+			// Validate JSON
+			try {
+				JSON.parse(stateJson);
+			} catch {
+				const errorMsg: ErrorMessage = {
+					id: message.id,
+					error: `Invalid JSON in state file: "${filename}"`,
+				};
+				conn.send(errorMsg);
+				return;
+			}
+
+			// Attach state data to command options for Cypress
+			const loadCommand: QueuedCommand = {
+				...command,
+				options: {
+					...command.options,
+					stateData: stateJson,
+				},
+			};
+
+			session
+				.enqueueCommand(loadCommand)
+				.then(async (result: CommandResult) => {
+					if (conn.isClosed) return;
+
+					session.recordHistory(loadCommand, result);
+
+					const response: ResponseMessage = {
+						id: message.id,
+						result: {
+							success: result.success,
+							...(result.error !== undefined && {
+								error: result.error,
+							}),
+							...(result.evalResult !== undefined && {
+								evalResult: result.evalResult,
+							}),
+							...(result.url !== undefined && {
+								url: result.url,
+							}),
+							...(result.title !== undefined && {
+								title: result.title,
+							}),
+						},
+					};
+					conn.send(response);
+				})
+				.catch((err: Error) => {
+					if (conn.isClosed) return;
+					const errorMsg: ErrorMessage = {
+						id: message.id,
+						error: err.message,
+					};
+					conn.send(errorMsg);
+				});
+		} catch (err) {
+			const errorMsg: ErrorMessage = {
+				id: message.id,
+				error: err instanceof Error ? err.message : String(err),
+			};
+			conn.send(errorMsg);
+		}
 	}
 
 	// -----------------------------------------------------------------------
