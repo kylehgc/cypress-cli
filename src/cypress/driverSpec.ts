@@ -107,6 +107,8 @@ const STRUCTURED_DATA_ONLY_COMMANDS = new Set([
 	'cookie-set',
 	'cookie-delete',
 	'cookie-clear',
+	'state-save',
+	'state-load',
 ]);
 
 /**
@@ -780,6 +782,127 @@ function executeCommand(cmd: DriverCommand): void {
 						cleared: cookies.length,
 					});
 				});
+			});
+			break;
+		}
+		case 'state-save': {
+			cy.getCookies().then((cookies) => {
+				cy.url().then((currentUrl: string) => {
+					cy.window({ log: false }).then((win: Window) => {
+						const localStorageEntries: [string, string][] = [];
+						for (let i = 0; i < win.localStorage.length; i++) {
+							const key = win.localStorage.key(i);
+							if (key !== null) {
+								localStorageEntries.push([
+									key,
+									win.localStorage.getItem(key) ?? '',
+								]);
+							}
+						}
+
+						const sessionStorageEntries: [string, string][] = [];
+						for (let i = 0; i < win.sessionStorage.length; i++) {
+							const key = win.sessionStorage.key(i);
+							if (key !== null) {
+								sessionStorageEntries.push([
+									key,
+									win.sessionStorage.getItem(key) ?? '',
+								]);
+							}
+						}
+
+						_evalResult = JSON.stringify(
+							{
+								url: currentUrl,
+								cookies,
+								localStorage: localStorageEntries,
+								sessionStorage: sessionStorageEntries,
+							},
+							null,
+							2,
+						);
+					});
+				});
+			});
+			break;
+		}
+		case 'state-load': {
+			const stateData = cmd.options?.['stateData'] as string | undefined;
+			if (!stateData) {
+				_asyncCommandError = 'No state data provided for state-load.';
+				break;
+			}
+
+			let state: {
+				url?: string;
+				cookies?: Array<{
+					name: string;
+					value: string;
+					domain?: string;
+					path?: string;
+					httpOnly?: boolean;
+					secure?: boolean;
+				}>;
+				localStorage?: [string, string][];
+				sessionStorage?: [string, string][];
+			};
+			try {
+				state = JSON.parse(stateData);
+			} catch {
+				_asyncCommandError = 'Invalid state data JSON.';
+				break;
+			}
+
+			// Clear existing cookies first
+			cy.clearCookies();
+
+			// Restore cookies
+			if (Array.isArray(state.cookies)) {
+				for (const cookie of state.cookies) {
+					const cookieOpts: Partial<Cypress.SetCookieOptions> = {};
+					if (cookie.domain) cookieOpts.domain = cookie.domain;
+					if (cookie.path) cookieOpts.path = cookie.path;
+					if (cookie.httpOnly !== undefined)
+						cookieOpts.httpOnly = cookie.httpOnly;
+					if (cookie.secure !== undefined) cookieOpts.secure = cookie.secure;
+					const hasOpts = Object.keys(cookieOpts).length > 0;
+					if (hasOpts) {
+						cy.setCookie(cookie.name, cookie.value, cookieOpts);
+					} else {
+						cy.setCookie(cookie.name, cookie.value);
+					}
+				}
+			}
+
+			// Navigate to saved URL before restoring storage (storage is origin-scoped)
+			if (state.url) {
+				cy.visit(state.url, { log: false });
+			}
+
+			// Restore localStorage and sessionStorage
+			cy.window({ log: false }).then((win: Window) => {
+				if (Array.isArray(state.localStorage)) {
+					for (const [key, value] of state.localStorage) {
+						win.localStorage.setItem(key, value);
+					}
+				}
+				if (Array.isArray(state.sessionStorage)) {
+					for (const [key, value] of state.sessionStorage) {
+						win.sessionStorage.setItem(key, value);
+					}
+				}
+
+				const restored = {
+					cookies: Array.isArray(state.cookies) ? state.cookies.length : 0,
+					localStorage: Array.isArray(state.localStorage)
+						? state.localStorage.length
+						: 0,
+					sessionStorage: Array.isArray(state.sessionStorage)
+						? state.sessionStorage.length
+						: 0,
+					...(state.url !== undefined && { url: state.url }),
+				};
+				_evalResult = JSON.stringify(restored);
 			});
 			break;
 		}

@@ -422,6 +422,21 @@ export class Daemon {
 			return;
 		}
 
+		// state-load: read file from disk and attach data to command options
+		if (action === 'state-load') {
+			const filename = command.text;
+			if (!filename) {
+				const errorMsg: ErrorMessage = {
+					id: message.id,
+					error: 'state-load requires a filename argument.',
+				};
+				conn.send(errorMsg);
+				return;
+			}
+			this._handleStateLoad(conn, message, command, session, filename);
+			return;
+		}
+
 		const snapshotFilename =
 			typeof command.options?.['filename'] === 'string'
 				? command.options['filename']
@@ -454,6 +469,23 @@ export class Daemon {
 						);
 					}
 
+					// state-save: write evalResult (state JSON) to a file
+					let stateFilePath: string | undefined;
+					if (
+						action === 'state-save' &&
+						result.success &&
+						result.evalResult
+					) {
+						const stateFilename =
+							typeof command.options?.['filename'] === 'string'
+								? command.options['filename']
+								: undefined;
+						stateFilePath = await this._writeStateFile(
+							result.evalResult,
+							stateFilename,
+						);
+					}
+
 					// Send result back to client
 					const response: ResponseMessage = {
 						id: message.id,
@@ -476,6 +508,9 @@ export class Daemon {
 							}),
 							...(snapshotFile !== undefined && {
 								snapshotFilePath: snapshotFile,
+							}),
+							...(stateFilePath !== undefined && {
+								filePath: stateFilePath,
 							}),
 							...(result.url !== undefined && {
 								url: result.url,
@@ -835,6 +870,181 @@ export class Daemon {
 		return path.relative(process.cwd(), filePath);
 	}
 
+	/**
+	 * Write browser state JSON to a file inside the snapshot directory.
+	 *
+	 * @param stateJson - The JSON string containing browser state
+	 * @param filename - Optional explicit filename; defaults to `state.json`
+	 * @returns The relative file path of the written state file
+	 */
+	private async _writeStateFile(
+		stateJson: string,
+		filename?: string,
+	): Promise<string> {
+		const baseDir = path.resolve(this._snapshotDir);
+		const name = filename ?? 'state.json';
+
+		if (path.isAbsolute(name)) {
+			throw new Error(
+				`Invalid state filename "${name}": absolute paths are not allowed`,
+			);
+		}
+
+		const filePath = path.resolve(baseDir, name);
+
+		const relative = path.relative(baseDir, filePath);
+		if (relative.startsWith('..') || path.isAbsolute(relative)) {
+			throw new Error(
+				`Invalid state filename "${name}": path traversal is not allowed`,
+			);
+		}
+
+		await fs.mkdir(path.dirname(filePath), { recursive: true });
+		await fs.writeFile(filePath, stateJson, 'utf-8');
+		return path.relative(process.cwd(), filePath);
+	}
+
+	/**
+	 * Handle the state-load command: read the state file from disk, validate it,
+	 * and forward the state data to Cypress for restoration.
+	 */
+	private async _handleStateLoad(
+		conn: SocketConnection,
+		message: CommandMessage,
+		command: QueuedCommand,
+		session: Session,
+		filename: string,
+	): Promise<void> {
+		try {
+			const baseDir = path.resolve(this._snapshotDir);
+
+			// Reject absolute paths to prevent reading arbitrary files
+			if (path.isAbsolute(filename)) {
+				const errorMsg: ErrorMessage = {
+					id: message.id,
+					error: `Absolute paths are not allowed for state-load: "${filename}"`,
+				};
+				conn.send(errorMsg);
+				return;
+			}
+
+			// Resolve the filename:
+			// - Relative paths are first resolved from process.cwd().
+			// - Bare filenames (no path separators) are also tried within the snapshot dir.
+			const candidatePaths: string[] = [];
+
+			// First, treat as relative to the current working directory
+			candidatePaths.push(path.resolve(process.cwd(), filename));
+
+			// If this is a bare filename (no directory components),
+			// also try resolving within the snapshot directory.
+			if (!filename.includes(path.sep) && !filename.includes('/')) {
+				candidatePaths.push(path.resolve(baseDir, filename));
+			}
+
+			let stateJson: string | undefined;
+
+			for (const filePath of candidatePaths) {
+				// Validate that the resolved path does not escape the allowed directories
+				// via path traversal (e.g. "../secrets.json")
+				const relativeToBase = path.relative(baseDir, filePath);
+				const relativeToCwd = path.relative(process.cwd(), filePath);
+				const withinBase =
+					!relativeToBase.startsWith('..') &&
+					!path.isAbsolute(relativeToBase);
+				const withinCwd =
+					!relativeToCwd.startsWith('..') &&
+					!path.isAbsolute(relativeToCwd);
+
+				if (!withinBase && !withinCwd) {
+					continue;
+				}
+
+				try {
+					stateJson = await fs.readFile(filePath, 'utf-8');
+					break;
+				} catch (err) {
+					const nodeErr = err as NodeJS.ErrnoException;
+					if (nodeErr.code !== 'ENOENT') {
+						throw err;
+					}
+				}
+			}
+
+			if (stateJson === undefined) {
+				const errorMsg: ErrorMessage = {
+					id: message.id,
+					error: `State file not found: "${filename}"`,
+				};
+				conn.send(errorMsg);
+				return;
+			}
+
+			// Validate JSON
+			try {
+				JSON.parse(stateJson);
+			} catch {
+				const errorMsg: ErrorMessage = {
+					id: message.id,
+					error: `Invalid JSON in state file: "${filename}"`,
+				};
+				conn.send(errorMsg);
+				return;
+			}
+
+			// Attach state data to command options for Cypress
+			const loadCommand: QueuedCommand = {
+				...command,
+				options: {
+					...command.options,
+					stateData: stateJson,
+				},
+			};
+
+			session
+				.enqueueCommand(loadCommand)
+				.then(async (result: CommandResult) => {
+					if (conn.isClosed) return;
+
+					session.recordHistory(loadCommand, result);
+
+					const response: ResponseMessage = {
+						id: message.id,
+						result: {
+							success: result.success,
+							...(result.error !== undefined && {
+								error: result.error,
+							}),
+							...(result.evalResult !== undefined && {
+								evalResult: result.evalResult,
+							}),
+							...(result.url !== undefined && {
+								url: result.url,
+							}),
+							...(result.title !== undefined && {
+								title: result.title,
+							}),
+						},
+					};
+					conn.send(response);
+				})
+				.catch((err: Error) => {
+					if (conn.isClosed) return;
+					const errorMsg: ErrorMessage = {
+						id: message.id,
+						error: err.message,
+					};
+					conn.send(errorMsg);
+				});
+		} catch (err) {
+			const errorMsg: ErrorMessage = {
+				id: message.id,
+				error: err instanceof Error ? err.message : String(err),
+			};
+			conn.send(errorMsg);
+		}
+	}
+
 	// -----------------------------------------------------------------------
 	// Idle timer
 	// -----------------------------------------------------------------------
@@ -1139,6 +1349,27 @@ export function buildQueuedCommand(
 		case 'cookie-list':
 		case 'cookie-clear':
 			return withOptions({ id, action }, options);
+		case 'state-save':
+			return withOptions(
+				{ id, action },
+				{
+					...options,
+					...(positionals[0] !== undefined && {
+						filename: positionals[0],
+					}),
+				},
+			);
+		case 'state-load':
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && {
+						text: positionals[0],
+					}),
+				},
+				options,
+			);
 		case 'intercept':
 			// Pattern is the first positional, stored in `text` for the driver
 			return withOptions(
