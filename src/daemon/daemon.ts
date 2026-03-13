@@ -917,36 +917,67 @@ export class Daemon {
 	): Promise<void> {
 		try {
 			const baseDir = path.resolve(this._snapshotDir);
-			let filePath: string;
 
-			// Support both relative (within snapshot dir) and absolute-looking paths
+			// Reject absolute paths to prevent reading arbitrary files
 			if (path.isAbsolute(filename)) {
-				filePath = filename;
-			} else {
-				filePath = path.resolve(baseDir, filename);
+				const errorMsg: ErrorMessage = {
+					id: message.id,
+					error: `Absolute paths are not allowed for state-load: "${filename}"`,
+				};
+				conn.send(errorMsg);
+				return;
 			}
 
-			let stateJson: string;
-			try {
-				stateJson = await fs.readFile(filePath, 'utf-8');
-			} catch (err) {
-				const nodeErr = err as NodeJS.ErrnoException;
-				if (nodeErr.code === 'ENOENT') {
-					// Also try as a relative path from cwd
-					const cwdPath = path.resolve(process.cwd(), filename);
-					try {
-						stateJson = await fs.readFile(cwdPath, 'utf-8');
-					} catch {
-						const errorMsg: ErrorMessage = {
-							id: message.id,
-							error: `State file not found: "${filename}"`,
-						};
-						conn.send(errorMsg);
-						return;
-					}
-				} else {
-					throw err;
+			// Resolve the filename:
+			// - Relative paths are first resolved from process.cwd().
+			// - Bare filenames (no path separators) are also tried within the snapshot dir.
+			const candidatePaths: string[] = [];
+
+			// First, treat as relative to the current working directory
+			candidatePaths.push(path.resolve(process.cwd(), filename));
+
+			// If this is a bare filename (no directory components),
+			// also try resolving within the snapshot directory.
+			if (!filename.includes(path.sep) && !filename.includes('/')) {
+				candidatePaths.push(path.resolve(baseDir, filename));
+			}
+
+			let stateJson: string | undefined;
+
+			for (const filePath of candidatePaths) {
+				// Validate that the resolved path does not escape the allowed directories
+				// via path traversal (e.g. "../secrets.json")
+				const relativeToBase = path.relative(baseDir, filePath);
+				const relativeToCwd = path.relative(process.cwd(), filePath);
+				const withinBase =
+					!relativeToBase.startsWith('..') &&
+					!path.isAbsolute(relativeToBase);
+				const withinCwd =
+					!relativeToCwd.startsWith('..') &&
+					!path.isAbsolute(relativeToCwd);
+
+				if (!withinBase && !withinCwd) {
+					continue;
 				}
+
+				try {
+					stateJson = await fs.readFile(filePath, 'utf-8');
+					break;
+				} catch (err) {
+					const nodeErr = err as NodeJS.ErrnoException;
+					if (nodeErr.code !== 'ENOENT') {
+						throw err;
+					}
+				}
+			}
+
+			if (stateJson === undefined) {
+				const errorMsg: ErrorMessage = {
+					id: message.id,
+					error: `State file not found: "${filename}"`,
+				};
+				conn.send(errorMsg);
+				return;
 			}
 
 			// Validate JSON

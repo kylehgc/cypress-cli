@@ -874,6 +874,11 @@ function executeCommand(cmd: DriverCommand): void {
 				}
 			}
 
+			// Navigate to saved URL before restoring storage (storage is origin-scoped)
+			if (state.url) {
+				cy.visit(state.url, { log: false });
+			}
+
 			// Restore localStorage and sessionStorage
 			cy.window({ log: false }).then((win: Window) => {
 				if (Array.isArray(state.localStorage)) {
