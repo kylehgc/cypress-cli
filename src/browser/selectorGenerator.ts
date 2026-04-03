@@ -302,6 +302,8 @@ function _buildNonRefCommand(
 				.replace(/'/g, "\\'");
 			return `cy.window().then((win) => win.eval('${escapedExpr}'))`;
 		}
+		case 'cyrun':
+			return text ?? '';
 		case 'intercept': {
 			const escapedPattern = (text ?? '')
 				.replace(/\\/g, '\\\\')

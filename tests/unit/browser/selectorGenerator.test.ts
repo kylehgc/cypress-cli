@@ -459,6 +459,15 @@ describe('selectorGenerator', () => {
 			);
 		});
 
+		it('builds cyrun command as raw code', () => {
+			const result = buildCypressCommand(
+				undefined,
+				'cyrun',
+				"cy.get('.items').find('li').first().click()",
+			);
+			expect(result).toBe("cy.get('.items').find('li').first().click()");
+		});
+
 		it('handles unknown non-ref actions with fallback', () => {
 			const result = buildCypressCommand(undefined, 'unknownAction');
 			expect(result).toBe('cy.unknownAction()');

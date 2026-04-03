@@ -371,6 +371,7 @@ const COMMANDS_REQUIRING_TEXT = new Set([
 	'press',
 	'run-code',
 	'eval',
+	'cyrun',
 	'intercept',
 	'upload',
 	'drag',
@@ -810,6 +811,22 @@ function executeCommand(cmd: DriverCommand): void {
 						_asyncCommandError = e instanceof Error ? e.message : String(e);
 					}
 				});
+			}
+			break;
+		case 'cyrun':
+			try {
+				// Execute in the Cypress spec context where cy, Cypress,
+				// and resolveRef are available. Use new Function so the code
+				// string runs in this scope (not in the browser's window.eval).
+				const cyrunFn = new Function(
+					'cy',
+					'Cypress',
+					'resolveRef',
+					cmd.text!,
+				);
+				cyrunFn(cy, Cypress, resolveRef);
+			} catch (e) {
+				_asyncCommandError = e instanceof Error ? e.message : String(e);
 			}
 			break;
 		case 'snapshot':
