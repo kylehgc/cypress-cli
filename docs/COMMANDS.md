@@ -117,13 +117,23 @@ or require a running Cypress session.
 
 ### Storage
 
-| Command         | Syntax                                                                                           | Description                                          |
-| --------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
-| `cookie-list`   | `cypress-cli cookie-list [--domain domain]`                                                      | List cookies, optionally filtered by domain          |
-| `cookie-get`    | `cypress-cli cookie-get <name>`                                                                  | Get a cookie by name (`cy.getCookie()`)              |
-| `cookie-set`    | `cypress-cli cookie-set <name> <value> [--domain d] [--httpOnly] [--secure] [--path p]`         | Set a cookie (`cy.setCookie()`)                      |
-| `cookie-delete` | `cypress-cli cookie-delete <name>`                                                               | Delete a cookie by name (`cy.clearCookie()`)         |
-| `cookie-clear`  | `cypress-cli cookie-clear`                                                                       | Clear all cookies (`cy.clearCookies()`)              |
+| Command                 | Syntax                                                                                           | Description                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| `cookie-list`           | `cypress-cli cookie-list [--domain domain]`                                                      | List cookies, optionally filtered by domain                    |
+| `cookie-get`            | `cypress-cli cookie-get <name>`                                                                  | Get a cookie by name (`cy.getCookie()`)                        |
+| `cookie-set`            | `cypress-cli cookie-set <name> <value> [--domain d] [--httpOnly] [--secure] [--path p]`         | Set a cookie (`cy.setCookie()`)                                |
+| `cookie-delete`         | `cypress-cli cookie-delete <name>`                                                               | Delete a cookie by name (`cy.clearCookie()`)                   |
+| `cookie-clear`          | `cypress-cli cookie-clear`                                                                       | Clear all cookies (`cy.clearCookies()`)                        |
+| `localstorage-list`     | `cypress-cli localstorage-list`                                                                  | List all localStorage entries as JSON                          |
+| `localstorage-get`      | `cypress-cli localstorage-get <key>`                                                             | Get a localStorage value by key                                |
+| `localstorage-set`      | `cypress-cli localstorage-set <key> <value>`                                                     | Set a localStorage key-value pair                              |
+| `localstorage-delete`   | `cypress-cli localstorage-delete <key>`                                                          | Delete a localStorage entry by key                             |
+| `localstorage-clear`    | `cypress-cli localstorage-clear`                                                                 | Clear all localStorage entries (`cy.clearLocalStorage()`)      |
+| `sessionstorage-list`   | `cypress-cli sessionstorage-list`                                                                | List all sessionStorage entries as JSON                        |
+| `sessionstorage-get`    | `cypress-cli sessionstorage-get <key>`                                                           | Get a sessionStorage value by key                              |
+| `sessionstorage-set`    | `cypress-cli sessionstorage-set <key> <value>`                                                   | Set a sessionStorage key-value pair                            |
+| `sessionstorage-delete` | `cypress-cli sessionstorage-delete <key>`                                                        | Delete a sessionStorage entry by key                           |
+| `sessionstorage-clear`  | `cypress-cli sessionstorage-clear`                                                               | Clear all sessionStorage entries                               |
 
 ## Command Schemas (zod)
 
