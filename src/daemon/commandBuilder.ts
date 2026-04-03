@@ -200,6 +200,27 @@ export function buildQueuedCommand(
 		case 'cookie-list':
 		case 'cookie-clear':
 			return withOptions({ id, action }, options);
+		case 'state-save':
+			return withOptions(
+				{ id, action },
+				{
+					...options,
+					...(positionals[0] !== undefined && {
+						filename: positionals[0],
+					}),
+				},
+			);
+		case 'state-load':
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && {
+						text: positionals[0],
+					}),
+				},
+				options,
+			);
 		case 'intercept':
 			return withOptions(
 				{
