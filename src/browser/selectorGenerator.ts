@@ -303,7 +303,7 @@ function _buildNonRefCommand(
 			return `cy.window().then((win) => win.eval('${escapedExpr}'))`;
 		}
 		case 'cyrun':
-			return text ?? '';
+			return text ?? '// cyrun: no code provided';
 		case 'intercept': {
 			const escapedPattern = (text ?? '')
 				.replace(/\\/g, '\\\\')
