@@ -371,7 +371,7 @@ function _buildNonRefCommand(
 		case 'cookie-clear':
 			return 'cy.clearCookies()';
 		case 'localstorage-list':
-			return "cy.window().then((win) => Object.fromEntries(Object.entries(win.localStorage)))";
+			return "cy.window().then((win) => { const entries = {}; for (let i = 0; i < win.localStorage.length; i++) { const k = win.localStorage.key(i); if (k) entries[k] = win.localStorage.getItem(k); } return entries; })";
 		case 'localstorage-get': {
 			const escapedKey = (text ?? '')
 				.replace(/\\/g, '\\\\')
@@ -396,7 +396,7 @@ function _buildNonRefCommand(
 		case 'localstorage-clear':
 			return 'cy.window().then((win) => win.localStorage.clear())';
 		case 'sessionstorage-list':
-			return "cy.window().then((win) => Object.fromEntries(Object.entries(win.sessionStorage)))";
+			return "cy.window().then((win) => { const entries = {}; for (let i = 0; i < win.sessionStorage.length; i++) { const k = win.sessionStorage.key(i); if (k) entries[k] = win.sessionStorage.getItem(k); } return entries; })";
 		case 'sessionstorage-get': {
 			const escapedKey = (text ?? '')
 				.replace(/\\/g, '\\\\')
