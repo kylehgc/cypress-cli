@@ -745,6 +745,31 @@ export const sessionstorageClear = declareCommand({
 });
 
 // ---------------------------------------------------------------------------
+// Console command
+// ---------------------------------------------------------------------------
+
+export const console_ = declareCommand({
+	name: 'console',
+	category: 'core',
+	description:
+		'Return captured browser console messages, optionally filtered by minimum level',
+	args: z.object({
+		level: z
+			.enum(['error', 'warning', 'info', 'debug'])
+			.optional()
+			.describe(
+				'Minimum log level filter (error > warning > info > debug). Returns messages at this level and above.',
+			),
+	}),
+	options: z.object({
+		clear: z
+			.boolean()
+			.optional()
+			.describe('Clear the console message buffer after returning'),
+	}),
+});
+
+// ---------------------------------------------------------------------------
 // Screenshot command
 // ---------------------------------------------------------------------------
 
@@ -863,6 +888,7 @@ export const allCommands = [
 	sessionstorageSet,
 	sessionstorageDelete,
 	sessionstorageClear,
+	console_,
 	screenshot,
 	drag,
 	upload,
@@ -887,6 +913,7 @@ export function buildRegistry(): ReadonlyMap<string, CommandRegistryEntry> {
 	registry.set('status', { schema: status, positionals: [] });
 	registry.set('install', { schema: install, positionals: [] });
 	registry.set('snapshot', { schema: snapshot, positionals: [] });
+	registry.set('console', { schema: console_, positionals: ['level'] });
 
 	// Navigation
 	registry.set('navigate', { schema: navigate, positionals: ['url'] });
@@ -1011,6 +1038,50 @@ export function buildRegistry(): ReadonlyMap<string, CommandRegistryEntry> {
 		schema: localstorageClear,
 		positionals: [],
 	});
+	registry.set('sessionstorage-list', {
+		schema: sessionstorageList,
+		positionals: [],
+	});
+	registry.set('sessionstorage-get', {
+		schema: sessionstorageGet,
+		positionals: ['key'],
+	});
+	registry.set('sessionstorage-set', {
+		schema: sessionstorageSet,
+		positionals: ['key', 'value'],
+	});
+	registry.set('sessionstorage-delete', {
+		schema: sessionstorageDelete,
+		positionals: ['key'],
+	});
+	registry.set('sessionstorage-clear', {
+		schema: sessionstorageClear,
+		positionals: [],
+	});
+
+	// localStorage
+	registry.set('localstorage-list', {
+		schema: localstorageList,
+		positionals: [],
+	});
+	registry.set('localstorage-get', {
+		schema: localstorageGet,
+		positionals: ['key'],
+	});
+	registry.set('localstorage-set', {
+		schema: localstorageSet,
+		positionals: ['key', 'value'],
+	});
+	registry.set('localstorage-delete', {
+		schema: localstorageDelete,
+		positionals: ['key'],
+	});
+	registry.set('localstorage-clear', {
+		schema: localstorageClear,
+		positionals: [],
+	});
+
+	// sessionStorage
 	registry.set('sessionstorage-list', {
 		schema: sessionstorageList,
 		positionals: [],

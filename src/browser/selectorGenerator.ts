@@ -333,6 +333,8 @@ function _buildNonRefCommand(
 		}
 		case 'network':
 			return '// network requests (read-only)';
+		case 'console':
+			return '// console messages (read-only)';
 		case 'cookie-list': {
 			const domain = options?.['domain'] as string | undefined;
 			if (domain) {
@@ -368,6 +370,56 @@ function _buildNonRefCommand(
 		}
 		case 'cookie-clear':
 			return 'cy.clearCookies()';
+		case 'localstorage-list':
+			return "cy.window().then((win) => { const entries = {}; for (let i = 0; i < win.localStorage.length; i++) { const k = win.localStorage.key(i); if (k) entries[k] = win.localStorage.getItem(k); } return entries; })";
+		case 'localstorage-get': {
+			const escapedKey = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `cy.window().then((win) => win.localStorage.getItem('${escapedKey}'))`;
+		}
+		case 'localstorage-set': {
+			const escapedKey = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			const escapedValue = String(options?.['value'] ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `cy.window().then((win) => win.localStorage.setItem('${escapedKey}', '${escapedValue}'))`;
+		}
+		case 'localstorage-delete': {
+			const escapedKey = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `cy.window().then((win) => win.localStorage.removeItem('${escapedKey}'))`;
+		}
+		case 'localstorage-clear':
+			return 'cy.window().then((win) => win.localStorage.clear())';
+		case 'sessionstorage-list':
+			return "cy.window().then((win) => { const entries = {}; for (let i = 0; i < win.sessionStorage.length; i++) { const k = win.sessionStorage.key(i); if (k) entries[k] = win.sessionStorage.getItem(k); } return entries; })";
+		case 'sessionstorage-get': {
+			const escapedKey = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `cy.window().then((win) => win.sessionStorage.getItem('${escapedKey}'))`;
+		}
+		case 'sessionstorage-set': {
+			const escapedKey = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			const escapedValue = String(options?.['value'] ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `cy.window().then((win) => win.sessionStorage.setItem('${escapedKey}', '${escapedValue}'))`;
+		}
+		case 'sessionstorage-delete': {
+			const escapedKey = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `cy.window().then((win) => win.sessionStorage.removeItem('${escapedKey}'))`;
+		}
+		case 'sessionstorage-clear':
+			return 'cy.window().then((win) => win.sessionStorage.clear())';
 		case 'dialog-accept': {
 			if (text) {
 				const escapedPrompt = (text ?? '')

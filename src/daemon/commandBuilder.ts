@@ -204,6 +204,17 @@ export function buildQueuedCommand(
 		case 'sessionstorage-list':
 		case 'sessionstorage-clear':
 			return withOptions({ id, action }, options);
+		case 'console':
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && {
+						text: positionals[0],
+					}),
+				},
+				options,
+			);
 		case 'state-save':
 			return withOptions(
 				{ id, action },
