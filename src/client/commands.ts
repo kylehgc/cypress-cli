@@ -649,7 +649,7 @@ export const stateLoad = declareCommand({
 export const localstorageList = declareCommand({
 	name: 'localstorage-list',
 	category: 'storage',
-	description: 'List all localStorage entries',
+	description: 'List all localStorage entries as JSON',
 	args: z.object({}),
 	options: z.object({}),
 });
@@ -659,7 +659,7 @@ export const localstorageGet = declareCommand({
 	category: 'storage',
 	description: 'Get a localStorage value by key',
 	args: z.object({
-		key: z.string().describe('Storage key'),
+		key: z.string().describe('localStorage key'),
 	}),
 	options: z.object({}),
 });
@@ -669,8 +669,8 @@ export const localstorageSet = declareCommand({
 	category: 'storage',
 	description: 'Set a localStorage key-value pair',
 	args: z.object({
-		key: z.string().describe('Storage key'),
-		value: z.string().describe('Storage value'),
+		key: z.string().describe('localStorage key'),
+		value: z.string().describe('Value to store'),
 	}),
 	options: z.object({}),
 });
@@ -680,7 +680,7 @@ export const localstorageDelete = declareCommand({
 	category: 'storage',
 	description: 'Delete a localStorage entry by key',
 	args: z.object({
-		key: z.string().describe('Storage key'),
+		key: z.string().describe('localStorage key'),
 	}),
 	options: z.object({}),
 });
@@ -700,7 +700,7 @@ export const localstorageClear = declareCommand({
 export const sessionstorageList = declareCommand({
 	name: 'sessionstorage-list',
 	category: 'storage',
-	description: 'List all sessionStorage entries',
+	description: 'List all sessionStorage entries as JSON',
 	args: z.object({}),
 	options: z.object({}),
 });
@@ -710,7 +710,7 @@ export const sessionstorageGet = declareCommand({
 	category: 'storage',
 	description: 'Get a sessionStorage value by key',
 	args: z.object({
-		key: z.string().describe('Storage key'),
+		key: z.string().describe('sessionStorage key'),
 	}),
 	options: z.object({}),
 });
@@ -720,8 +720,8 @@ export const sessionstorageSet = declareCommand({
 	category: 'storage',
 	description: 'Set a sessionStorage key-value pair',
 	args: z.object({
-		key: z.string().describe('Storage key'),
-		value: z.string().describe('Storage value'),
+		key: z.string().describe('sessionStorage key'),
+		value: z.string().describe('Value to store'),
 	}),
 	options: z.object({}),
 });
@@ -731,7 +731,7 @@ export const sessionstorageDelete = declareCommand({
 	category: 'storage',
 	description: 'Delete a sessionStorage entry by key',
 	args: z.object({
-		key: z.string().describe('Storage key'),
+		key: z.string().describe('sessionStorage key'),
 	}),
 	options: z.object({}),
 });
@@ -1017,6 +1017,46 @@ export function buildRegistry(): ReadonlyMap<string, CommandRegistryEntry> {
 	registry.set('state-load', {
 		schema: stateLoad,
 		positionals: ['filename'],
+	});
+	registry.set('localstorage-list', {
+		schema: localstorageList,
+		positionals: [],
+	});
+	registry.set('localstorage-get', {
+		schema: localstorageGet,
+		positionals: ['key'],
+	});
+	registry.set('localstorage-set', {
+		schema: localstorageSet,
+		positionals: ['key', 'value'],
+	});
+	registry.set('localstorage-delete', {
+		schema: localstorageDelete,
+		positionals: ['key'],
+	});
+	registry.set('localstorage-clear', {
+		schema: localstorageClear,
+		positionals: [],
+	});
+	registry.set('sessionstorage-list', {
+		schema: sessionstorageList,
+		positionals: [],
+	});
+	registry.set('sessionstorage-get', {
+		schema: sessionstorageGet,
+		positionals: ['key'],
+	});
+	registry.set('sessionstorage-set', {
+		schema: sessionstorageSet,
+		positionals: ['key', 'value'],
+	});
+	registry.set('sessionstorage-delete', {
+		schema: sessionstorageDelete,
+		positionals: ['key'],
+	});
+	registry.set('sessionstorage-clear', {
+		schema: sessionstorageClear,
+		positionals: [],
 	});
 
 	// localStorage

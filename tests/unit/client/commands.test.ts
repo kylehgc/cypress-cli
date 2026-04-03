@@ -502,6 +502,84 @@ describe('command schemas', () => {
 			expect(cookieClear.options.safeParse({})).toMatchObject({ success: true });
 		});
 
+		it('localstorage-list requires no args', () => {
+			expect(localstorageList.args.safeParse({})).toMatchObject({
+				success: true,
+			});
+		});
+
+		it('localstorage-get requires a key', () => {
+			expect(
+				localstorageGet.args.safeParse({ key: 'token' }),
+			).toMatchObject({ success: true });
+			expect(localstorageGet.args.safeParse({})).toMatchObject({
+				success: false,
+			});
+		});
+
+		it('localstorage-set requires key and value', () => {
+			expect(
+				localstorageSet.args.safeParse({ key: 'token', value: 'abc' }),
+			).toMatchObject({ success: true });
+			expect(
+				localstorageSet.args.safeParse({ key: 'token' }),
+			).toMatchObject({ success: false });
+		});
+
+		it('localstorage-delete requires a key', () => {
+			expect(
+				localstorageDelete.args.safeParse({ key: 'token' }),
+			).toMatchObject({ success: true });
+			expect(localstorageDelete.args.safeParse({})).toMatchObject({
+				success: false,
+			});
+		});
+
+		it('localstorage-clear requires no args', () => {
+			expect(localstorageClear.args.safeParse({})).toMatchObject({
+				success: true,
+			});
+		});
+
+		it('sessionstorage-list requires no args', () => {
+			expect(sessionstorageList.args.safeParse({})).toMatchObject({
+				success: true,
+			});
+		});
+
+		it('sessionstorage-get requires a key', () => {
+			expect(
+				sessionstorageGet.args.safeParse({ key: 'sid' }),
+			).toMatchObject({ success: true });
+			expect(sessionstorageGet.args.safeParse({})).toMatchObject({
+				success: false,
+			});
+		});
+
+		it('sessionstorage-set requires key and value', () => {
+			expect(
+				sessionstorageSet.args.safeParse({ key: 'sid', value: 'x' }),
+			).toMatchObject({ success: true });
+			expect(
+				sessionstorageSet.args.safeParse({ key: 'sid' }),
+			).toMatchObject({ success: false });
+		});
+
+		it('sessionstorage-delete requires a key', () => {
+			expect(
+				sessionstorageDelete.args.safeParse({ key: 'sid' }),
+			).toMatchObject({ success: true });
+			expect(sessionstorageDelete.args.safeParse({})).toMatchObject({
+				success: false,
+			});
+		});
+
+		it('sessionstorage-clear requires no args', () => {
+			expect(sessionstorageClear.args.safeParse({})).toMatchObject({
+				success: true,
+			});
+		});
+
 		it('fill requires ref and text', () => {
 			const good = fill.args.safeParse({ ref: 'e3', text: 'hello' });
 			expect(good.success).toBe(true);
@@ -1197,6 +1275,126 @@ describe('parseCommand', () => {
 		const result = parseCommand({ _: ['cookie-clear'] }, commandRegistry);
 		expect(result).toEqual({
 			command: 'cookie-clear',
+			args: {},
+			options: {},
+		});
+	});
+
+	it("parses 'localstorage-list' correctly", () => {
+		const result = parseCommand(
+			{ _: ['localstorage-list'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'localstorage-list',
+			args: {},
+			options: {},
+		});
+	});
+
+	it("parses 'localstorage-get token' correctly", () => {
+		const result = parseCommand(
+			{ _: ['localstorage-get', 'token'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'localstorage-get',
+			args: { key: 'token' },
+			options: {},
+		});
+	});
+
+	it("parses 'localstorage-set token abc123' correctly", () => {
+		const result = parseCommand(
+			{ _: ['localstorage-set', 'token', 'abc123'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'localstorage-set',
+			args: { key: 'token', value: 'abc123' },
+			options: {},
+		});
+	});
+
+	it("parses 'localstorage-delete token' correctly", () => {
+		const result = parseCommand(
+			{ _: ['localstorage-delete', 'token'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'localstorage-delete',
+			args: { key: 'token' },
+			options: {},
+		});
+	});
+
+	it("parses 'localstorage-clear' correctly", () => {
+		const result = parseCommand(
+			{ _: ['localstorage-clear'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'localstorage-clear',
+			args: {},
+			options: {},
+		});
+	});
+
+	it("parses 'sessionstorage-list' correctly", () => {
+		const result = parseCommand(
+			{ _: ['sessionstorage-list'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'sessionstorage-list',
+			args: {},
+			options: {},
+		});
+	});
+
+	it("parses 'sessionstorage-get sid' correctly", () => {
+		const result = parseCommand(
+			{ _: ['sessionstorage-get', 'sid'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'sessionstorage-get',
+			args: { key: 'sid' },
+			options: {},
+		});
+	});
+
+	it("parses 'sessionstorage-set sid xyz' correctly", () => {
+		const result = parseCommand(
+			{ _: ['sessionstorage-set', 'sid', 'xyz'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'sessionstorage-set',
+			args: { key: 'sid', value: 'xyz' },
+			options: {},
+		});
+	});
+
+	it("parses 'sessionstorage-delete sid' correctly", () => {
+		const result = parseCommand(
+			{ _: ['sessionstorage-delete', 'sid'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'sessionstorage-delete',
+			args: { key: 'sid' },
+			options: {},
+		});
+	});
+
+	it("parses 'sessionstorage-clear' correctly", () => {
+		const result = parseCommand(
+			{ _: ['sessionstorage-clear'] },
+			commandRegistry,
+		);
+		expect(result).toEqual({
+			command: 'sessionstorage-clear',
 			args: {},
 			options: {},
 		});

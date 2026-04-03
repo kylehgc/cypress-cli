@@ -53,8 +53,12 @@ describe('buildQueuedCommand', () => {
 			'cookie-clear',
 			'cookie-list',
 			'forward',
+			'localstorage-clear',
+			'localstorage-list',
 			'network',
 			'reload',
+			'sessionstorage-clear',
+			'sessionstorage-list',
 			'snapshot',
 		] as const;
 
@@ -294,6 +298,50 @@ describe('buildQueuedCommand', () => {
 			id: 23,
 			action: 'cookie-delete',
 			text: 'session',
+		});
+	});
+
+	it('maps storage commands to text and option payloads', () => {
+		expect(buildQueuedCommand(28, makeArgs('localstorage-get', ['token']))).toEqual({
+			id: 28,
+			action: 'localstorage-get',
+			text: 'token',
+		});
+
+		expect(
+			buildQueuedCommand(29, makeArgs('localstorage-set', ['token', 'abc123'])),
+		).toEqual({
+			id: 29,
+			action: 'localstorage-set',
+			text: 'token',
+			options: { value: 'abc123' },
+		});
+
+		expect(buildQueuedCommand(30, makeArgs('localstorage-delete', ['token']))).toEqual({
+			id: 30,
+			action: 'localstorage-delete',
+			text: 'token',
+		});
+
+		expect(buildQueuedCommand(31, makeArgs('sessionstorage-get', ['sid']))).toEqual({
+			id: 31,
+			action: 'sessionstorage-get',
+			text: 'sid',
+		});
+
+		expect(
+			buildQueuedCommand(32, makeArgs('sessionstorage-set', ['sid', 'xyz'])),
+		).toEqual({
+			id: 32,
+			action: 'sessionstorage-set',
+			text: 'sid',
+			options: { value: 'xyz' },
+		});
+
+		expect(buildQueuedCommand(33, makeArgs('sessionstorage-delete', ['sid']))).toEqual({
+			id: 33,
+			action: 'sessionstorage-delete',
+			text: 'sid',
 		});
 	});
 
