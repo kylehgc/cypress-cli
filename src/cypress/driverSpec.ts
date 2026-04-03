@@ -84,6 +84,107 @@ const MAX_NETWORK_LOG_SIZE = 1000;
  */
 const _networkLog: NetworkEntry[] = [];
 
+// ---------------------------------------------------------------------------
+// Console message capture state
+// ---------------------------------------------------------------------------
+
+/**
+ * A captured browser console message.
+ * Stored in `_consoleLog` and returned by the `console` command.
+ */
+interface ConsoleEntry {
+	level: 'error' | 'warning' | 'info' | 'debug';
+	text: string;
+	timestamp: string;
+}
+
+/**
+ * Maximum number of console entries to retain in `_consoleLog`.
+ * Older entries are evicted FIFO when this limit is exceeded.
+ */
+const MAX_CONSOLE_LOG_SIZE = 1000;
+
+/** Maximum length for individual console message text before truncation. */
+const MAX_CONSOLE_TEXT_LENGTH = 2000;
+
+/**
+ * Buffer of console messages captured by the `window:before:load` hook.
+ * Capped at `MAX_CONSOLE_LOG_SIZE` entries — oldest entries are
+ * evicted when the cap is reached.
+ */
+const _consoleLog: ConsoleEntry[] = [];
+
+/**
+ * Level hierarchy for filtering console messages.
+ * Lower number = more severe. Each filter level includes all more-severe levels.
+ */
+const CONSOLE_LEVEL_PRIORITY: Record<ConsoleEntry['level'], number> = {
+	error: 0,
+	warning: 1,
+	info: 2,
+	debug: 3,
+};
+
+/**
+ * Serializes console arguments to a single string, truncating long values.
+ */
+function _serializeConsoleArgs(args: unknown[]): string {
+	const parts = args.map((arg) => {
+		if (arg === null) return 'null';
+		if (arg === undefined) return 'undefined';
+		if (typeof arg === 'string') return arg;
+		try {
+			return JSON.stringify(arg);
+		} catch {
+			return String(arg);
+		}
+	});
+	const text = parts.join(' ');
+	if (text.length > MAX_CONSOLE_TEXT_LENGTH) {
+		return text.slice(0, MAX_CONSOLE_TEXT_LENGTH) + '…';
+	}
+	return text;
+}
+
+/**
+ * Maps `console.*` method names to the normalized level used in ConsoleEntry.
+ */
+const CONSOLE_METHOD_TO_LEVEL: Record<string, ConsoleEntry['level']> = {
+	log: 'info',
+	warn: 'warning',
+	error: 'error',
+	info: 'info',
+	debug: 'debug',
+};
+
+/**
+ * Installs console capture stubs on the given window object.
+ * Called via `Cypress.on('window:before:load')` so stubs are in
+ * place before any application code runs.
+ */
+function _installConsoleCapture(win: Window): void {
+	for (const [method, level] of Object.entries(CONSOLE_METHOD_TO_LEVEL)) {
+		const original = (
+			win.console as unknown as Record<string, (...a: unknown[]) => void>
+		)[method];
+		(win.console as unknown as Record<string, (...a: unknown[]) => void>)[
+			method
+		] = (...args: unknown[]) => {
+			_consoleLog.push({
+				level,
+				text: _serializeConsoleArgs(args),
+				timestamp: new Date().toISOString(),
+			});
+			if (_consoleLog.length > MAX_CONSOLE_LOG_SIZE) {
+				_consoleLog.splice(0, _consoleLog.length - MAX_CONSOLE_LOG_SIZE);
+			}
+			if (typeof original === 'function') {
+				original.apply(win.console, args);
+			}
+		};
+	}
+}
+
 /**
  * Map of active intercept route patterns to their static response config.
  * Used by `unintercept` to know which patterns to replace with passthrough,
@@ -119,6 +220,7 @@ const STRUCTURED_DATA_ONLY_COMMANDS = new Set([
 	'sessionstorage-set',
 	'sessionstorage-delete',
 	'sessionstorage-clear',
+	'console',
 ]);
 
 /**
@@ -903,6 +1005,26 @@ function executeCommand(cmd: DriverCommand): void {
 			});
 			break;
 		}
+		case 'console': {
+			const levelFilter = cmd.text as ConsoleEntry['level'] | undefined;
+			const shouldClear = cmd.options?.['clear'] === true;
+
+			let entries = [..._consoleLog];
+
+			if (levelFilter && CONSOLE_LEVEL_PRIORITY[levelFilter] !== undefined) {
+				const maxPriority = CONSOLE_LEVEL_PRIORITY[levelFilter];
+				entries = entries.filter(
+					(e) => CONSOLE_LEVEL_PRIORITY[e.level] <= maxPriority,
+				);
+			}
+
+			_evalResult = JSON.stringify(entries);
+
+			if (shouldClear) {
+				_consoleLog.length = 0;
+			}
+			break;
+		}
 		case 'state-save': {
 			cy.getCookies().then((cookies) => {
 				cy.url().then((currentUrl: string) => {
@@ -1596,6 +1718,14 @@ describe('cypress-cli', function () {
 	// calls, analytics errors) that are irrelevant to the interactive
 	// session. Returning false keeps the test alive.
 	Cypress.on('uncaught:exception', () => false);
+
+	// Capture browser console messages (log, warn, error, info, debug) by
+	// stubbing console methods before any application code runs. The stubs
+	// preserve original behaviour while buffering messages for the `console`
+	// command.
+	Cypress.on('window:before:load', (win: Window) => {
+		_installConsoleCapture(win);
+	});
 
 	it('driver', () => {
 		const url = (Cypress.env('CYPRESS_CLI_URL') as string | undefined) || '/';

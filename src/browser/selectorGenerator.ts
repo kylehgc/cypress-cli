@@ -333,6 +333,8 @@ function _buildNonRefCommand(
 		}
 		case 'network':
 			return '// network requests (read-only)';
+		case 'console':
+			return '// console messages (read-only)';
 		case 'cookie-list': {
 			const domain = options?.['domain'] as string | undefined;
 			if (domain) {

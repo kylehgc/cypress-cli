@@ -70,6 +70,7 @@ import {
 	sessionstorageSet,
 	sessionstorageDelete,
 	sessionstorageClear,
+	console_,
 } from '../../../src/client/commands.js';
 import { z } from 'zod';
 
@@ -107,12 +108,12 @@ describe('declareCommand', () => {
 });
 
 describe('command schemas', () => {
-	it('defines all 61 commands', () => {
-		expect(allCommands).toHaveLength(61);
+	it('defines all 62 commands', () => {
+		expect(allCommands).toHaveLength(62);
 	});
 
 	it('registers all commands plus aliases in the registry', () => {
-		expect(commandRegistry.size).toBe(65);
+		expect(commandRegistry.size).toBe(66);
 	});
 
 	describe('categories', () => {
@@ -154,6 +155,10 @@ describe('command schemas', () => {
 
 		it('has screenshot command', () => {
 			expect(screenshot.category).toBe('core');
+		});
+
+		it('has console command', () => {
+			expect(console_.category).toBe('core');
 		});
 
 		it('has keyboard commands', () => {
@@ -674,6 +679,32 @@ describe('command schemas', () => {
 			expect(sessionstorageClear.args.safeParse({})).toMatchObject({
 				success: true,
 			});
+		});
+
+		it('console has optional level filter', () => {
+			expect(console_.args.safeParse({})).toMatchObject({ success: true });
+			expect(
+				console_.args.safeParse({ level: 'error' }),
+			).toMatchObject({ success: true });
+			expect(
+				console_.args.safeParse({ level: 'warning' }),
+			).toMatchObject({ success: true });
+			expect(
+				console_.args.safeParse({ level: 'info' }),
+			).toMatchObject({ success: true });
+			expect(
+				console_.args.safeParse({ level: 'debug' }),
+			).toMatchObject({ success: true });
+			expect(
+				console_.args.safeParse({ level: 'invalid' }),
+			).toMatchObject({ success: false });
+		});
+
+		it('console --clear option is optional boolean', () => {
+			expect(console_.options.safeParse({})).toMatchObject({ success: true });
+			expect(
+				console_.options.safeParse({ clear: true }),
+			).toMatchObject({ success: true });
 		});
 	});
 });

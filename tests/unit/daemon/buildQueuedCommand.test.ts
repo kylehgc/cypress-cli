@@ -399,4 +399,34 @@ describe('buildQueuedCommand', () => {
 			action: 'sessionstorage-clear',
 		});
 	});
+
+	it('maps console command with optional level and options', () => {
+		expect(buildQueuedCommand(40, makeArgs('console', []))).toEqual({
+			id: 40,
+			action: 'console',
+		});
+
+		expect(buildQueuedCommand(41, makeArgs('console', ['warning']))).toEqual({
+			id: 41,
+			action: 'console',
+			text: 'warning',
+		});
+
+		expect(
+			buildQueuedCommand(42, makeArgs('console', [], { clear: true })),
+		).toEqual({
+			id: 42,
+			action: 'console',
+			options: { clear: true },
+		});
+
+		expect(
+			buildQueuedCommand(43, makeArgs('console', ['error'], { clear: true })),
+		).toEqual({
+			id: 43,
+			action: 'console',
+			text: 'error',
+			options: { clear: true },
+		});
+	});
 });
