@@ -199,6 +199,10 @@ export function buildQueuedCommand(
 		case 'network':
 		case 'cookie-list':
 		case 'cookie-clear':
+		case 'localstorage-list':
+		case 'localstorage-clear':
+		case 'sessionstorage-list':
+		case 'sessionstorage-clear':
 			return withOptions({ id, action }, options);
 		case 'state-save':
 			return withOptions(
@@ -256,6 +260,10 @@ export function buildQueuedCommand(
 			);
 		case 'cookie-get':
 		case 'cookie-delete':
+		case 'localstorage-get':
+		case 'localstorage-delete':
+		case 'sessionstorage-get':
+		case 'sessionstorage-delete':
 			return withOptions(
 				{
 					id,
@@ -267,6 +275,8 @@ export function buildQueuedCommand(
 				options,
 			);
 		case 'cookie-set':
+		case 'localstorage-set':
+		case 'sessionstorage-set':
 			return withOptions(
 				{
 					id,
