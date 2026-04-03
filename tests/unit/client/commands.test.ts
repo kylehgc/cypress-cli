@@ -60,6 +60,16 @@ import {
 	eval_,
 	stateSave,
 	stateLoad,
+	localstorageList,
+	localstorageGet,
+	localstorageSet,
+	localstorageDelete,
+	localstorageClear,
+	sessionstorageList,
+	sessionstorageGet,
+	sessionstorageSet,
+	sessionstorageDelete,
+	sessionstorageClear,
 } from '../../../src/client/commands.js';
 import { z } from 'zod';
 
@@ -97,12 +107,12 @@ describe('declareCommand', () => {
 });
 
 describe('command schemas', () => {
-	it('defines all 51 commands', () => {
-		expect(allCommands).toHaveLength(51);
+	it('defines all 61 commands', () => {
+		expect(allCommands).toHaveLength(61);
 	});
 
 	it('registers all commands plus aliases in the registry', () => {
-		expect(commandRegistry.size).toBe(55);
+		expect(commandRegistry.size).toBe(65);
 	});
 
 	describe('categories', () => {
@@ -188,6 +198,16 @@ describe('command schemas', () => {
 			expect(cookieClear.category).toBe('storage');
 			expect(stateSave.category).toBe('storage');
 			expect(stateLoad.category).toBe('storage');
+			expect(localstorageList.category).toBe('storage');
+			expect(localstorageGet.category).toBe('storage');
+			expect(localstorageSet.category).toBe('storage');
+			expect(localstorageDelete.category).toBe('storage');
+			expect(localstorageClear.category).toBe('storage');
+			expect(sessionstorageList.category).toBe('storage');
+			expect(sessionstorageGet.category).toBe('storage');
+			expect(sessionstorageSet.category).toBe('storage');
+			expect(sessionstorageDelete.category).toBe('storage');
+			expect(sessionstorageClear.category).toBe('storage');
 		});
 	});
 
@@ -576,6 +596,84 @@ describe('command schemas', () => {
 
 			const missing = stateLoad.args.safeParse({});
 			expect(missing.success).toBe(false);
+		});
+
+		it('localstorage-list requires no args', () => {
+			expect(localstorageList.args.safeParse({})).toMatchObject({
+				success: true,
+			});
+		});
+
+		it('localstorage-get requires a key', () => {
+			expect(
+				localstorageGet.args.safeParse({ key: 'token' }),
+			).toMatchObject({ success: true });
+			expect(localstorageGet.args.safeParse({})).toMatchObject({
+				success: false,
+			});
+		});
+
+		it('localstorage-set requires key and value', () => {
+			expect(
+				localstorageSet.args.safeParse({ key: 'token', value: 'abc' }),
+			).toMatchObject({ success: true });
+			expect(
+				localstorageSet.args.safeParse({ key: 'token' }),
+			).toMatchObject({ success: false });
+		});
+
+		it('localstorage-delete requires a key', () => {
+			expect(
+				localstorageDelete.args.safeParse({ key: 'token' }),
+			).toMatchObject({ success: true });
+			expect(localstorageDelete.args.safeParse({})).toMatchObject({
+				success: false,
+			});
+		});
+
+		it('localstorage-clear requires no args', () => {
+			expect(localstorageClear.args.safeParse({})).toMatchObject({
+				success: true,
+			});
+		});
+
+		it('sessionstorage-list requires no args', () => {
+			expect(sessionstorageList.args.safeParse({})).toMatchObject({
+				success: true,
+			});
+		});
+
+		it('sessionstorage-get requires a key', () => {
+			expect(
+				sessionstorageGet.args.safeParse({ key: 'tab-id' }),
+			).toMatchObject({ success: true });
+			expect(sessionstorageGet.args.safeParse({})).toMatchObject({
+				success: false,
+			});
+		});
+
+		it('sessionstorage-set requires key and value', () => {
+			expect(
+				sessionstorageSet.args.safeParse({ key: 'tab-id', value: '1' }),
+			).toMatchObject({ success: true });
+			expect(
+				sessionstorageSet.args.safeParse({ key: 'tab-id' }),
+			).toMatchObject({ success: false });
+		});
+
+		it('sessionstorage-delete requires a key', () => {
+			expect(
+				sessionstorageDelete.args.safeParse({ key: 'tab-id' }),
+			).toMatchObject({ success: true });
+			expect(sessionstorageDelete.args.safeParse({})).toMatchObject({
+				success: false,
+			});
+		});
+
+		it('sessionstorage-clear requires no args', () => {
+			expect(sessionstorageClear.args.safeParse({})).toMatchObject({
+				success: true,
+			});
 		});
 	});
 });

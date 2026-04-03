@@ -109,6 +109,16 @@ const STRUCTURED_DATA_ONLY_COMMANDS = new Set([
 	'cookie-clear',
 	'state-save',
 	'state-load',
+	'localstorage-list',
+	'localstorage-get',
+	'localstorage-set',
+	'localstorage-delete',
+	'localstorage-clear',
+	'sessionstorage-list',
+	'sessionstorage-get',
+	'sessionstorage-set',
+	'sessionstorage-delete',
+	'sessionstorage-clear',
 ]);
 
 /**
@@ -782,6 +792,114 @@ function executeCommand(cmd: DriverCommand): void {
 						cleared: cookies.length,
 					});
 				});
+			});
+			break;
+		}
+		case 'localstorage-list': {
+			cy.window({ log: false }).then((win: Window) => {
+				const entries: Record<string, string> = {};
+				for (let i = 0; i < win.localStorage.length; i++) {
+					const key = win.localStorage.key(i);
+					if (key !== null) {
+						entries[key] = win.localStorage.getItem(key) ?? '';
+					}
+				}
+				_evalResult = JSON.stringify(entries);
+			});
+			break;
+		}
+		case 'localstorage-get': {
+			const key = cmd.text!;
+			cy.window({ log: false }).then((win: Window) => {
+				const value = win.localStorage.getItem(key);
+				if (value === null) {
+					_asyncCommandError = `localStorage key "${key}" not found.`;
+					return;
+				}
+				_evalResult = JSON.stringify({ key, value });
+			});
+			break;
+		}
+		case 'localstorage-set': {
+			const key = cmd.text!;
+			const value = String(cmd.options?.['value'] ?? '');
+			cy.window({ log: false }).then((win: Window) => {
+				win.localStorage.setItem(key, value);
+				_evalResult = JSON.stringify({ key, value });
+			});
+			break;
+		}
+		case 'localstorage-delete': {
+			const key = cmd.text!;
+			cy.window({ log: false }).then((win: Window) => {
+				if (win.localStorage.getItem(key) === null) {
+					_asyncCommandError = `localStorage key "${key}" not found.`;
+					return;
+				}
+				win.localStorage.removeItem(key);
+				_evalResult = JSON.stringify({ key, deleted: true });
+			});
+			break;
+		}
+		case 'localstorage-clear': {
+			cy.window({ log: false }).then((win: Window) => {
+				const count = win.localStorage.length;
+				win.localStorage.clear();
+				_evalResult = JSON.stringify({ cleared: count });
+			});
+			break;
+		}
+		case 'sessionstorage-list': {
+			cy.window({ log: false }).then((win: Window) => {
+				const entries: Record<string, string> = {};
+				for (let i = 0; i < win.sessionStorage.length; i++) {
+					const key = win.sessionStorage.key(i);
+					if (key !== null) {
+						entries[key] = win.sessionStorage.getItem(key) ?? '';
+					}
+				}
+				_evalResult = JSON.stringify(entries);
+			});
+			break;
+		}
+		case 'sessionstorage-get': {
+			const key = cmd.text!;
+			cy.window({ log: false }).then((win: Window) => {
+				const value = win.sessionStorage.getItem(key);
+				if (value === null) {
+					_asyncCommandError = `sessionStorage key "${key}" not found.`;
+					return;
+				}
+				_evalResult = JSON.stringify({ key, value });
+			});
+			break;
+		}
+		case 'sessionstorage-set': {
+			const key = cmd.text!;
+			const value = String(cmd.options?.['value'] ?? '');
+			cy.window({ log: false }).then((win: Window) => {
+				win.sessionStorage.setItem(key, value);
+				_evalResult = JSON.stringify({ key, value });
+			});
+			break;
+		}
+		case 'sessionstorage-delete': {
+			const key = cmd.text!;
+			cy.window({ log: false }).then((win: Window) => {
+				if (win.sessionStorage.getItem(key) === null) {
+					_asyncCommandError = `sessionStorage key "${key}" not found.`;
+					return;
+				}
+				win.sessionStorage.removeItem(key);
+				_evalResult = JSON.stringify({ key, deleted: true });
+			});
+			break;
+		}
+		case 'sessionstorage-clear': {
+			cy.window({ log: false }).then((win: Window) => {
+				const count = win.sessionStorage.length;
+				win.sessionStorage.clear();
+				_evalResult = JSON.stringify({ cleared: count });
 			});
 			break;
 		}

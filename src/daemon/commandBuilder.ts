@@ -282,6 +282,42 @@ export function buildQueuedCommand(
 					}),
 				},
 			);
+		case 'localstorage-list':
+		case 'localstorage-clear':
+		case 'sessionstorage-list':
+		case 'sessionstorage-clear':
+			return withOptions({ id, action }, options);
+		case 'localstorage-get':
+		case 'localstorage-delete':
+		case 'sessionstorage-get':
+		case 'sessionstorage-delete':
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && {
+						text: positionals[0],
+					}),
+				},
+				options,
+			);
+		case 'localstorage-set':
+		case 'sessionstorage-set':
+			return withOptions(
+				{
+					id,
+					action,
+					...(positionals[0] !== undefined && {
+						text: positionals[0],
+					}),
+				},
+				{
+					...options,
+					...(joinText(positionals.slice(1)) !== undefined && {
+						value: joinText(positionals.slice(1)),
+					}),
+				},
+			);
 		case 'dialog-accept':
 			return withOptions(
 				{

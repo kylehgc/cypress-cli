@@ -368,6 +368,56 @@ function _buildNonRefCommand(
 		}
 		case 'cookie-clear':
 			return 'cy.clearCookies()';
+		case 'localstorage-list':
+			return "cy.window().then((win) => Object.fromEntries(Object.entries(win.localStorage)))";
+		case 'localstorage-get': {
+			const escapedKey = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `cy.window().then((win) => win.localStorage.getItem('${escapedKey}'))`;
+		}
+		case 'localstorage-set': {
+			const escapedKey = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			const escapedValue = String(options?.['value'] ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `cy.window().then((win) => win.localStorage.setItem('${escapedKey}', '${escapedValue}'))`;
+		}
+		case 'localstorage-delete': {
+			const escapedKey = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `cy.window().then((win) => win.localStorage.removeItem('${escapedKey}'))`;
+		}
+		case 'localstorage-clear':
+			return 'cy.window().then((win) => win.localStorage.clear())';
+		case 'sessionstorage-list':
+			return "cy.window().then((win) => Object.fromEntries(Object.entries(win.sessionStorage)))";
+		case 'sessionstorage-get': {
+			const escapedKey = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `cy.window().then((win) => win.sessionStorage.getItem('${escapedKey}'))`;
+		}
+		case 'sessionstorage-set': {
+			const escapedKey = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			const escapedValue = String(options?.['value'] ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `cy.window().then((win) => win.sessionStorage.setItem('${escapedKey}', '${escapedValue}'))`;
+		}
+		case 'sessionstorage-delete': {
+			const escapedKey = (text ?? '')
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'");
+			return `cy.window().then((win) => win.sessionStorage.removeItem('${escapedKey}'))`;
+		}
+		case 'sessionstorage-clear':
+			return 'cy.window().then((win) => win.sessionStorage.clear())';
 		case 'dialog-accept': {
 			if (text) {
 				const escapedPrompt = (text ?? '')

@@ -337,4 +337,66 @@ describe('buildQueuedCommand', () => {
 			text: 'foo bar',
 		});
 	});
+
+	it('maps localStorage commands to text and option payloads', () => {
+		expect(buildQueuedCommand(30, makeArgs('localstorage-list', []))).toEqual({
+			id: 30,
+			action: 'localstorage-list',
+		});
+
+		expect(buildQueuedCommand(31, makeArgs('localstorage-get', ['token']))).toEqual({
+			id: 31,
+			action: 'localstorage-get',
+			text: 'token',
+		});
+
+		expect(buildQueuedCommand(32, makeArgs('localstorage-set', ['token', 'abc123']))).toEqual({
+			id: 32,
+			action: 'localstorage-set',
+			text: 'token',
+			options: { value: 'abc123' },
+		});
+
+		expect(buildQueuedCommand(33, makeArgs('localstorage-delete', ['token']))).toEqual({
+			id: 33,
+			action: 'localstorage-delete',
+			text: 'token',
+		});
+
+		expect(buildQueuedCommand(34, makeArgs('localstorage-clear', []))).toEqual({
+			id: 34,
+			action: 'localstorage-clear',
+		});
+	});
+
+	it('maps sessionStorage commands to text and option payloads', () => {
+		expect(buildQueuedCommand(35, makeArgs('sessionstorage-list', []))).toEqual({
+			id: 35,
+			action: 'sessionstorage-list',
+		});
+
+		expect(buildQueuedCommand(36, makeArgs('sessionstorage-get', ['tab-id']))).toEqual({
+			id: 36,
+			action: 'sessionstorage-get',
+			text: 'tab-id',
+		});
+
+		expect(buildQueuedCommand(37, makeArgs('sessionstorage-set', ['tab-id', '42']))).toEqual({
+			id: 37,
+			action: 'sessionstorage-set',
+			text: 'tab-id',
+			options: { value: '42' },
+		});
+
+		expect(buildQueuedCommand(38, makeArgs('sessionstorage-delete', ['tab-id']))).toEqual({
+			id: 38,
+			action: 'sessionstorage-delete',
+			text: 'tab-id',
+		});
+
+		expect(buildQueuedCommand(39, makeArgs('sessionstorage-clear', []))).toEqual({
+			id: 39,
+			action: 'sessionstorage-clear',
+		});
+	});
 });
