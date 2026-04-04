@@ -48,9 +48,8 @@ let socketPath: string;
 let bridge: QueueBridge;
 
 beforeEach(async () => {
-socketDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cypress-cli-bridge-'));
-socketPath = path.join(socketDir, `bridge-${Date.now()}-${Math.random()}.sock`);
-
+		socketDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cb-'));
+		socketPath = path.join(socketDir, 'bridge.sock');
 taskMocks.getCommand.mockReset();
 taskMocks.commandResult.mockReset();
 taskMocks.createTaskHandlers.mockReset().mockReturnValue({

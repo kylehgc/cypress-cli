@@ -48,6 +48,13 @@ const responseMessageSchema = z.object({
 		testFile: z.string().optional(),
 		filePath: z.string().optional(),
 		snapshotFilePath: z.string().optional(),
+		totalTests: z.number().optional(),
+		totalPassed: z.number().optional(),
+		totalFailed: z.number().optional(),
+		failures: z
+			.array(z.object({ test: z.string(), error: z.string() }))
+			.optional(),
+		duration: z.number().optional(),
 	}),
 });
 

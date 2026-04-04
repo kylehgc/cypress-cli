@@ -30,6 +30,7 @@ import {
 	handleUndo,
 	handleExport,
 	handleInterceptList,
+	handleRunTest,
 	trackInterceptState,
 	checkInterceptDrift,
 } from './handlers.js';
@@ -401,6 +402,11 @@ export class Daemon {
 
 		if (action === 'intercept-list') {
 			handleInterceptList(conn, message, this._findRunningSession());
+			return;
+		}
+
+		if (action === 'run') {
+			void handleRunTest(conn, message);
 			return;
 		}
 

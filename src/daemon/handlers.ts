@@ -249,6 +249,132 @@ export function checkInterceptDrift(
 	}
 }
 
+/**
+ * Handle the `run` daemon-local command.
+ * Runs a Cypress test file in a separate cypress.run() invocation
+ * and returns structured results.
+ */
+export async function handleRunTest(
+	conn: SocketConnection,
+	message: CommandMessage,
+): Promise<void> {
+	const args = message.params.args;
+	const file = args._[1] as string | undefined;
+	const options = stripPositionals(args);
+
+	if (!file) {
+		sendError(conn, {
+			id: message.id,
+			error: 'run requires a file argument.',
+		});
+		return;
+	}
+
+	const resolvedFile = path.resolve(file);
+
+	// Validate file extension
+	if (!/\.cy\.[tj]s$/.test(resolvedFile)) {
+		sendError(conn, {
+			id: message.id,
+			error: `Invalid test file extension. Expected .cy.ts or .cy.js, got: ${path.basename(resolvedFile)}`,
+		});
+		return;
+	}
+
+	// Validate file exists
+	try {
+		await fs.access(resolvedFile);
+	} catch {
+		sendError(conn, {
+			id: message.id,
+			error: `Test file not found: ${resolvedFile}`,
+		});
+		return;
+	}
+
+	try {
+		const cypress = await import('cypress');
+		const result = await cypress.default.run({
+			spec: resolvedFile,
+			browser: (options['browser'] as string) ?? 'electron',
+			headed: options['headed'] === true,
+		} as Record<string, unknown>);
+
+		// Cypress returns CypressFailedRunResult on infrastructure failure
+		if (
+			result &&
+			typeof result === 'object' &&
+			'status' in result &&
+			(result as { status: string }).status === 'failed'
+		) {
+			const failedResult = result as { message?: string; failures?: number };
+			const response: ResponseMessage = {
+				id: message.id,
+				result: {
+					success: false,
+					totalTests: 0,
+					totalPassed: 0,
+					totalFailed: failedResult.failures ?? 0,
+					failures: [],
+					duration: 0,
+					error: failedResult.message ?? 'Cypress run failed',
+				},
+			};
+			conn.send(response);
+			return;
+		}
+
+		// Normal CypressRunResult
+		const runResult = result as {
+			totalTests?: number;
+			totalPassed?: number;
+			totalFailed?: number;
+			totalDuration?: number;
+			runs?: Array<{
+				tests?: Array<{
+					title?: string[];
+					state?: string;
+					displayError?: string | null;
+				}>;
+			}>;
+		};
+
+		const failures: Array<{ test: string; error: string }> = [];
+		if (runResult.runs) {
+			for (const run of runResult.runs) {
+				if (run.tests) {
+					for (const test of run.tests) {
+						if (test.state === 'failed' && test.displayError) {
+							failures.push({
+								test: (test.title ?? []).join(' > '),
+								error: test.displayError,
+							});
+						}
+					}
+				}
+			}
+		}
+
+		const response: ResponseMessage = {
+			id: message.id,
+			result: {
+				success: (runResult.totalFailed ?? 0) === 0,
+				totalTests: runResult.totalTests ?? 0,
+				totalPassed: runResult.totalPassed ?? 0,
+				totalFailed: runResult.totalFailed ?? 0,
+				failures,
+				duration: runResult.totalDuration ?? 0,
+			},
+		};
+		conn.send(response);
+	} catch (err) {
+		sendError(conn, {
+			id: message.id,
+			error: err instanceof Error ? err.message : String(err),
+		});
+	}
+}
+
 function sendError(conn: SocketConnection, message: ErrorMessage): void {
 	conn.send(message);
 }

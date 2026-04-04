@@ -841,6 +841,29 @@ export const upload = declareCommand({
 });
 
 // ---------------------------------------------------------------------------
+// Run command (standalone test execution)
+// ---------------------------------------------------------------------------
+
+export const runTest = declareCommand({
+	name: 'run',
+	category: 'execution',
+	description: 'Run a Cypress test file and report results',
+	args: z.object({
+		file: z.string().describe('Path to the test file to run'),
+	}),
+	options: z.object({
+		browser: z
+			.enum(['chrome', 'electron'])
+			.optional()
+			.describe('Browser to use (default: electron)'),
+		headed: z
+			.boolean()
+			.optional()
+			.describe('Run in headed mode (default: false)'),
+	}),
+});
+
+// ---------------------------------------------------------------------------
 // Command registry
 // ---------------------------------------------------------------------------
 
@@ -911,6 +934,7 @@ export const allCommands = [
 	dialogAccept,
 	dialogDismiss,
 	resize,
+	runTest,
 ] as const;
 
 /**
@@ -1136,6 +1160,12 @@ export function buildRegistry(): ReadonlyMap<string, CommandRegistryEntry> {
 	registry.set('upload', {
 		schema: upload,
 		positionals: ['ref', 'file'],
+	});
+
+	// Run (standalone test execution)
+	registry.set('run', {
+		schema: runTest,
+		positionals: ['file'],
 	});
 
 	// Aliases (playwright-cli naming compatibility)

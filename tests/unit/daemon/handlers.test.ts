@@ -1,9 +1,13 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
 
 import type { SocketConnection } from '../../../src/daemon/connection.js';
 import {
 	handleHistory,
 	handleStatus,
+	handleRunTest,
 	trackInterceptState,
 	checkInterceptDrift,
 } from '../../../src/daemon/handlers.js';
@@ -12,6 +16,14 @@ import type {
 	ResponseMessage,
 } from '../../../src/daemon/protocol.js';
 import { Session } from '../../../src/daemon/session.js';
+
+const cypressMock = vi.hoisted(() => ({
+	run: vi.fn(),
+}));
+
+vi.mock('cypress', () => ({
+	default: cypressMock,
+}));
 
 function makeConnection(): {
 	conn: SocketConnection;
@@ -125,5 +137,127 @@ describe('daemon handlers', () => {
 		);
 
 		expect(session.intercepts).toEqual([]);
+	});
+});
+
+describe('handleRunTest', () => {
+	it('returns error when file argument is missing', async () => {
+		const { conn, send } = makeConnection();
+
+		await handleRunTest(conn, makeMessage('run'));
+
+		expect(send).toHaveBeenCalledWith(
+			expect.objectContaining({
+				id: 1,
+				error: 'run requires a file argument.',
+			}),
+		);
+	});
+
+	it('rejects files without .cy.ts or .cy.js extension', async () => {
+		const { conn, send } = makeConnection();
+
+		await handleRunTest(conn, makeMessage('run', ['test.ts']));
+
+		expect(send).toHaveBeenCalledWith(
+			expect.objectContaining({
+				id: 1,
+				error: expect.stringContaining('Invalid test file extension'),
+			}),
+		);
+	});
+
+	it('returns error when file does not exist', async () => {
+		const { conn, send } = makeConnection();
+
+		await handleRunTest(conn, makeMessage('run', ['nonexistent.cy.ts']));
+
+		expect(send).toHaveBeenCalledWith(
+			expect.objectContaining({
+				id: 1,
+				error: expect.stringContaining('Test file not found'),
+			}),
+		);
+	});
+
+	it('maps successful Cypress run result to structured response', async () => {
+		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'run-test-'));
+		const testFile = path.join(tmpDir, 'test.cy.ts');
+		await fs.writeFile(testFile, 'describe("test", () => { it("passes", () => {}) })');
+
+		const { conn, send } = makeConnection();
+
+		cypressMock.run.mockResolvedValue({
+			totalTests: 3,
+			totalPassed: 2,
+			totalFailed: 1,
+			totalDuration: 1500,
+			runs: [
+				{
+					tests: [
+						{ title: ['Suite', 'passes'], state: 'passed', displayError: null },
+						{ title: ['Suite', 'also passes'], state: 'passed', displayError: null },
+						{ title: ['Suite', 'fails'], state: 'failed', displayError: 'AssertionError: expected true to be false' },
+					],
+				},
+			],
+		});
+
+		await handleRunTest(conn, makeMessage('run', [testFile]));
+
+		expect(send).toHaveBeenCalledWith(
+			expect.objectContaining({
+				id: 1,
+				result: expect.objectContaining({
+					success: false,
+					totalTests: 3,
+					totalPassed: 2,
+					totalFailed: 1,
+					duration: 1500,
+					failures: [
+						{
+							test: 'Suite > fails',
+							error: 'AssertionError: expected true to be false',
+						},
+					],
+				}),
+			}),
+		);
+
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	});
+
+	it('maps Cypress failed run result (infrastructure failure)', async () => {
+		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'run-test-'));
+		const testFile = path.join(tmpDir, 'test.cy.ts');
+		await fs.writeFile(testFile, '// empty');
+
+		const { conn, send } = makeConnection();
+
+		cypressMock.run.mockResolvedValue({
+			status: 'failed',
+			message: 'Could not find Cypress binary',
+			failures: 1,
+		});
+
+		await handleRunTest(conn, makeMessage('run', [testFile]));
+
+		expect(send).toHaveBeenCalledWith(
+			expect.objectContaining({
+				id: 1,
+				result: expect.objectContaining({
+					success: false,
+					totalTests: 0,
+					totalFailed: 1,
+					error: 'Could not find Cypress binary',
+				}),
+			}),
+		);
+
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	});
+
+	afterEach(() => {
+		cypressMock.run.mockReset();
 	});
 });
