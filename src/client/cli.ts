@@ -235,6 +235,36 @@ export function formatResult(result: ClientResult, asJson: boolean): string {
 		return lines.join('\n');
 	}
 
+	if (typeof resultObj?.['undoneAction'] === 'string') {
+		return resultObj['undoneAction'];
+	}
+
+	if (typeof resultObj?.['historyEntries'] === 'string') {
+		try {
+			const entries = JSON.parse(resultObj['historyEntries']) as Array<{
+				index: number;
+				action: string;
+				ref?: string;
+				text?: string;
+				success: boolean;
+				active: boolean;
+			}>;
+			if (entries.length === 0) {
+				return 'No commands in history.';
+			}
+			const lines = entries.map((e) => {
+				const status = e.active ? (e.success ? '✓' : '✗') : '↩';
+				const parts = [e.action];
+				if (e.ref) parts.push(e.ref);
+				if (e.text) parts.push(e.text);
+				return `  ${status} ${e.index}: ${parts.join(' ')}`;
+			});
+			return `### History (${entries.length} commands)\n${lines.join('\n')}`;
+		} catch {
+			return resultObj['historyEntries'];
+		}
+	}
+
 	// Build output lines — page metadata + snapshot file path (never inline YAML)
 	const lines: string[] = [];
 

@@ -55,6 +55,8 @@ const responseMessageSchema = z.object({
 			.array(z.object({ test: z.string(), error: z.string() }))
 			.optional(),
 		duration: z.number().optional(),
+		historyEntries: z.string().optional(),
+		undoneAction: z.string().optional(),
 	}),
 });
 

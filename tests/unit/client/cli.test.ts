@@ -325,6 +325,50 @@ describe('formatResult', () => {
 			'Installed skills to: .github/skills/cypress-cli',
 		);
 	});
+
+	it('formats undoneAction when present', () => {
+		const result: ClientResult = {
+			success: true,
+			result: {
+				undoneAction: 'Undone: type e40',
+			},
+		};
+		expect(formatResult(result, false)).toBe('Undone: type e40');
+	});
+
+	it('formats history entries when present', () => {
+		const entries = [
+			{ index: 0, action: 'click', ref: 'e1', success: true, active: true },
+			{
+				index: 1,
+				action: 'type',
+				ref: 'e2',
+				text: 'hello',
+				success: true,
+				active: false,
+			},
+		];
+		const result: ClientResult = {
+			success: true,
+			result: {
+				historyEntries: JSON.stringify(entries),
+			},
+		};
+		const output = formatResult(result, false);
+		expect(output).toContain('### History (2 commands)');
+		expect(output).toContain('✓ 0: click e1');
+		expect(output).toContain('↩ 1: type e2 hello');
+	});
+
+	it('shows empty history message', () => {
+		const result: ClientResult = {
+			success: true,
+			result: {
+				historyEntries: JSON.stringify([]),
+			},
+		};
+		expect(formatResult(result, false)).toBe('No commands in history.');
+	});
 });
 
 // ---------------------------------------------------------------------------

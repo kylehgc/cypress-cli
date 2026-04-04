@@ -70,7 +70,10 @@ describe('daemon handlers', () => {
 
 	it('formats history entries with active flags based on undo state', () => {
 		const { conn, send } = makeConnection();
-		const session = new Session({ id: 'session-1', url: 'https://example.com' });
+		const session = new Session({
+			id: 'session-1',
+			url: 'https://example.com',
+		});
 
 		session.recordHistory(
 			{ id: 1, action: 'click', ref: 'e1' },
@@ -87,7 +90,7 @@ describe('daemon handlers', () => {
 		const response = send.mock.calls[0]?.[0];
 		expect(response?.id).toBe(1);
 		expect(response?.result.success).toBe(true);
-		expect(JSON.parse(String(response?.result.snapshot))).toEqual([
+		expect(JSON.parse(String(response?.result.historyEntries))).toEqual([
 			expect.objectContaining({
 				index: 0,
 				action: 'click',
