@@ -71,7 +71,13 @@ describe('buildQueuedCommand', () => {
 	});
 
 	it('maps text-only commands by joining all positionals', () => {
-		const actions = ['press', 'wait', 'run-code', 'dialog-accept'] as const;
+		const actions = [
+			'press',
+			'wait',
+			'run-code',
+			'dialog-accept',
+			'cyrun',
+		] as const;
 
 		for (const action of actions) {
 			expect(buildQueuedCommand(3, makeArgs(action, ['Arrow', 'Down']))).toEqual({

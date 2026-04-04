@@ -58,6 +58,7 @@ import {
 	drag,
 	upload,
 	eval_,
+	cyrun,
 	stateSave,
 	stateLoad,
 	localstorageList,
@@ -108,12 +109,12 @@ describe('declareCommand', () => {
 });
 
 describe('command schemas', () => {
-	it('defines all 62 commands', () => {
-		expect(allCommands).toHaveLength(62);
+	it('defines all 63 commands', () => {
+		expect(allCommands).toHaveLength(63);
 	});
 
 	it('registers all commands plus aliases in the registry', () => {
-		expect(commandRegistry.size).toBe(66);
+		expect(commandRegistry.size).toBe(67);
 	});
 
 	describe('categories', () => {
@@ -185,6 +186,7 @@ describe('command schemas', () => {
 		it('has execution commands', () => {
 			expect(runCode.category).toBe('execution');
 			expect(eval_.category).toBe('execution');
+			expect(cyrun.category).toBe('execution');
 		});
 
 		it('has network commands', () => {
@@ -377,6 +379,16 @@ describe('command schemas', () => {
 			expect(withRef.success).toBe(true);
 
 			const missing = eval_.args.safeParse({});
+			expect(missing.success).toBe(false);
+		});
+
+		it('cyrun requires code', () => {
+			const good = cyrun.args.safeParse({
+				code: "cy.get('.items').find('li').first().click()",
+			});
+			expect(good.success).toBe(true);
+
+			const missing = cyrun.args.safeParse({});
 			expect(missing.success).toBe(false);
 		});
 

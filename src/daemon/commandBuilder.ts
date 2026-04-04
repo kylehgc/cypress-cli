@@ -125,6 +125,7 @@ export function buildQueuedCommand(
 		case 'press':
 		case 'wait':
 		case 'run-code':
+		case 'cyrun':
 			return withOptions(
 				{
 					id,

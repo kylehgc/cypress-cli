@@ -461,6 +461,21 @@ export const eval_ = declareCommand({
 	options: z.object({}),
 });
 
+export const cyrun = declareCommand({
+	name: 'cyrun',
+	category: 'execution',
+	description:
+		'Execute an arbitrary Cypress chain string in the Cypress runner context',
+	args: z.object({
+		code: z
+			.string()
+			.trim()
+			.min(1)
+			.describe('Cypress chain code to execute'),
+	}),
+	options: z.object({}),
+});
+
 // ---------------------------------------------------------------------------
 // Wait commands
 // ---------------------------------------------------------------------------
@@ -864,6 +879,7 @@ export const allCommands = [
 	undo,
 	runCode,
 	eval_,
+	cyrun,
 	wait,
 	waitfor,
 	network,
@@ -980,6 +996,7 @@ export function buildRegistry(): ReadonlyMap<string, CommandRegistryEntry> {
 		schema: eval_,
 		positionals: ['expression', 'ref'],
 	});
+	registry.set('cyrun', { schema: cyrun, positionals: ['code'] });
 
 	// Wait
 	registry.set('wait', { schema: wait, positionals: ['ms'] });
