@@ -74,7 +74,7 @@ export function handleHistory(
 		id: message.id,
 		result: {
 			success: true,
-			snapshot: JSON.stringify(formatted),
+			historyEntries: JSON.stringify(formatted),
 		},
 	};
 	conn.send(response);
@@ -109,7 +109,7 @@ export function handleUndo(
 		id: message.id,
 		result: {
 			success: true,
-			snapshot: `Undone: ${undone.command.action}${undone.command.ref ? ' ' + undone.command.ref : ''}`,
+			undoneAction: `Undone: ${undone.command.action}${undone.command.ref ? ' ' + undone.command.ref : ''}`,
 		},
 	};
 	conn.send(response);
@@ -228,7 +228,11 @@ export function checkInterceptDrift(
 	command: QueuedCommand,
 	result: CommandResult,
 ): void {
-	const DRIFT_TRACKED_ACTIONS = new Set(['network', 'intercept', 'unintercept']);
+	const DRIFT_TRACKED_ACTIONS = new Set([
+		'network',
+		'intercept',
+		'unintercept',
+	]);
 	if (!DRIFT_TRACKED_ACTIONS.has(command.action)) return;
 
 	if (!result.evalResult) return;

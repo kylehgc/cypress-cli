@@ -7,11 +7,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
-import {
-	setupE2E,
-	isSuccess,
-	type E2EContext,
-} from './helpers.js';
+import { setupE2E, isSuccess, type E2EContext } from './helpers.js';
 import type { ResponseMessage } from '../../src/daemon/protocol.js';
 
 describe('E2E: export', () => {
@@ -27,10 +23,11 @@ describe('E2E: export', () => {
 
 	it('executes commands and exports a valid test file', async () => {
 		// Execute a navigate command (generates a cypressCommand for codegen)
-		const navResponse = await ctx.sendCommand(
-			60,
-			['navigate', '_', `http://127.0.0.1:${ctx.port}/simple.html`],
-		);
+		const navResponse = await ctx.sendCommand(60, [
+			'navigate',
+			'_',
+			`http://127.0.0.1:${ctx.port}/simple.html`,
+		]);
 		expect(isSuccess(navResponse)).toBe(true);
 
 		// Take a snapshot (no-op command but needed for flow)
@@ -55,11 +52,10 @@ describe('E2E: export', () => {
 	}, 60_000);
 
 	it('export with custom describe and it names', async () => {
-		const exportResponse = await ctx.sendCommand(
-			63,
-			['export'],
-			{ describe: 'My Test Suite', it: 'should work' },
-		);
+		const exportResponse = await ctx.sendCommand(63, ['export'], {
+			describe: 'My Test Suite',
+			it: 'should work',
+		});
 		expect(isSuccess(exportResponse)).toBe(true);
 
 		const result = (exportResponse as ResponseMessage).result;
@@ -74,7 +70,8 @@ describe('E2E: export', () => {
 		const snapshotResponse = await ctx.sendCommand(65, ['snapshot']);
 		expect(isSuccess(snapshotResponse)).toBe(true);
 
-		const snapshot = (snapshotResponse as ResponseMessage).result.snapshot ?? '';
+		const snapshot =
+			(snapshotResponse as ResponseMessage).result.snapshot ?? '';
 		const helloRef = snapshot.match(/button "Say Hello" \[ref=(e\d+)\]/)?.[1];
 		expect(helloRef).toBeDefined();
 
@@ -94,10 +91,10 @@ describe('E2E: export', () => {
 		expect(isSuccess(historyResponse)).toBe(true);
 
 		const result = (historyResponse as ResponseMessage).result;
-		// History is returned as a JSON string in the snapshot field
-		expect(result.snapshot).toBeDefined();
+		// History is returned as a JSON string in the historyEntries field
+		expect(result.historyEntries).toBeDefined();
 
-		const history = JSON.parse(result.snapshot!);
+		const history = JSON.parse(result.historyEntries!);
 		expect(Array.isArray(history)).toBe(true);
 		expect(history.length).toBeGreaterThan(0);
 
