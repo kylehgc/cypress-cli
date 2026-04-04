@@ -467,7 +467,11 @@ export const cyrun = declareCommand({
 	description:
 		'Execute an arbitrary Cypress chain string in the Cypress runner context',
 	args: z.object({
-		code: z.string().describe('Cypress chain code to execute'),
+		code: z
+			.string()
+			.trim()
+			.min(1)
+			.describe('Cypress chain code to execute'),
 	}),
 	options: z.object({}),
 });
