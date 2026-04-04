@@ -93,10 +93,12 @@ or require a running Cypress session.
 
 ### Execution
 
-| Command    | Syntax                                | Description                                                       |
-| ---------- | ------------------------------------- | ----------------------------------------------------------------- |
-| `run-code` | `cypress-cli run-code <code>`         | Execute JS in browser (`cy.window().then(win => win.eval(code))`) |
-| `eval`     | `cypress-cli eval <expression> [ref]` | Evaluate JS expression on page or on a specific element           |
+| Command    | Syntax                                                     | Description                                                       |
+| ---------- | ---------------------------------------------------------- | ----------------------------------------------------------------- |
+| `run-code` | `cypress-cli run-code <code>`                              | Execute JS in browser (`cy.window().then(win => win.eval(code))`) |
+| `eval`     | `cypress-cli eval <expression> [ref]`                      | Evaluate JS expression on page or on a specific element           |
+| `cyrun`    | `cypress-cli cyrun <code>`                                 | Execute arbitrary Cypress chain string in the runner context       |
+| `run`      | `cypress-cli run <file> [--browser chrome\|electron] [--headed]` | Run a Cypress test file and report structured results             |
 
 ### Wait
 

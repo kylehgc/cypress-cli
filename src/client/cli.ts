@@ -214,6 +214,27 @@ export function formatResult(result: ClientResult, asJson: boolean): string {
 		return `Installed skills to: ${resultObj['installedPath']}`;
 	}
 
+	// Run command result (structured test results)
+	if (typeof resultObj?.['totalTests'] === 'number') {
+		const lines: string[] = [];
+		const passed = resultObj['success'] ? 'PASSED' : 'FAILED';
+		lines.push(`### Test Run: ${passed}`);
+		lines.push(`- Total: ${resultObj['totalTests']}`);
+		lines.push(`- Passed: ${resultObj['totalPassed']}`);
+		lines.push(`- Failed: ${resultObj['totalFailed']}`);
+		lines.push(`- Duration: ${resultObj['duration']}ms`);
+		const failures = resultObj['failures'] as
+			| Array<{ test: string; error: string }>
+			| undefined;
+		if (failures && failures.length > 0) {
+			lines.push('', '### Failures');
+			for (const f of failures) {
+				lines.push(`- ${f.test}: ${f.error}`);
+			}
+		}
+		return lines.join('\n');
+	}
+
 	// Build output lines — page metadata + snapshot file path (never inline YAML)
 	const lines: string[] = [];
 

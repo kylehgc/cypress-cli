@@ -72,6 +72,7 @@ import {
 	sessionstorageDelete,
 	sessionstorageClear,
 	console_,
+	runTest,
 } from '../../../src/client/commands.js';
 import { z } from 'zod';
 
@@ -109,12 +110,12 @@ describe('declareCommand', () => {
 });
 
 describe('command schemas', () => {
-	it('defines all 63 commands', () => {
-		expect(allCommands).toHaveLength(63);
+	it('defines all 64 commands', () => {
+		expect(allCommands).toHaveLength(64);
 	});
 
 	it('registers all commands plus aliases in the registry', () => {
-		expect(commandRegistry.size).toBe(67);
+		expect(commandRegistry.size).toBe(68);
 	});
 
 	describe('categories', () => {
@@ -187,6 +188,7 @@ describe('command schemas', () => {
 			expect(runCode.category).toBe('execution');
 			expect(eval_.category).toBe('execution');
 			expect(cyrun.category).toBe('execution');
+			expect(runTest.category).toBe('execution');
 		});
 
 		it('has network commands', () => {
@@ -795,6 +797,30 @@ describe('command schemas', () => {
 			expect(
 				console_.options.safeParse({ clear: true }),
 			).toMatchObject({ success: true });
+		});
+
+		it('run requires file', () => {
+			const good = runTest.args.safeParse({ file: 'test.cy.ts' });
+			expect(good.success).toBe(true);
+
+			const missing = runTest.args.safeParse({});
+			expect(missing.success).toBe(false);
+		});
+
+		it('run options are optional', () => {
+			const noOptions = runTest.options.safeParse({});
+			expect(noOptions.success).toBe(true);
+
+			const withBrowser = runTest.options.safeParse({ browser: 'chrome' });
+			expect(withBrowser.success).toBe(true);
+
+			const withHeaded = runTest.options.safeParse({ headed: true });
+			expect(withHeaded.success).toBe(true);
+
+			const invalidBrowser = runTest.options.safeParse({
+				browser: 'firefox',
+			});
+			expect(invalidBrowser.success).toBe(false);
 		});
 	});
 });
