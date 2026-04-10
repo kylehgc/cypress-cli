@@ -56,19 +56,6 @@ cypress-cli assert e5 contain.text "hello"
 cypress-cli export --file my-test.cy.ts
 ```
 
-### Interactive REPL
-
-```bash
-# Start an interactive session
-cypress-cli repl
-
-# Then type commands directly:
-> open https://example.com
-> snapshot
-> click e5
-> export
-```
-
 ## Commands
 
 | Category    | Commands                                                                   |
@@ -76,13 +63,17 @@ cypress-cli repl
 | Core        | `open`, `stop`, `status`, `install`, `snapshot`                            |
 | Navigation  | `navigate`, `back`, `forward`, `reload`                                    |
 | Interaction | `click`, `dblclick`, `rightclick`, `type`, `clear`, `select`               |
-|             | `check`, `uncheck`, `focus`, `blur`, `scrollto`, `hover`                   |
+|             | `check`, `uncheck`, `focus`, `blur`, `scrollto`, `hover`, `fill`           |
 | Keyboard    | `press`                                                                    |
 | Assertion   | `assert`, `asserturl`, `asserttitle`                                       |
-| Execution   | `run-code`                                                                 |
+| Execution   | `run-code`, `eval`, `cyrun`, `run`                                         |
 | Wait        | `wait`, `waitfor`                                                          |
 | Network     | `intercept`, `waitforresponse`, `unintercept`, `intercept-list`, `network` |
-| Storage     | `cookie-list`, `cookie-get`, `cookie-set`, `cookie-delete`, `cookie-clear` |
+| Cookies     | `cookie-list`, `cookie-get`, `cookie-set`, `cookie-delete`, `cookie-clear` |
+| Storage     | `localstorage-list/get/set/delete/clear`                                   |
+|             | `sessionstorage-list/get/set/delete/clear`, `state-save`, `state-load`     |
+| DevTools    | `console`, `screenshot`                                                    |
+| Page        | `drag`, `upload`, `dialog-accept`, `dialog-dismiss`, `resize`              |
 | Export      | `export`, `history`, `undo`                                                |
 
 See [docs/COMMANDS.md](docs/COMMANDS.md) for full syntax, schemas, and Cypress API mappings.

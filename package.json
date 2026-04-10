@@ -48,7 +48,8 @@
 		"bin/",
 		"skills/",
 		"README.md",
-		"LICENSE"
+		"LICENSE",
+		"THIRD_PARTY_LICENSES"
 	],
 	"license": "MIT",
 	"repository": {
