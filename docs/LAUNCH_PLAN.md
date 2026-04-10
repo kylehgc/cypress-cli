@@ -5,8 +5,8 @@
 ## Current State (2026-04-10)
 
 - **Version:** 0.1.0
-- **Commands:** 64 implemented (68 registry entries with aliases)
-- **Tests:** 1009 passing across 52 files
+- **Commands:** 65 implemented (69 registry entries with aliases)
+- **Tests:** 1012 passing across 52 files
 - **CI:** GitHub Actions (ci.yml + e2e.yml), both green
 - **License:** MIT
 - **Package size:** 175 kB (well under npm limits)
