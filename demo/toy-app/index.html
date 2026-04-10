@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>cypress-cli Toy App</title>
+		<link rel="stylesheet" href="./style.css" />
+	</head>
+	<body>
+		<div class="shell">
+			<section class="hero" data-cy="home-hero">
+				<span class="eyebrow">Browser demo target</span>
+				<h1>cypress-cli Toy App</h1>
+				<p class="lede">
+					A same-origin site for exercising aria snapshots, DOM commands, and
+					Cypress code generation inside the browser demo.
+				</p>
+				<nav aria-label="Toy app pages">
+					<ul class="nav">
+						<li><a href="./index.html" data-cy="nav-home">Home</a></li>
+						<li><a href="./form.html" data-cy="nav-form">Form</a></li>
+						<li><a href="./todo.html" data-cy="nav-todo">Todo</a></li>
+					</ul>
+				</nav>
+			</section>
+
+			<div class="grid">
+				<section class="panel" aria-labelledby="quick-actions-heading">
+					<h2 id="quick-actions-heading">Quick Actions</h2>
+					<p id="status" class="status-pill">Waiting for interaction</p>
+					<div class="button-row">
+						<button id="hello-button" type="button" data-cy="hello-button">
+							Say Hello
+						</button>
+						<button
+							id="counter-button"
+							type="button"
+							class="secondary"
+							data-testid="counter-button"
+						>
+							Clicked 0 times
+						</button>
+					</div>
+					<p class="muted" id="counter-note">
+						Use these controls to test click, snapshot, assert, and incremental diffs.
+					</p>
+				</section>
+
+				<section class="panel" aria-labelledby="selector-heading">
+					<h2 id="selector-heading">Selector Fixtures</h2>
+					<ul class="card-list">
+						<li>
+							<span>
+								<strong data-cy="fixture-primary">data-cy</strong>
+								<span class="muted">Preferred for exported selectors.</span>
+							</span>
+							<a class="button-link secondary" href="./form.html" data-testid="fixture-link">
+								Open form
+							</a>
+						</li>
+						<li>
+							<span>
+								<strong id="fixture-id">ID selector</strong>
+								<span class="muted">Fallback for stable export and assert checks.</span>
+							</span>
+							<span aria-hidden="true">#fixture-id</span>
+						</li>
+					</ul>
+				</section>
+
+				<section class="panel" aria-labelledby="stats-heading">
+					<h2 id="stats-heading">Demo Metrics</h2>
+					<ul class="stats">
+						<li>
+							<strong id="page-count">3</strong>
+							<span class="muted">Pages</span>
+						</li>
+						<li>
+							<strong id="command-count">20+</strong>
+							<span class="muted">Command surfaces</span>
+						</li>
+						<li>
+							<strong id="storage-mode">localStorage</strong>
+							<span class="muted">Persistence demo</span>
+						</li>
+					</ul>
+				</section>
+			</div>
+		</div>
+
+		<script>
+			const statusEl = document.getElementById('status');
+			const helloButton = document.getElementById('hello-button');
+			const counterButton = document.getElementById('counter-button');
+			const counterNote = document.getElementById('counter-note');
+
+			let clickCount = 0;
+
+			helloButton?.addEventListener('click', () => {
+				statusEl.textContent = 'Hello!';
+				statusEl.classList.add('success');
+			});
+
+			counterButton?.addEventListener('click', () => {
+				clickCount += 1;
+				counterButton.textContent = `Clicked ${clickCount} times`;
+				counterNote.textContent = `Counter updated to ${clickCount}.`;
+			});
+		</script>
+	</body>
+</html>

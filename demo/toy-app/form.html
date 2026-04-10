@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>cypress-cli Toy App Form</title>
+		<link rel="stylesheet" href="./style.css" />
+	</head>
+	<body>
+		<div class="shell">
+			<section class="hero">
+				<span class="eyebrow">Form page</span>
+				<h1>Login Fixture</h1>
+				<p class="lede">
+					Use this page to exercise type, fill, clear, check, uncheck, select,
+					and submit flows inside the browser demo.
+				</p>
+				<nav aria-label="Toy app pages">
+					<ul class="nav">
+						<li><a href="./index.html" data-cy="nav-home">Home</a></li>
+						<li><a href="./form.html" data-cy="nav-form">Form</a></li>
+						<li><a href="./todo.html" data-cy="nav-todo">Todo</a></li>
+					</ul>
+				</nav>
+			</section>
+
+			<section class="panel" aria-labelledby="form-heading">
+				<h2 id="form-heading">Account Details</h2>
+				<form id="login-form" novalidate>
+					<div class="field">
+						<label for="email-input">Email address</label>
+						<input
+							id="email-input"
+							name="email"
+							type="email"
+							autocomplete="email"
+							placeholder="test@example.com"
+							data-cy="email-input"
+						/>
+					</div>
+					<div class="field">
+						<label for="password-input">Password</label>
+						<input
+							id="password-input"
+							name="password"
+							type="password"
+							autocomplete="current-password"
+							placeholder="secret123"
+							data-testid="password-input"
+						/>
+					</div>
+					<div class="checkbox-row">
+						<input id="remember-input" name="remember" type="checkbox" />
+						<label for="remember-input">Remember me</label>
+					</div>
+					<div class="field">
+						<label for="role-select">Role</label>
+						<select id="role-select" name="role" data-cy="role-select">
+							<option value="user">User</option>
+							<option value="admin">Admin</option>
+							<option value="guest">Guest</option>
+						</select>
+					</div>
+					<div class="form-actions">
+						<button id="submit-button" type="submit" data-cy="submit-button">
+							Submit
+						</button>
+						<button id="reset-button" type="button" class="secondary">
+							Reset
+						</button>
+					</div>
+				</form>
+				<p id="form-result" class="result">No submission yet.</p>
+			</section>
+		</div>
+
+		<script>
+			const form = document.getElementById('login-form');
+			const resetButton = document.getElementById('reset-button');
+			const result = document.getElementById('form-result');
+
+			form?.addEventListener('submit', (event) => {
+				event.preventDefault();
+				const formData = new FormData(form);
+				const email = String(formData.get('email') ?? '');
+				const role = String(formData.get('role') ?? 'user');
+				const remember = formData.get('remember') === 'on' ? ' with remember me' : '';
+				result.textContent = `Submitted: ${email} as ${role}${remember}`;
+			});
+
+			resetButton?.addEventListener('click', () => {
+				form.reset();
+				result.textContent = 'No submission yet.';
+			});
+		</script>
+	</body>
+</html>

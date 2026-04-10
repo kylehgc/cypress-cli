@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>cypress-cli Toy App Todo</title>
+		<link rel="stylesheet" href="./style.css" />
+	</head>
+	<body>
+		<div class="shell">
+			<section class="hero">
+				<span class="eyebrow">Todo page</span>
+				<h1>Persistent Todo List</h1>
+				<p class="lede">
+					Add, complete, filter, and delete todos while persisting state in
+					localStorage so reload, storage, eval, and waitfor commands all have
+					useful targets.
+				</p>
+				<nav aria-label="Toy app pages">
+					<ul class="nav">
+						<li><a href="./index.html" data-cy="nav-home">Home</a></li>
+						<li><a href="./form.html" data-cy="nav-form">Form</a></li>
+						<li><a href="./todo.html" data-cy="nav-todo">Todo</a></li>
+					</ul>
+				</nav>
+			</section>
+
+			<section class="todo-panel" aria-labelledby="todo-heading">
+				<h2 id="todo-heading">Tasks</h2>
+				<div class="toolbar">
+					<div class="field">
+						<label for="todo-input">New todo</label>
+						<input
+							id="todo-input"
+							name="todo"
+							type="text"
+							placeholder="Buy milk"
+							data-cy="todo-input"
+						/>
+					</div>
+					<button id="add-button" type="button" data-cy="add-button">Add</button>
+				</div>
+
+				<div class="filter-row" role="toolbar" aria-label="Todo filters">
+					<button type="button" class="secondary active" data-filter="all">
+						All
+					</button>
+					<button type="button" class="secondary" data-filter="active">
+						Active
+					</button>
+					<button type="button" class="secondary" data-filter="completed">
+						Completed
+					</button>
+				</div>
+
+				<div class="meta">
+					<p id="todo-count">0 items left</p>
+					<p class="muted">Stored under <strong>demo.todos</strong></p>
+				</div>
+
+				<ul id="todo-list" class="todo-list" aria-live="polite"></ul>
+				<p id="empty-state" class="empty-state">No todos yet. Add one to begin.</p>
+			</section>
+		</div>
+
+		<script>
+			const STORAGE_KEY = 'demo.todos';
+			const input = document.getElementById('todo-input');
+			const addButton = document.getElementById('add-button');
+			const list = document.getElementById('todo-list');
+			const count = document.getElementById('todo-count');
+			const emptyState = document.getElementById('empty-state');
+			const filterButtons = Array.from(document.querySelectorAll('[data-filter]'));
+
+			let activeFilter = 'all';
+			let todos = loadTodos();
+
+			function loadTodos() {
+				try {
+					const raw = localStorage.getItem(STORAGE_KEY);
+					return raw ? JSON.parse(raw) : [];
+				} catch {
+					return [];
+				}
+			}
+
+			function saveTodos() {
+				localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+			}
+
+			function getVisibleTodos() {
+				if (activeFilter === 'active') {
+					return todos.filter((todo) => !todo.completed);
+				}
+				if (activeFilter === 'completed') {
+					return todos.filter((todo) => todo.completed);
+				}
+				return todos;
+			}
+
+			function renderTodos() {
+				const visibleTodos = getVisibleTodos();
+				list.innerHTML = '';
+
+				visibleTodos.forEach((todo) => {
+					const item = document.createElement('li');
+					item.className = `todo-item${todo.completed ? ' completed' : ''}`;
+					item.dataset.todoId = String(todo.id);
+
+					const checkbox = document.createElement('input');
+					checkbox.type = 'checkbox';
+					checkbox.checked = todo.completed;
+					checkbox.setAttribute('aria-label', `Mark ${todo.text} complete`);
+					checkbox.addEventListener('change', () => {
+						todos = todos.map((entry) =>
+							entry.id === todo.id ? { ...entry, completed: checkbox.checked } : entry,
+						);
+						saveTodos();
+						renderTodos();
+					});
+
+					const label = document.createElement('span');
+					label.className = 'todo-label';
+					label.textContent = todo.text;
+
+					const removeButton = document.createElement('button');
+					removeButton.type = 'button';
+					removeButton.className = 'secondary';
+					removeButton.textContent = 'Delete';
+					removeButton.addEventListener('click', () => {
+						todos = todos.filter((entry) => entry.id !== todo.id);
+						saveTodos();
+						renderTodos();
+					});
+
+					item.append(checkbox, label, removeButton);
+					list.append(item);
+				});
+
+				count.textContent = `${todos.filter((todo) => !todo.completed).length} items left`;
+				emptyState.hidden = visibleTodos.length > 0;
+			}
+
+			function addTodo() {
+				const text = input.value.trim();
+				if (!text) {
+					input.focus();
+					return;
+				}
+
+				todos = [
+					...todos,
+					{
+						id: Date.now(),
+						text,
+						completed: false,
+					},
+				];
+				input.value = '';
+				saveTodos();
+				renderTodos();
+				input.focus();
+			}
+
+			addButton?.addEventListener('click', addTodo);
+			input?.addEventListener('keydown', (event) => {
+				if (event.key === 'Enter') {
+					event.preventDefault();
+					addTodo();
+				}
+			});
+
+			filterButtons.forEach((button) => {
+				button.addEventListener('click', () => {
+					activeFilter = button.dataset.filter ?? 'all';
+					filterButtons.forEach((candidate) => {
+						candidate.classList.toggle('active', candidate === button);
+					});
+					renderTodos();
+				});
+			});
+
+			renderTodos();
+		</script>
+	</body>
+</html>
