@@ -17,6 +17,7 @@
 		"build": "npm run build:iife && npm run build:ts",
 		"build:iife": "node esbuild.config.js",
 		"build:ts": "tsc",
+		"pretest": "npm run build:iife",
 		"test": "vitest run",
 		"test:watch": "vitest --watch",
 		"test:unit": "vitest run tests/unit/",
@@ -33,6 +34,7 @@
 		"cypress": ">=12.0.0",
 	},
 	"dependencies": {
+		"@cypress/unique-selector": "2.1.3",
 		"minimist": "1.2.8",
 		"zod": "3.24.2",
 	},
@@ -47,7 +49,7 @@
 		"typescript-eslint": "8.25.0",
 		"vitest": "3.0.7",
 	},
-	"files": ["dist/", "README.md", "LICENSE"],
+	"files": ["dist/", "bin/", "skills/", "README.md", "LICENSE"],
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -58,24 +60,25 @@
 
 ### Dependency Rationale
 
-| Dependency       | Why                                                                        | Size  |
-| ---------------- | -------------------------------------------------------------------------- | ----- |
-| `minimist`       | CLI argument parsing. Tiny (~400 lines, 0 deps). Same as Playwright.       | ~14KB |
-| `zod`            | Command schema validation. Typed validation that doubles as documentation. | ~56KB |
-| `cypress` (peer) | Must be installed in the consumer's project. We don't bundle it.           | —     |
+| Dependency                 | Why                                                                        | Size  |
+| -------------------------- | -------------------------------------------------------------------------- | ----- |
+| `@cypress/unique-selector` | Generates stable CSS selectors with Cypress priority order.                | ~20KB |
+| `minimist`                 | CLI argument parsing. Tiny (~400 lines, 0 deps). Same as Playwright.       | ~14KB |
+| `zod`                      | Command schema validation. Typed validation that doubles as documentation. | ~56KB |
+| `cypress` (peer)           | Must be installed in the consumer's project. We don't bundle it.           | —     |
 
 ### Dev Dependency Rationale
 
-| Dependency        | Why                                                        |
-| ----------------- | ---------------------------------------------------------- |
-| `esbuild`         | Bundles injected/ into IIFE. Fast, no native binaries.     |
-| `typescript`      | Type checking and ESM compilation.                         |
-| `vitest`          | Test runner. ESM-native, fast.                             |
-| `happy-dom`       | Lightweight DOM implementation for injected/ unit tests.   |
-| `eslint`          | Linting.                                                   |
+| Dependency          | Why                                                      |
+| ------------------- | -------------------------------------------------------- |
+| `esbuild`           | Bundles injected/ into IIFE. Fast, no native binaries.   |
+| `typescript`        | Type checking and ESM compilation.                       |
+| `vitest`            | Test runner. ESM-native, fast.                           |
+| `happy-dom`         | Lightweight DOM implementation for injected/ unit tests. |
+| `eslint`            | Linting.                                                 |
 | `typescript-eslint` | TypeScript support for ESLint 9 flat config.             |
-| `@types/node`     | Node.js type definitions.                                  |
-| `@types/minimist` | minimist type definitions.                                 |
+| `@types/node`       | Node.js type definitions.                                |
+| `@types/minimist`   | minimist type definitions.                               |
 
 ## tsconfig.json
 
@@ -226,7 +229,10 @@ export default tseslint.config(
 	{
 		files: ['**/*.ts'],
 		rules: {
-			'@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+			'@typescript-eslint/no-unused-vars': [
+				'warn',
+				{ argsIgnorePattern: '^_' },
+			],
 			'@typescript-eslint/no-explicit-any': 'warn',
 		},
 	},
@@ -247,7 +253,14 @@ export default tseslint.config(
 		rules: {
 			'@typescript-eslint/no-explicit-any': 'off',
 			'@typescript-eslint/ban-ts-comment': 'off',
-			'@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_|^e$' }],
+			'@typescript-eslint/no-unused-vars': [
+				'warn',
+				{
+					argsIgnorePattern: '^_',
+					varsIgnorePattern: '^_',
+					caughtErrorsIgnorePattern: '^_|^e$',
+				},
+			],
 			'no-empty': 'off',
 			'no-control-regex': 'off',
 			'no-case-declarations': 'off',
