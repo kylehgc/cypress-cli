@@ -49,7 +49,7 @@
 		"typescript-eslint": "8.25.0",
 		"vitest": "3.0.7",
 	},
-	"files": ["dist/", "bin/", "skills/", "README.md", "LICENSE"],
+	"files": ["dist/", "bin/", "skills/", "README.md", "LICENSE", "THIRD_PARTY_LICENSES"],
 	"license": "MIT",
 	"repository": {
 		"type": "git",
