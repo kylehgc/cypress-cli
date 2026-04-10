@@ -96,7 +96,6 @@ The full happy path works end-to-end:
 ## Test Summary
 
 ```
-Total:  1009 tests (52 test files)
 Total:  1012 tests (52 test files)
 Pass:   1012
 Fail:   0
