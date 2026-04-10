@@ -54,13 +54,16 @@ cypress-cli assert e5 contain.text "hello"
 
 # 6. Export your session as a Cypress test
 cypress-cli export --file my-test.cy.ts
+
+# Or start an interactive REPL session (reads commands from stdin line-by-line)
+cypress-cli repl
 ```
 
 ## Commands
 
 | Category    | Commands                                                                   |
 | ----------- | -------------------------------------------------------------------------- |
-| Core        | `open`, `stop`, `status`, `install`, `snapshot`                            |
+| Core        | `open`, `stop`, `status`, `install`, `snapshot`, `repl`                    |
 | Navigation  | `navigate`, `back`, `forward`, `reload`                                    |
 | Interaction | `click`, `dblclick`, `rightclick`, `type`, `clear`, `select`               |
 |             | `check`, `uncheck`, `focus`, `blur`, `scrollto`, `hover`, `fill`           |
