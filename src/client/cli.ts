@@ -19,6 +19,7 @@ import { ClientSession, type ClientResult } from './session.js';
 import { ClientConnectionError } from './socketConnection.js';
 import { openSession } from './open.js';
 import { runLocalCommand } from './install.js';
+import { startRepl } from './repl.js';
 import { createClientLogger } from '../shared/logger.js';
 
 /**
@@ -368,6 +369,11 @@ export async function run(argv: string[]): Promise<CliResult> {
 				exitCode: result.success ? EXIT_SUCCESS : EXIT_COMMAND_ERROR,
 				output: formatResult(result, flags.json),
 			};
+		}
+
+		if (parsedCommand.command === 'repl') {
+			await startRepl({ session: flags.session, json: flags.json });
+			return { exitCode: EXIT_SUCCESS, output: '' };
 		}
 
 		const localResult = await runLocalCommand(parsedCommand);
