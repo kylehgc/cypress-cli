@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cypress Driver MVP Test</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+    }
+
+    body {
+      margin: 20px;
+      background: linear-gradient(180deg, #f3f0e8 0%, #e9eef5 100%);
+      color: #1f2933;
+    }
+
+    h1 {
+      margin: 0 0 16px;
+      font-size: 28px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 420px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.72);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(31, 41, 51, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(31, 41, 51, 0.12);
+    }
+
+    iframe {
+      display: block;
+      width: 100%;
+      height: 520px;
+      border: 0;
+      border-radius: 16px;
+      background: white;
+    }
+
+    #log {
+      padding: 16px;
+      min-height: 488px;
+      max-height: 488px;
+      overflow: auto;
+      white-space: pre-wrap;
+      background: #111827;
+      color: #d1fae5;
+      border-radius: 16px;
+    }
+
+    .pass {
+      color: #86efac;
+    }
+
+    .fail {
+      color: #fca5a5;
+    }
+
+    .info {
+      color: #93c5fd;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      #log {
+        min-height: 320px;
+        max-height: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Cypress Driver MVP</h1>
+  <div class="layout">
+    <div class="panel">
+      <iframe id="aut" src="toy-app/actionability-test.html"></iframe>
+    </div>
+    <div id="log" class="panel"></div>
+  </div>
+
+  <script type="module">
+    import { CypressLite } from '../dist/cypress-driver.js';
+
+    const log = document.getElementById('log');
+    const iframe = document.getElementById('aut');
+    let started = false;
+
+    function print(message, className = 'info') {
+      const line = document.createElement('div');
+      line.className = className;
+      line.textContent = `[${new Date().toISOString().slice(11, 23)}] ${message}`;
+      log.appendChild(line);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    async function runHarness() {
+      if (started) {
+        return;
+      }
+
+      started = true;
+      print('AUT iframe loaded');
+
+      try {
+        print('Booting CypressLite...');
+        const lite = new CypressLite(iframe);
+        await lite.boot();
+        print('Driver booted successfully', 'pass');
+
+        const timings = {};
+
+        let t0 = performance.now();
+        print('Test 1: cy.get("#action-btn").click()');
+        print('  -> Button appears after 1s. Driver must retry first.', 'info');
+        await lite.run((cy) => {
+          cy.get('#action-btn').click();
+        });
+        timings['test1_delayed_click'] = Math.round(performance.now() - t0);
+        print(`Test 1 PASSED (${timings['test1_delayed_click']}ms)`, 'pass');
+
+        t0 = performance.now();
+        print('Test 2: cy.get("#result").should("have.text", "Done")');
+        await lite.run((cy) => {
+          cy.get('#result').should('have.text', 'Done');
+        });
+        timings['test2_assertion'] = Math.round(performance.now() - t0);
+        print(`Test 2 PASSED (${timings['test2_assertion']}ms)`, 'pass');
+
+        t0 = performance.now();
+        print('Test 3: cy.get("#nonexistent", { timeout: 1000 })');
+        try {
+          await lite.run((cy) => {
+            cy.get('#nonexistent', { timeout: 1000 });
+          });
+          print('Test 3 FAILED — expected an error', 'fail');
+        } catch (error) {
+          timings['test3_timeout'] = Math.round(performance.now() - t0);
+          print(`Test 3 PASSED (${timings['test3_timeout']}ms) — got expected error: ${error.message}`, 'pass');
+        }
+
+        print('=== ALL MVP TESTS PASSED ===', 'pass');
+
+        // --- Extended Actionability Tests ---
+        print('');
+        print('--- Extended Actionability Tests ---', 'info');
+
+        t0 = performance.now();
+        print('Test 4: Hidden → visible (cy.get("#hidden-btn").click())');
+        print('  -> Button has display:none, becomes visible after 1s.', 'info');
+        await lite.run((cy) => {
+          cy.get('#hidden-btn').click();
+        });
+        await lite.run((cy) => {
+          cy.get('#hidden-result').should('have.text', 'Hidden Clicked');
+        });
+        timings['test4_hidden'] = Math.round(performance.now() - t0);
+        print(`Test 4 PASSED (${timings['test4_hidden']}ms)`, 'pass');
+
+        t0 = performance.now();
+        print('Test 5: Overlay (cy.get("#overlay-btn").click())');
+        print('  -> Button covered by overlay that disappears after 1s.', 'info');
+        await lite.run((cy) => {
+          cy.get('#overlay-btn').click();
+        });
+        await lite.run((cy) => {
+          cy.get('#overlay-result').should('have.text', 'Overlay Clicked');
+        });
+        timings['test5_overlay'] = Math.round(performance.now() - t0);
+        print(`Test 5 PASSED (${timings['test5_overlay']}ms)`, 'pass');
+
+        t0 = performance.now();
+        print('Test 6: Scroll (cy.get("#scroll-btn").click())');
+        print('  -> Button below fold in scrollable container.', 'info');
+        await lite.run((cy) => {
+          cy.get('#scroll-btn').click();
+        });
+        await lite.run((cy) => {
+          cy.get('#scroll-result').should('have.text', 'Scroll Clicked');
+        });
+        timings['test6_scroll'] = Math.round(performance.now() - t0);
+        print(`Test 6 PASSED (${timings['test6_scroll']}ms)`, 'pass');
+
+        t0 = performance.now();
+        print('Test 7: Disabled → enabled (cy.get("#disabled-btn").click())');
+        print('  -> Button starts disabled, enabled after 1s.', 'info');
+        await lite.run((cy) => {
+          cy.get('#disabled-btn').click();
+        });
+        await lite.run((cy) => {
+          cy.get('#disabled-result').should('have.text', 'Disabled Clicked');
+        });
+        timings['test7_disabled'] = Math.round(performance.now() - t0);
+        print(`Test 7 PASSED (${timings['test7_disabled']}ms)`, 'pass');
+
+        print('=== ALL EXTENDED TESTS PASSED ===', 'pass');
+
+        // Print timing summary
+        print('');
+        print('--- Performance Timings ---', 'info');
+        window.__timings = timings;
+        for (const [key, ms] of Object.entries(timings)) {
+          print(`  ${key}: ${ms}ms`, 'info');
+        }
+      } catch (error) {
+        print(`FATAL: ${error.message}`, 'fail');
+        if (error.stack) {
+          print(error.stack, 'fail');
+        }
+      }
+    }
+
+    if (iframe.contentDocument?.readyState === 'complete') {
+      runHarness();
+    } else {
+      iframe.addEventListener('load', runHarness, { once: true });
+    }
+  </script>
+</body>
+
+</html>

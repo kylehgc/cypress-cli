@@ -6,6 +6,7 @@ export default tseslint.config(
 		ignores: [
 			'dist/**',
 			'node_modules/**',
+			'src/driver/**',
 		],
 	},
 	js.configs.recommended,
