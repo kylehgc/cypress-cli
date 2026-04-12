@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 
 import { generateTestFile } from '../codegen/codegen.js';
@@ -261,6 +262,7 @@ export function checkInterceptDrift(
 export async function handleRunTest(
 	conn: SocketConnection,
 	message: CommandMessage,
+	session?: Session,
 ): Promise<void> {
 	const args = message.params.args;
 	const file = args._[1] as string | undefined;
@@ -276,7 +278,6 @@ export async function handleRunTest(
 
 	const resolvedFile = path.resolve(file);
 
-	// Validate file extension
 	if (!/\.cy\.[tj]s$/.test(resolvedFile)) {
 		sendError(conn, {
 			id: message.id,
@@ -285,7 +286,6 @@ export async function handleRunTest(
 		return;
 	}
 
-	// Validate file exists
 	try {
 		await fs.access(resolvedFile);
 	} catch {
@@ -297,80 +297,145 @@ export async function handleRunTest(
 	}
 
 	try {
-		const cypress = await import('cypress');
-		const result = await cypress.default.run({
-			spec: resolvedFile,
-			browser: (options['browser'] as string) ?? 'electron',
-			headed: options['headed'] === true,
-		} as Record<string, unknown>);
-
-		// Cypress returns CypressFailedRunResult on infrastructure failure
-		if (
-			result &&
-			typeof result === 'object' &&
-			'status' in result &&
-			(result as { status: string }).status === 'failed'
-		) {
-			const failedResult = result as { message?: string; failures?: number };
-			const response: ResponseMessage = {
-				id: message.id,
-				result: {
-					success: false,
-					totalTests: 0,
-					totalPassed: 0,
-					totalFailed: failedResult.failures ?? 0,
-					failures: [],
-					duration: 0,
-					error: failedResult.message ?? 'Cypress run failed',
-				},
+		const tempDir = await fs.mkdtemp(
+			path.join(os.tmpdir(), 'cypress-cli-run-'),
+		);
+		try {
+			const specFileName = path.basename(resolvedFile);
+			const e2eConfig: Record<string, unknown> = {
+				supportFile: false,
+				specPattern: specFileName,
+				video: false,
+				screenshotOnRunFailure: false,
 			};
-			conn.send(response);
-			return;
-		}
+			if (session?.config.url) {
+				try {
+					e2eConfig['baseUrl'] = new URL(session.config.url).origin;
+				} catch {
+					// Ignore invalid session URLs and run without baseUrl.
+				}
+			}
+			await fs.copyFile(resolvedFile, path.join(tempDir, specFileName));
 
-		// Normal CypressRunResult
-		const runResult = result as {
-			totalTests?: number;
-			totalPassed?: number;
-			totalFailed?: number;
-			totalDuration?: number;
-			runs?: Array<{
-				tests?: Array<{
-					title?: string[];
-					state?: string;
-					displayError?: string | null;
+			await fs.writeFile(
+				path.join(tempDir, 'cypress.config.js'),
+				`module.exports = { e2e: ${JSON.stringify(e2eConfig)} };\n`,
+				'utf-8',
+			);
+
+			await fs.writeFile(
+				path.join(tempDir, 'tsconfig.json'),
+				JSON.stringify(
+					{
+						compilerOptions: {
+							target: 'ES2020',
+							module: 'CommonJS',
+							lib: ['ES2020', 'DOM'],
+							types: ['cypress', 'node'],
+							esModuleInterop: true,
+							allowJs: true,
+							baseUrl: '.',
+						},
+						include: [specFileName],
+					},
+					null,
+					2,
+				) + '\n',
+				'utf-8',
+			);
+
+			try {
+				await fs.symlink(
+					path.resolve(process.cwd(), 'node_modules'),
+					path.join(tempDir, 'node_modules'),
+					'dir',
+				);
+			} catch {
+				// Best-effort: JS specs can still run without this, but TS specs need it.
+			}
+
+			const cypress = await import('cypress');
+			const result = await cypress.default.run({
+				project: tempDir,
+				browser: (options['browser'] as string) ?? 'electron',
+				headed: options['headed'] === true,
+			} as Record<string, unknown>);
+
+			if (
+				result &&
+				typeof result === 'object' &&
+				'status' in result &&
+				(result as { status: string }).status === 'failed'
+			) {
+				const failedResult = result as { message?: string; failures?: number };
+				const response: ResponseMessage = {
+					id: message.id,
+					result: {
+						success: false,
+						totalTests: 0,
+						totalPassed: 0,
+						totalFailed: failedResult.failures ?? 0,
+						failures: [],
+						duration: 0,
+						error: failedResult.message ?? 'Cypress run failed',
+					},
+				};
+				conn.send(response);
+				return;
+			}
+
+			const runResult = result as {
+				totalTests?: number;
+				totalPassed?: number;
+				totalFailed?: number;
+				totalDuration?: number;
+				runs?: Array<{
+					error?: string | null;
+					tests?: Array<{
+						title?: string[];
+						state?: string;
+						displayError?: string | null;
+					}>;
 				}>;
-			}>;
-		};
+			};
 
-		const failures: Array<{ test: string; error: string }> = [];
-		if (runResult.runs) {
-			for (const run of runResult.runs) {
-				if (run.tests) {
-					for (const test of run.tests) {
-						if (test.state === 'failed' && test.displayError) {
-							failures.push({
-								test: (test.title ?? []).join(' > '),
-								error: test.displayError,
-							});
+			const failures: Array<{ test: string; error: string }> = [];
+			if (runResult.runs) {
+				for (const run of runResult.runs) {
+					if (run.error) {
+						failures.push({
+							test: specFileName,
+							error: run.error,
+						});
+					}
+					if (run.tests) {
+						for (const test of run.tests) {
+							if (test.state === 'failed' && test.displayError) {
+								failures.push({
+									test: (test.title ?? []).join(' > '),
+									error: test.displayError,
+								});
+							}
 						}
 					}
 				}
 			}
-		}
 
-		const response: ResponseMessage = {
-			id: message.id,
-			result: {
-				success: (runResult.totalFailed ?? 0) === 0,
-				totalTests: runResult.totalTests ?? 0,
-				totalPassed: runResult.totalPassed ?? 0,
-				totalFailed: runResult.totalFailed ?? 0,
-				failures,
-				duration: runResult.totalDuration ?? 0,
-			},
-		};
-		conn.send(response);
+			const response: ResponseMessage = {
+				id: message.id,
+				result: {
+					success: (runResult.totalFailed ?? 0) === 0,
+					totalTests: runResult.totalTests ?? 0,
+					totalPassed: runResult.totalPassed ?? 0,
+					totalFailed: runResult.totalFailed ?? 0,
+					failures,
+					duration: runResult.totalDuration ?? 0,
+				},
+			};
+			conn.send(response);
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+		}
 	} catch (err) {
 		sendError(conn, {
 			id: message.id,

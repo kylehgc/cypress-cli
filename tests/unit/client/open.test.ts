@@ -117,6 +117,38 @@ describe('openSession', () => {
 		expect(result.success).toBe(true);
 	});
 
+	it('strips stale page metadata from failed reused-session open results', async () => {
+		const sendCommand = vi.fn().mockResolvedValue({
+			success: false,
+			error: '503 Service Unavailable',
+			result: {
+				error: '503 Service Unavailable',
+				snapshot: '- heading "Old Page"',
+				snapshotFilePath: '.cypress-cli/page-old.yml',
+				url: 'https://example.cypress.io/commands/actions',
+				title: 'Cypress.io: Kitchen Sink',
+			},
+		} satisfies ClientResult);
+
+		const result = await openSession(
+			buildOpenCommand('https://httpstat.us/503'),
+			'demo',
+			{
+				createSession: () => ({ sendCommand }),
+			},
+		);
+
+		expect(sendCommand).toHaveBeenCalledWith({
+			command: 'navigate',
+			args: { url: 'https://httpstat.us/503' },
+			options: {},
+		});
+		expect(result).toEqual({
+			success: false,
+			error: '503 Service Unavailable',
+		});
+	});
+
 	it('spawns the daemon and polls until the session is ready', async () => {
 		const sendCommand = vi
 			.fn()

@@ -28,6 +28,14 @@ export const open = declareCommand({
 	}),
 });
 
+export const repl = declareCommand({
+	name: 'repl',
+	category: 'core',
+	description: 'Start interactive REPL mode',
+	args: z.object({}),
+	options: z.object({}),
+});
+
 export const stop = declareCommand({
 	name: 'stop',
 	category: 'core',
@@ -467,11 +475,7 @@ export const cyrun = declareCommand({
 	description:
 		'Execute an arbitrary Cypress chain string in the Cypress runner context',
 	args: z.object({
-		code: z
-			.string()
-			.trim()
-			.min(1)
-			.describe('Cypress chain code to execute'),
+		code: z.string().trim().min(1).describe('Cypress chain code to execute'),
 	}),
 	options: z.object({}),
 });
@@ -515,7 +519,9 @@ export const network = declareCommand({
 		clear: z
 			.boolean()
 			.optional()
-			.describe('Clear the network log instead of listing it (returns cleared count)'),
+			.describe(
+				'Clear the network log instead of listing it (returns cleared count)',
+			),
 	}),
 });
 
@@ -584,7 +590,10 @@ export const cookieList = declareCommand({
 	description: 'List browser cookies, optionally filtered by domain',
 	args: z.object({}),
 	options: z.object({
-		domain: z.string().optional().describe('Filter cookies to a specific domain'),
+		domain: z
+			.string()
+			.optional()
+			.describe('Filter cookies to a specific domain'),
 	}),
 });
 
@@ -872,6 +881,7 @@ export const runTest = declareCommand({
  */
 export const allCommands = [
 	open,
+	repl,
 	stop,
 	status,
 	install,
@@ -949,6 +959,7 @@ export function buildRegistry(): ReadonlyMap<string, CommandRegistryEntry> {
 
 	// Core
 	registry.set('open', { schema: open, positionals: ['url'] });
+	registry.set('repl', { schema: repl, positionals: [] });
 	registry.set('stop', { schema: stop, positionals: [] });
 	registry.set('status', { schema: status, positionals: [] });
 	registry.set('install', { schema: install, positionals: [] });

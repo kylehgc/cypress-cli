@@ -429,16 +429,16 @@ by `tsc` for Node.js.
 
 ### Phase 1–3: Core Implementation ✅ Complete
 
-All planned functionality is implemented and tested (634 unit/integration + 29 E2E = 663 tests):
+All planned functionality is implemented and tested (1009 tests across 52 test files):
 
 - **Aria snapshot port**: Complete port from Playwright (tree generation, YAML rendering,
   incremental diffs, role/accessible name computation).
 - **Daemon**: Socket server, session management, command queue with Promise-based
   blocking, graceful shutdown, idle timeout, session persistence to `$XDG_STATE_HOME`.
-- **CLI client**: Argument parsing (minimist + zod), 43 command schemas, socket
+- **CLI client**: Argument parsing (minimist + zod), 64 command schemas, socket
   connection with retry logic, REPL mode, help text, JSON output.
 - **Cypress layer**: Plugin with getCommand/commandResult task handlers, driver spec
-  with full REPL loop (43 commands), support file for IIFE injection and snapshot
+  with full REPL loop (64 commands), support file for IIFE injection and snapshot
   taking, launcher with cross-process IPC via QueueBridge.
 - **Browser module** (`src/browser/`): Element ref map, selector generation via
   `@cypress/unique-selector` with Cypress priority order, IIFE snapshot injection.
@@ -446,7 +446,7 @@ All planned functionality is implemented and tested (634 unit/integration + 29 E
   describe/it structure, meta-command filtering, TypeScript output.
 - **Integration tests**: Client↔daemon, daemon↔plugin, command queue flow,
   session lifecycle, error propagation (real sockets, mock Cypress).
-- **E2E tests**: 29 tests with real Cypress + Electron against fixture HTML pages.
+- **E2E tests**: Full stack tests with real Cypress + Electron against fixture HTML pages.
 - **Build pipeline**: esbuild IIFE bundling, TypeScript compilation, ESLint with
   TypeScript support.
 
@@ -457,10 +457,11 @@ See `docs/ROADMAP.md` for the full issue list. Key areas:
 - **SKILL file + install command** — primary integration surface for coding agents
 - **Snapshot-to-file output** — token-efficient output model for AI agents
 - **Inline codegen per command** — return generated Cypress code with each response
-- **New commands** — `eval`, `fill`, `drag`, `upload`, `screenshot`, `dialog-accept/dismiss`,
-  `resize`, cookie/storage management, console/network access, network mocking
-- **Command naming alignment** — add `goto` alias, `close` alias
-- **Feasibility audit** — determine which playwright-cli features are achievable in Cypress
+- **New commands** — all P1/P2 commands implemented including `eval`, `fill`, `drag`,
+  `upload`, `screenshot`, `dialog-accept/dismiss`, `resize`, `run`, `cyrun`, `console`,
+  cookie/storage management, network monitoring and mocking
+- **Command naming alignment** — `goto`, `close`, `go-back`, `go-forward` aliases added
+- **Feasibility audit** — complete (see docs/CAPABILITY_MATRIX.md)
 
 ### Future
 

@@ -28,20 +28,25 @@ The `method` is always `"run"` for command execution or `"stop"` for shutdown.
 The `args._` array contains the command name followed by positional arguments,
 matching minimist's parsing convention.
 
-`install --skills` is a client-local command. It does not connect to the daemon
-or require a running Cypress session.
+`install --skills` and `repl` are client-local commands. `install --skills`
+copies the bundled skill into the current project without starting or using a
+browser session. `repl` starts an interactive local prompt; each command typed
+inside the REPL is then parsed and sent through the normal client/daemon flow.
 
 ## Command Categories
 
 ### Core
 
-| Command    | Syntax                                   | Description                                                   |
-| ---------- | ---------------------------------------- | ------------------------------------------------------------- |
-| `open`     | `cypress-cli open [url] [options]`       | Start or reuse a session, launch Cypress, and navigate to URL |
-| `stop`     | `cypress-cli stop`                       | Stop the current session                                      |
-| `status`   | `cypress-cli status`                     | Check if a session is running and return session metadata     |
-| `install`  | `cypress-cli install --skills`           | Install bundled AI agent skills into `.github/skills/`        |
-| `snapshot` | `cypress-cli snapshot [--filename path]` | Get current aria snapshot                                     |
+| Command      | Syntax                                   | Description                                                   |
+| ------------ | ---------------------------------------- | ------------------------------------------------------------- |
+| `open`       | `cypress-cli open [url] [options]`       | Start or reuse a session, launch Cypress, and navigate to URL |
+| `repl`       | `cypress-cli repl`                       | Start interactive REPL mode                                   |
+| `stop`       | `cypress-cli stop`                       | Stop the current session                                      |
+| `status`     | `cypress-cli status`                     | Check if a session is running and return session metadata     |
+| `install`    | `cypress-cli install --skills`           | Install bundled AI agent skills into `.github/skills/`        |
+| `snapshot`   | `cypress-cli snapshot [--filename path]` | Get current aria snapshot                                     |
+| `console`    | `cypress-cli console [level] [--clear]`  | Return captured browser console messages                      |
+| `screenshot` | `cypress-cli screenshot [ref]`           | Capture a page or element screenshot                          |
 
 ### Navigation
 
@@ -54,20 +59,26 @@ or require a running Cypress session.
 
 ### Interaction
 
-| Command      | Syntax                                 | Description                                                |
-| ------------ | -------------------------------------- | ---------------------------------------------------------- |
-| `click`      | `cypress-cli click <ref>`              | Click element (`cy.get(sel).click()`)                      |
-| `dblclick`   | `cypress-cli dblclick <ref>`           | Double-click (`cy.get(sel).dblclick()`)                    |
-| `rightclick` | `cypress-cli rightclick <ref>`         | Right-click (`cy.get(sel).rightclick()`)                   |
-| `type`       | `cypress-cli type <ref> <text>`        | Type text (`cy.get(sel).type(text)`)                       |
-| `clear`      | `cypress-cli clear <ref>`              | Clear input (`cy.get(sel).clear()`)                        |
-| `check`      | `cypress-cli check <ref>`              | Check checkbox/radio (`cy.get(sel).check()`)               |
-| `uncheck`    | `cypress-cli uncheck <ref>`            | Uncheck checkbox (`cy.get(sel).uncheck()`)                 |
-| `select`     | `cypress-cli select <ref> <value>`     | Select option (`cy.get(sel).select(value)`)                |
-| `focus`      | `cypress-cli focus <ref>`              | Focus element (`cy.get(sel).focus()`)                      |
-| `blur`       | `cypress-cli blur <ref>`               | Blur element (`cy.get(sel).blur()`)                        |
-| `scrollto`   | `cypress-cli scrollto <ref\|position>` | Scroll (`cy.get(sel).scrollIntoView()` or `cy.scrollTo()`) |
-| `hover`      | `cypress-cli hover <ref>`              | Trigger hover (`cy.get(sel).trigger('mouseover')`)         |
+| Command          | Syntax                                 | Description                                                |
+| ---------------- | -------------------------------------- | ---------------------------------------------------------- |
+| `click`          | `cypress-cli click <ref>`              | Click element (`cy.get(sel).click()`)                      |
+| `dblclick`       | `cypress-cli dblclick <ref>`           | Double-click (`cy.get(sel).dblclick()`)                    |
+| `rightclick`     | `cypress-cli rightclick <ref>`         | Right-click (`cy.get(sel).rightclick()`)                   |
+| `type`           | `cypress-cli type <ref> <text>`        | Type text (`cy.get(sel).type(text)`)                       |
+| `fill`           | `cypress-cli fill <ref> <text>`        | Clear and type text (`cy.get(sel).clear().type(text)`)     |
+| `clear`          | `cypress-cli clear <ref>`              | Clear input (`cy.get(sel).clear()`)                        |
+| `check`          | `cypress-cli check <ref>`              | Check checkbox/radio (`cy.get(sel).check()`)               |
+| `uncheck`        | `cypress-cli uncheck <ref>`            | Uncheck checkbox (`cy.get(sel).uncheck()`)                 |
+| `select`         | `cypress-cli select <ref> <value>`     | Select option (`cy.get(sel).select(value)`)                |
+| `focus`          | `cypress-cli focus <ref>`              | Focus element (`cy.get(sel).focus()`)                      |
+| `blur`           | `cypress-cli blur <ref>`               | Blur element (`cy.get(sel).blur()`)                        |
+| `scrollto`       | `cypress-cli scrollto <ref\|position>` | Scroll (`cy.get(sel).scrollIntoView()` or `cy.scrollTo()`) |
+| `hover`          | `cypress-cli hover <ref>`              | Trigger hover (`cy.get(sel).trigger('mouseover')`)         |
+| `drag`           | `cypress-cli drag <startRef> <endRef>` | Drag one element onto another                              |
+| `upload`         | `cypress-cli upload <ref> <file>`      | Upload a file through a file input                         |
+| `dialog-accept`  | `cypress-cli dialog-accept [text]`     | Accept the next browser dialog                             |
+| `dialog-dismiss` | `cypress-cli dialog-dismiss`           | Dismiss the next browser dialog                            |
+| `resize`         | `cypress-cli resize <width> <height>`  | Change the browser viewport size                           |
 
 ### Keyboard
 
@@ -93,11 +104,11 @@ or require a running Cypress session.
 
 ### Execution
 
-| Command    | Syntax                                                     | Description                                                       |
-| ---------- | ---------------------------------------------------------- | ----------------------------------------------------------------- |
-| `run-code` | `cypress-cli run-code <code>`                              | Execute JS in browser (`cy.window().then(win => win.eval(code))`) |
-| `eval`     | `cypress-cli eval <expression> [ref]`                      | Evaluate JS expression on page or on a specific element           |
-| `cyrun`    | `cypress-cli cyrun <code>`                                 | Execute arbitrary Cypress chain string in the runner context       |
+| Command    | Syntax                                                           | Description                                                       |
+| ---------- | ---------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `run-code` | `cypress-cli run-code <code>`                                    | Execute JS in browser (`cy.window().then(win => win.eval(code))`) |
+| `eval`     | `cypress-cli eval <expression> [ref]`                            | Evaluate JS expression on page or on a specific element           |
+| `cyrun`    | `cypress-cli cyrun <code>`                                       | Execute arbitrary Cypress chain string in the runner context      |
 | `run`      | `cypress-cli run <file> [--browser chrome\|electron] [--headed]` | Run a Cypress test file and report structured results             |
 
 ### Wait
@@ -119,23 +130,25 @@ or require a running Cypress session.
 
 ### Storage
 
-| Command                 | Syntax                                                                                           | Description                                                    |
-| ----------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| `cookie-list`           | `cypress-cli cookie-list [--domain domain]`                                                      | List cookies, optionally filtered by domain                    |
-| `cookie-get`            | `cypress-cli cookie-get <name>`                                                                  | Get a cookie by name (`cy.getCookie()`)                        |
-| `cookie-set`            | `cypress-cli cookie-set <name> <value> [--domain d] [--httpOnly] [--secure] [--path p]`         | Set a cookie (`cy.setCookie()`)                                |
-| `cookie-delete`         | `cypress-cli cookie-delete <name>`                                                               | Delete a cookie by name (`cy.clearCookie()`)                   |
-| `cookie-clear`          | `cypress-cli cookie-clear`                                                                       | Clear all cookies (`cy.clearCookies()`)                        |
-| `localstorage-list`     | `cypress-cli localstorage-list`                                                                  | List all localStorage entries as JSON                          |
-| `localstorage-get`      | `cypress-cli localstorage-get <key>`                                                             | Get a localStorage value by key                                |
-| `localstorage-set`      | `cypress-cli localstorage-set <key> <value>`                                                     | Set a localStorage key-value pair                              |
-| `localstorage-delete`   | `cypress-cli localstorage-delete <key>`                                                          | Delete a localStorage entry by key                             |
-| `localstorage-clear`    | `cypress-cli localstorage-clear`                                                                 | Clear all localStorage entries (`cy.clearLocalStorage()`)      |
-| `sessionstorage-list`   | `cypress-cli sessionstorage-list`                                                                | List all sessionStorage entries as JSON                        |
-| `sessionstorage-get`    | `cypress-cli sessionstorage-get <key>`                                                           | Get a sessionStorage value by key                              |
-| `sessionstorage-set`    | `cypress-cli sessionstorage-set <key> <value>`                                                   | Set a sessionStorage key-value pair                            |
-| `sessionstorage-delete` | `cypress-cli sessionstorage-delete <key>`                                                        | Delete a sessionStorage entry by key                           |
-| `sessionstorage-clear`  | `cypress-cli sessionstorage-clear`                                                               | Clear all sessionStorage entries                               |
+| Command                 | Syntax                                                                                  | Description                                               |
+| ----------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `cookie-list`           | `cypress-cli cookie-list [--domain domain]`                                             | List cookies, optionally filtered by domain               |
+| `cookie-get`            | `cypress-cli cookie-get <name>`                                                         | Get a cookie by name (`cy.getCookie()`)                   |
+| `cookie-set`            | `cypress-cli cookie-set <name> <value> [--domain d] [--httpOnly] [--secure] [--path p]` | Set a cookie (`cy.setCookie()`)                           |
+| `cookie-delete`         | `cypress-cli cookie-delete <name>`                                                      | Delete a cookie by name (`cy.clearCookie()`)              |
+| `cookie-clear`          | `cypress-cli cookie-clear`                                                              | Clear all cookies (`cy.clearCookies()`)                   |
+| `state-save`            | `cypress-cli state-save [filename]`                                                     | Save cookies, localStorage, and sessionStorage to JSON    |
+| `state-load`            | `cypress-cli state-load <filename>`                                                     | Load cookies, localStorage, and sessionStorage from JSON  |
+| `localstorage-list`     | `cypress-cli localstorage-list`                                                         | List all localStorage entries as JSON                     |
+| `localstorage-get`      | `cypress-cli localstorage-get <key>`                                                    | Get a localStorage value by key                           |
+| `localstorage-set`      | `cypress-cli localstorage-set <key> <value>`                                            | Set a localStorage key-value pair                         |
+| `localstorage-delete`   | `cypress-cli localstorage-delete <key>`                                                 | Delete a localStorage entry by key                        |
+| `localstorage-clear`    | `cypress-cli localstorage-clear`                                                        | Clear all localStorage entries (`cy.clearLocalStorage()`) |
+| `sessionstorage-list`   | `cypress-cli sessionstorage-list`                                                       | List all sessionStorage entries as JSON                   |
+| `sessionstorage-get`    | `cypress-cli sessionstorage-get <key>`                                                  | Get a sessionStorage value by key                         |
+| `sessionstorage-set`    | `cypress-cli sessionstorage-set <key> <value>`                                          | Set a sessionStorage key-value pair                       |
+| `sessionstorage-delete` | `cypress-cli sessionstorage-delete <key>`                                               | Delete a sessionStorage entry by key                      |
+| `sessionstorage-clear`  | `cypress-cli sessionstorage-clear`                                                      | Clear all sessionStorage entries                          |
 
 ## Command Schemas (zod)
 
