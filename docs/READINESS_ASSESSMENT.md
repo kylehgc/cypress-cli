@@ -96,8 +96,8 @@ The full happy path works end-to-end:
 ## Test Summary
 
 ```
-Total:  1012 tests (52 test files)
-Pass:   1012
+Total:  1015 tests (52 test files)
+Pass:   1015
 Fail:   0
 ```
 
@@ -105,7 +105,7 @@ Fail:   0
 
 **The application is functionally complete and ready for release.** All 65 public
 commands are implemented, including the public `repl` command, the full data flow
-(CLI → daemon → Cypress → browser → back) works end-to-end, and all 1012 tests pass.
+(CLI → daemon → Cypress → browser → back) works end-to-end, and all 1015 tests pass.
 The remaining baseline warning noise (`tsconfig-paths` skipped messages and an
 intermittent `MaxListenersExceededWarning`) is still present, but it is non-fatal and
 not blocking 1.0.
