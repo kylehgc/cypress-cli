@@ -81,3 +81,16 @@
 - `npx eslint src/ tests/` → PASS
 
 **Decisions:** Used 65 as the command count based on direct count of entries in `allCommands` array in `src/client/commands.ts`. Test count kept at 1012 (will re-verify with vitest run in final check).
+
+### 2026-04-12 10:25 — Step 4: Pin Playwright Version [PASS]
+
+**Files changed:** `package.json`, `package-lock.json`
+
+**What was done:**
+- Changed `"playwright": "^1.59.1"` to `"playwright": "1.59.1"` in `package.json`.
+- Ran `npm install` to regenerate lockfile.
+
+**Verification:**
+- `grep '"playwright"' package.json` → `"playwright": "1.59.1"` ✓
+
+**Decisions:** None — straightforward pin per CONVENTIONS.md.
