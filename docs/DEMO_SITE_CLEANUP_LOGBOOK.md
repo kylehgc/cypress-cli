@@ -51,3 +51,17 @@
 - No type errors.
 
 **Decisions:** Used `'unknown'` (not `'chromium'`) as default browser family for genuinely unknown browsers, since lying about the browser family is the original bug. Safari mapped to `family: 'webkit'` matching Cypress conventions.
+
+### 2026-04-12 10:10 — Step 2: Fix Shim Bugs (errors.ts, js-cookie.ts, network.ts) [PASS]
+
+**Files changed:** `src/driver/shims/errors.ts`, `src/driver/shims/network.ts`
+
+**What was done:**
+- 2.1: Wrapped `JSON.stringify(args)` in `errByPath()` with try/catch, falling back to `' — [unserializable args]'` on circular refs.
+- 2.2: SKIPPED — `js-cookie.ts` `get()` already handles `=` in cookie values correctly. The code uses rest destructuring `const [k, ...v] = c.trim().split('=')` and then `v.join('=')`, which preserves the full value. No change needed.
+- 2.3: Fixed typo `shimg` → `shim` in `network.ts` line 1.
+
+**Verification:**
+- `npm run build:driver` → PASS (720 KB)
+
+**Decisions:** Left `js-cookie.ts` unchanged because the existing destructuring pattern already handles the described bug correctly. The runbook description didn't match the actual code.

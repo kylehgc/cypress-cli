@@ -1,4 +1,4 @@
-// @packages/network shimg
+// @packages/network shim
 export class DocumentDomainInjection {
 	static InjectionBehavior(_config: any) {
 		return {
