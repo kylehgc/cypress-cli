@@ -14,6 +14,7 @@
 		"build:ts": "tsc",
 		"pretest": "npm run build:iife",
 		"serve:demo": "npx serve demo -l 3000",
+		"test:demo": "npx serve . -l 5555 & SERVER_PID=$!; npx cypress run --project demo --browser chrome; EXIT=$?; kill $SERVER_PID 2>/dev/null; exit $EXIT",
 		"test": "vitest run",
 		"test:watch": "vitest --watch",
 		"test:unit": "vitest run tests/unit/",

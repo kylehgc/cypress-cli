@@ -109,3 +109,27 @@
 - 3 new tests + 1 existing infrastructure failure test that was already there = 4 new assertions on temp-dir behavior.
 
 **Decisions:** Used `mockImplementation` to capture the project path and inspect generated files inside the mock (before the `finally` cleanup). This follows the runbook suggestion.
+
+### 2026-04-12 10:50 — Step 6: Convert Demo Validation to Cypress E2E Specs [PASS]
+
+**Files created:** `demo/cypress.config.js`, `demo/cypress/e2e/driver-boot.cy.js`, `demo/cypress/e2e/demo-app.cy.js`, `demo/cypress/e2e/toy-app.cy.js`
+**Files changed:** `package.json`
+
+**What was done:**
+- 6.1: Created `demo/cypress.config.js` with ESM syntax (project uses `"type": "module"`), baseUrl `http://localhost:5555`, specPattern `cypress/e2e/**/*.cy.{js,ts}`, video/screenshots disabled, no support file.
+- 6.2: Created `driver-boot.cy.js` — 3 tests: MVP pass check, extended tests pass check, no fatal errors check. Uses 30s timeout for `#log`.
+- 6.3: Created `demo-app.cy.js` — 1 test: loads demo page, checks `h1` exists.
+- 6.4: Created `toy-app.cy.js` — 3 tests: actionability test page (hidden button), todo app, form page.
+- 6.5: Added `test:demo` script to package.json using background server approach.
+
+**Errors encountered and resolved:**
+1. Config used CommonJS (`require`/`module.exports`) — failed because project is ESM. Fixed with `import`/`export default`.
+2. `specPattern: 'demo/cypress/e2e/...'` doubled up with project dir. Fixed to `'cypress/e2e/...'` (relative to project).
+
+**Verification:**
+- `npx cypress run --project demo --browser chrome` → 7 tests passed (7/7) across 3 spec files.
+  - demo-app.cy.js: 1 passing (252ms)
+  - driver-boot.cy.js: 3 passing (7s)
+  - toy-app.cy.js: 3 passing (266ms)
+
+**Decisions:** Served from project root (`.`) at port 5555 so `/demo/...` paths resolve correctly for both the demo app and the driver-test.html (which uses `../dist/cypress-driver.js` relative path).
