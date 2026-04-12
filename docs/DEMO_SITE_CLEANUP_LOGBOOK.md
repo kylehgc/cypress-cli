@@ -94,3 +94,18 @@
 - `grep '"playwright"' package.json` → `"playwright": "1.59.1"` ✓
 
 **Decisions:** None — straightforward pin per CONVENTIONS.md.
+
+### 2026-04-12 10:35 — Step 5: Add handleRunTest Temp-Dir Tests [PASS]
+
+**Files changed:** `tests/unit/daemon/handlers.test.ts`
+
+**What was done:**
+- 5.1: Added test "passes project tempDir (not spec dir) to cypress.run" — verifies `project:` arg is a temp dir, not the spec file's directory, and that no `spec:` arg is passed.
+- 5.2: Added test "derives baseUrl from session URL origin" — creates a Session with `url: 'https://example.com/page/sub?q=1'`, verifies generated `cypress.config.js` contains `https://example.com`. Reads the config inside the mock before cleanup.
+- 5.3: Added test "cleans up temp dir after successful run" — verifies `fs.access(capturedProject)` rejects after `handleRunTest` returns.
+
+**Verification:**
+- `npx vitest run tests/unit/daemon/handlers.test.ts` → 12 tests passed (12/12)
+- 3 new tests + 1 existing infrastructure failure test that was already there = 4 new assertions on temp-dir behavior.
+
+**Decisions:** Used `mockImplementation` to capture the project path and inspect generated files inside the mock (before the `finally` cleanup). This follows the runbook suggestion.

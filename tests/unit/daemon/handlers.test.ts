@@ -257,6 +257,105 @@ describe('handleRunTest', () => {
 		await fs.rm(tmpDir, { recursive: true, force: true });
 	});
 
+	it('passes project tempDir (not spec dir) to cypress.run', async () => {
+		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'run-test-'));
+		const testFile = path.join(tmpDir, 'test.cy.ts');
+		await fs.writeFile(testFile, 'describe("t", () => { it("p", () => {}) })');
+
+		const { conn } = makeConnection();
+
+		cypressMock.run.mockResolvedValue({
+			totalTests: 1,
+			totalPassed: 1,
+			totalFailed: 0,
+			totalDuration: 100,
+			runs: [],
+		});
+
+		await handleRunTest(conn, makeMessage('run', [testFile]));
+
+		expect(cypressMock.run).toHaveBeenCalledWith(
+			expect.objectContaining({
+				project: expect.any(String),
+			}),
+		);
+
+		const calledProject = cypressMock.run.mock.calls[0][0].project as string;
+		// The project arg must be an isolated temp dir, NOT the spec file's directory
+		expect(calledProject).not.toBe(tmpDir);
+		// cypress.run must NOT receive a spec: arg (old behavior)
+		expect(cypressMock.run.mock.calls[0][0]).not.toHaveProperty('spec');
+
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	});
+
+	it('derives baseUrl from session URL origin', async () => {
+		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'run-test-'));
+		const testFile = path.join(tmpDir, 'test.cy.ts');
+		await fs.writeFile(testFile, 'describe("t", () => { it("p", () => {}) })');
+
+		const { conn } = makeConnection();
+		let capturedProject = '';
+
+		cypressMock.run.mockImplementation(async (opts: Record<string, unknown>) => {
+			capturedProject = opts.project as string;
+			// Read the generated config before it gets cleaned up
+			const configContent = await fs.readFile(
+				path.join(capturedProject, 'cypress.config.js'),
+				'utf-8',
+			);
+			expect(configContent).toContain('https://example.com');
+			return {
+				totalTests: 1,
+				totalPassed: 1,
+				totalFailed: 0,
+				totalDuration: 100,
+				runs: [],
+			};
+		});
+
+		const session = new Session({
+			id: 'test-session',
+			url: 'https://example.com/page/sub?q=1',
+		});
+
+		await handleRunTest(conn, makeMessage('run', [testFile]), session);
+
+		expect(capturedProject).not.toBe('');
+
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	});
+
+	it('cleans up temp dir after successful run', async () => {
+		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'run-test-'));
+		const testFile = path.join(tmpDir, 'test.cy.ts');
+		await fs.writeFile(testFile, 'describe("t", () => { it("p", () => {}) })');
+
+		const { conn } = makeConnection();
+		let capturedProject = '';
+
+		cypressMock.run.mockImplementation(async (opts: Record<string, unknown>) => {
+			capturedProject = opts.project as string;
+			// Verify temp dir exists during the run
+			await fs.access(capturedProject);
+			return {
+				totalTests: 1,
+				totalPassed: 1,
+				totalFailed: 0,
+				totalDuration: 100,
+				runs: [],
+			};
+		});
+
+		await handleRunTest(conn, makeMessage('run', [testFile]));
+
+		// After handleRunTest returns, the temp dir should be cleaned up
+		expect(capturedProject).not.toBe('');
+		await expect(fs.access(capturedProject)).rejects.toThrow();
+
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	});
+
 	afterEach(() => {
 		cypressMock.run.mockReset();
 	});
