@@ -35,3 +35,19 @@
 ---
 
 <!-- Logbook entries go below this line -->
+
+### 2026-04-12 10:00 — Step 1: Fix CypressLite.createConfig() — Detect Browser/Platform/Arch [PASS]
+
+**Files changed:** `src/driver/index.ts`
+
+**What was done:**
+- Added `detectBrowser()` method: checks `navigator.userAgentData.brands` first (Edge, Chrome, Chromium), falls back to UA string parsing (Firefox, Edge, Safari, Chrome), defaults to `unknown`.
+- Added `detectPlatform()` method: checks `navigator.userAgentData?.platform`, falls back to `navigator.platform`, keyword matching (mac/darwin → darwin, win → win32, linux/x11/cros/android → linux), defaults to `linux`.
+- Added `detectArch()` method: checks `navigator.userAgentData?.architecture`, falls back to UA keywords (arm64/aarch64 → arm64, x86_64/win64/x64/amd64 → x64), defaults to `unknown`.
+- Updated `createConfig()` to call all three detection methods instead of hard-coded values.
+
+**Verification:**
+- `npm run build:driver` → PASS (720 KB)
+- No type errors.
+
+**Decisions:** Used `'unknown'` (not `'chromium'`) as default browser family for genuinely unknown browsers, since lying about the browser family is the original bug. Safari mapped to `family: 'webkit'` matching Cypress conventions.

@@ -93,23 +93,112 @@ export class CypressLite {
 		});
 	}
 
+	private detectBrowser(): {
+		name: string;
+		displayName: string;
+		version: string;
+		majorVersion: number;
+		isHeadless: boolean;
+		isHeaded: boolean;
+		family: string;
+	} {
+		const ua = navigator.userAgent;
+		let name = 'unknown';
+		let displayName = 'Unknown';
+		let family = 'unknown';
+
+		// Prefer NavigatorUAData (Chromium 90+)
+		const uaData = (navigator as any).userAgentData;
+		if (uaData?.brands) {
+			const brands = uaData.brands as Array<{
+				brand: string;
+				version: string;
+			}>;
+			const edge = brands.find((b) => b.brand === 'Microsoft Edge');
+			const chrome = brands.find((b) => b.brand === 'Google Chrome');
+			const chromium = brands.find((b) => b.brand === 'Chromium');
+			if (edge) {
+				name = 'edge';
+				displayName = 'Edge';
+				family = 'chromium';
+			} else if (chrome) {
+				name = 'chrome';
+				displayName = 'Chrome';
+				family = 'chromium';
+			} else if (chromium) {
+				name = 'chromium';
+				displayName = 'Chromium';
+				family = 'chromium';
+			}
+		}
+
+		// UA string fallback
+		if (name === 'unknown') {
+			if (/Firefox\//.test(ua)) {
+				name = 'firefox';
+				displayName = 'Firefox';
+				family = 'firefox';
+			} else if (/Edg\//.test(ua)) {
+				name = 'edge';
+				displayName = 'Edge';
+				family = 'chromium';
+			} else if (/Safari\/.*Version\//.test(ua) && !/Chrome\//.test(ua)) {
+				name = 'webkit';
+				displayName = 'Safari';
+				family = 'webkit';
+			} else if (/Chrome\//.test(ua)) {
+				name = 'chrome';
+				displayName = 'Chrome';
+				family = 'chromium';
+			}
+		}
+
+		const version =
+			ua.match(/(?:Chrome|Firefox|Edg|Version)\/(\S+)/)?.[1] || 'unknown';
+		const majorVersion = parseInt(version) || 0;
+
+		return {
+			name,
+			displayName,
+			version,
+			majorVersion,
+			isHeadless: false,
+			isHeaded: true,
+			family,
+		};
+	}
+
+	private detectPlatform(): 'darwin' | 'win32' | 'linux' {
+		const uaData = (navigator as any).userAgentData;
+		const platformStr: string = (
+			uaData?.platform ||
+			navigator.platform ||
+			''
+		).toLowerCase();
+
+		if (/mac|darwin/.test(platformStr)) return 'darwin';
+		if (/win/.test(platformStr)) return 'win32';
+		if (/linux|x11|cros|android/.test(platformStr)) return 'linux';
+		return 'linux';
+	}
+
+	private detectArch(): string {
+		const uaData = (navigator as any).userAgentData;
+		if (uaData?.architecture) return uaData.architecture;
+
+		const ua = navigator.userAgent;
+		if (/arm64|aarch64/i.test(ua)) return 'arm64';
+		if (/x86_64|win64|x64|amd64/i.test(ua)) return 'x64';
+		return 'unknown';
+	}
+
 	private createConfig() {
 		return {
 			projectName: 'cypress-cli-studio',
 			version: '14.3.2',
-			browser: {
-				name: 'chrome',
-				displayName: 'Chrome',
-				version: navigator.userAgent.match(/Chrome\/(\S+)/)?.[1] || 'unknown',
-				majorVersion: parseInt(
-					navigator.userAgent.match(/Chrome\/(\d+)/)?.[1] || '0',
-				),
-				isHeadless: false,
-				isHeaded: true,
-				family: 'chromium',
-			},
-			platform: 'darwin' as const,
-			arch: 'arm64',
+			browser: this.detectBrowser(),
+			platform: this.detectPlatform(),
+			arch: this.detectArch(),
 			testingType: 'e2e',
 			isTextTerminal: false,
 			isInteractive: true,
