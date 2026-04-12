@@ -133,3 +133,21 @@
   - toy-app.cy.js: 3 passing (266ms)
 
 **Decisions:** Served from project root (`.`) at port 5555 so `/demo/...` paths resolve correctly for both the demo app and the driver-test.html (which uses `../dist/cypress-driver.js` relative path).
+
+### 2026-04-12 11:00 — Step 7: Remove Playwright Dependency [PASS]
+
+**Files deleted:** `demo/cross-browser-test.mjs`, `demo/CROSS_VALIDATION_RESULTS.md`
+**Files changed:** `package.json`, `package-lock.json`
+
+**What was done:**
+- 7.1: Deleted `demo/cross-browser-test.mjs` and `demo/CROSS_VALIDATION_RESULTS.md`.
+- 7.2: Removed `"playwright": "1.59.1"` from devDependencies in `package.json`.
+- 7.3: Checked for doc references — `demo/README.md` had no Playwright mentions. `docs/DRIVER_POST_MVP_RUNBOOK.md` Step 3 mentions "Cross-Browser Validation" but uses manual browser testing, not Playwright. `docs/DRIVER_POST_MVP_LOGBOOK.md` has a historical entry about Playwright usage — left as-is since it's a historical log.
+- 7.4: Ran `npm install` to regenerate lockfile.
+
+**Verification:**
+- `npx tsc --noEmit` → PASS
+- `npx eslint src/ tests/` → PASS
+- `npm run build` → PASS
+
+**Decisions:** Left historical logbook entries (DRIVER_POST_MVP_LOGBOOK.md) referencing Playwright unchanged since they document what was done at that time.
