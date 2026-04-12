@@ -12,8 +12,9 @@ import {
 } from '../../../src/client/cli.js';
 import type { ClientResult } from '../../../src/client/session.js';
 
-const { mockRunLocalCommand } = vi.hoisted(() => ({
+const { mockRunLocalCommand, mockStartRepl } = vi.hoisted(() => ({
 	mockRunLocalCommand: vi.fn(),
+	mockStartRepl: vi.fn(),
 }));
 
 // ---------------------------------------------------------------------------
@@ -33,6 +34,10 @@ vi.mock('../../../src/client/session.js', async (importOriginal) => {
 
 vi.mock('../../../src/client/install.js', () => ({
 	runLocalCommand: mockRunLocalCommand,
+}));
+
+vi.mock('../../../src/client/repl.js', () => ({
+	startRepl: mockStartRepl,
 }));
 
 // ---------------------------------------------------------------------------
@@ -137,6 +142,7 @@ describe('generateHelpText', () => {
 	it('includes positional argument syntax for commands', () => {
 		const help = generateHelpText();
 		expect(help).toContain('open [url]');
+		expect(help).toContain('repl');
 		expect(help).toContain('install --skills');
 		expect(help).toContain('type <ref> <text>');
 		expect(help).toContain('assert <ref> <chainer> [value]');
@@ -422,6 +428,24 @@ describe('run', () => {
 			args: {},
 			options: { skills: true },
 		});
+	});
+
+	it('runs repl locally without sending it to the daemon', async () => {
+		mockStartRepl.mockResolvedValue(undefined);
+
+		const result: CliResult = await run([
+			'--session',
+			'demo',
+			'--json',
+			'repl',
+		]);
+
+		expect(result).toEqual({ exitCode: EXIT_SUCCESS, output: '' });
+		expect(mockStartRepl).toHaveBeenCalledWith({
+			session: 'demo',
+			json: true,
+		});
+		expect(mockRunLocalCommand).not.toHaveBeenCalled();
 	});
 
 	it('returns validation error when install is missing --skills', async () => {

@@ -18,6 +18,7 @@
 	"include": ["src/**/*.ts"],
 	"exclude": [
 		"src/injected/**",
+		"src/driver/**",
 		"src/cypress/driver.cy.ts",
 		"src/cypress/driverSpec.ts",
 		"src/cypress/support.ts",

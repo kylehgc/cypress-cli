@@ -50,34 +50,34 @@ validation activity rather than a code change.
 
 ## P1 — Core Command Parity
 
-| #   | Issue                                                                                                 | Labels      | Cypress API                              |
-| --- | ----------------------------------------------------------------------------------------------------- | ----------- | ---------------------------------------- |
-| #48 | [eval command](https://github.com/kylehgc/cypress-cli/issues/48)                                      | P1, command | `cy.window().then(win => win.eval(...))` |
-| #49 | [fill command](https://github.com/kylehgc/cypress-cli/issues/49)                                      | P1, command | `cy.get(sel).clear().type(text)`         |
-| #50 | [dialog-accept / dialog-dismiss](https://github.com/kylehgc/cypress-cli/issues/50)                    | P1, command | `cy.on('window:confirm', ...)`           |
-| #51 | [resize command](https://github.com/kylehgc/cypress-cli/issues/51)                                    | P1, command | `cy.viewport(w, h)`                      |
-| #52 | [screenshot command](https://github.com/kylehgc/cypress-cli/issues/52)                                | P1, command | `cy.screenshot()`                        |
-| #53 | [drag command](https://github.com/kylehgc/cypress-cli/issues/53)                                      | P1, command | trigger chain or plugin                  |
-| #54 | [upload command](https://github.com/kylehgc/cypress-cli/issues/54)                                    | P1, command | `cy.get(sel).selectFile(path)`           |
-| #55 | [Command aliases: close, goto, go-back, go-forward](https://github.com/kylehgc/cypress-cli/issues/55) | P1, command | Aliases for existing commands            |
+| #   | Issue                                                                                                 | Labels      | Cypress API                                 |
+| --- | ----------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------- |
+| #48 | [eval command](https://github.com/kylehgc/cypress-cli/issues/48)                                      | P1, command | ✅ `cy.window().then(win => win.eval(...))` |
+| #49 | [fill command](https://github.com/kylehgc/cypress-cli/issues/49)                                      | P1, command | ✅ `cy.get(sel).clear().type(text)`         |
+| #50 | [dialog-accept / dialog-dismiss](https://github.com/kylehgc/cypress-cli/issues/50)                    | P1, command | ✅ `cy.on('window:confirm', ...)`           |
+| #51 | [resize command](https://github.com/kylehgc/cypress-cli/issues/51)                                    | P1, command | ✅ `cy.viewport(w, h)`                      |
+| #52 | [screenshot command](https://github.com/kylehgc/cypress-cli/issues/52)                                | P1, command | ✅ `cy.screenshot()`                        |
+| #53 | [drag command](https://github.com/kylehgc/cypress-cli/issues/53)                                      | P1, command | ✅ trigger chain or plugin                  |
+| #54 | [upload command](https://github.com/kylehgc/cypress-cli/issues/54)                                    | P1, command | ✅ `cy.get(sel).selectFile(path)`           |
+| #55 | [Command aliases: close, goto, go-back, go-forward](https://github.com/kylehgc/cypress-cli/issues/55) | P1, command | ✅ Aliases for existing commands            |
 
 | #73 | [Long-running real-world validation](https://github.com/kylehgc/cypress-cli/issues/73) | P1, testing | Side-by-side comparison with playwright-cli |
 | #80 | [Ref counter grows unboundedly in long sessions](https://github.com/kylehgc/cypress-cli/issues/80) | P1, bug | ✅ Reset ref counter per snapshot (PR #87) |
 
-P1 issues can be worked in parallel once P0 foundation is in place.
+P1 issues are all complete except #73 (long-running validation).
 
 ## P2 — DevTools & Storage
 
-| #   | Issue                                                                                      | Labels      | Cypress API                                     |
-| --- | ------------------------------------------------------------------------------------------ | ----------- | ----------------------------------------------- |
-| #56 | [Cookie management commands](https://github.com/kylehgc/cypress-cli/issues/56)             | P2, command | `cy.getCookie()`, `cy.setCookie()`, etc.        |
-| #57 | [localStorage / sessionStorage commands](https://github.com/kylehgc/cypress-cli/issues/57) | P2, command | `cy.window().then(win => win.localStorage.*)`   |
-| #58 | [console command](https://github.com/kylehgc/cypress-cli/issues/58)                        | P2, command | `Cypress.on('window:before:load', ...)`         |
-| #59 | [Network monitoring and route mocking](https://github.com/kylehgc/cypress-cli/issues/59)   | P2, command | `cy.intercept()`                                |
-| #60 | [state-save / state-load commands](https://github.com/kylehgc/cypress-cli/issues/60)       | P2, command | Cookies + localStorage serialization            |
+| #   | Issue                                                                                      | Labels      | Cypress API                                          |
+| --- | ------------------------------------------------------------------------------------------ | ----------- | ---------------------------------------------------- |
+| #56 | [Cookie management commands](https://github.com/kylehgc/cypress-cli/issues/56)             | P2, command | ✅ `cy.getCookie()`, `cy.setCookie()`, etc.          |
+| #57 | [localStorage / sessionStorage commands](https://github.com/kylehgc/cypress-cli/issues/57) | P2, command | ✅ `cy.window().then(win => win.localStorage.*)`     |
+| #58 | [console command](https://github.com/kylehgc/cypress-cli/issues/58)                        | P2, command | ✅ `Cypress.on('window:before:load', ...)`           |
+| #59 | [Network monitoring and route mocking](https://github.com/kylehgc/cypress-cli/issues/59)   | P2, command | ✅ `cy.intercept()`                                  |
+| #60 | [state-save / state-load commands](https://github.com/kylehgc/cypress-cli/issues/60)       | P2, command | ✅ Cookies + localStorage serialization              |
 | #61 | [run-code command](https://github.com/kylehgc/cypress-cli/issues/61)                       | P2, command | ✅ `cy.window().then(win => win.eval(...))` (PR #93) |
-| #77 | [cyrun command](https://github.com/kylehgc/cypress-cli/issues/77)                          | P2, command | Execute arbitrary Cypress chains                |
-| #81 | [run command](https://github.com/kylehgc/cypress-cli/issues/81)                            | P2, command | Execute generated test files and report results |
+| #77 | [cyrun command](https://github.com/kylehgc/cypress-cli/issues/77)                          | P2, command | ✅ Execute arbitrary Cypress chains                  |
+| #81 | [run command](https://github.com/kylehgc/cypress-cli/issues/81)                            | P2, command | ✅ Execute generated test files and report results   |
 
 ## P3 — Advanced
 
@@ -106,24 +106,30 @@ These are architectural constraints of Cypress that cannot be worked around:
 
 ## Comparison: Current Command Set
 
-### Implemented (29 commands)
+### Implemented (65 commands, 69 registry entries with aliases)
 
-| Category    | Commands                                                                                                               |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Core        | `open`, `stop`, `status`, `snapshot`                                                                                   |
-| Navigation  | `navigate`, `back`, `forward`, `reload`                                                                                |
-| Interaction | `click`, `dblclick`, `rightclick`, `type`, `clear`, `check`, `uncheck`, `select`, `focus`, `blur`, `scrollto`, `hover` |
-| Keyboard    | `press`                                                                                                                |
-| Assertion   | `assert`, `asserturl`, `asserttitle`                                                                                   |
-| Execution   | `run-code`                                                                                                             |
-| Export      | `export`, `history`, `undo`                                                                                            |
-| Wait        | `wait`, `waitfor`                                                                                                      |
+| Category       | Commands                                                                                                                       |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Core           | `open`, `repl`, `stop`, `status`, `install`, `snapshot`                                                                        |
+| Navigation     | `navigate`, `back`, `forward`, `reload`                                                                                        |
+| Interaction    | `click`, `dblclick`, `rightclick`, `type`, `clear`, `check`, `uncheck`, `select`, `focus`, `blur`, `scrollto`, `hover`, `fill` |
+| Keyboard       | `press`                                                                                                                        |
+| Assertion      | `assert`, `asserturl`, `asserttitle`                                                                                           |
+| Execution      | `run-code`, `eval`, `cyrun`, `run`                                                                                             |
+| Export         | `export`, `history`, `undo`                                                                                                    |
+| Wait           | `wait`, `waitfor`                                                                                                              |
+| Network        | `intercept`, `waitforresponse`, `unintercept`, `intercept-list`, `network`                                                     |
+| Cookies        | `cookie-list`, `cookie-get`, `cookie-set`, `cookie-delete`, `cookie-clear`                                                     |
+| State          | `state-save`, `state-load`                                                                                                     |
+| localStorage   | `localstorage-list`, `localstorage-get`, `localstorage-set`, `localstorage-delete`, `localstorage-clear`                       |
+| sessionStorage | `sessionstorage-list`, `sessionstorage-get`, `sessionstorage-set`, `sessionstorage-delete`, `sessionstorage-clear`             |
+| DevTools       | `console`, `screenshot`                                                                                                        |
+| Page           | `drag`, `upload`, `dialog-accept`, `dialog-dismiss`, `resize`                                                                  |
+| Aliases        | `close` → `stop`, `goto` → `navigate`, `go-back` → `back`, `go-forward` → `forward`                                            |
 
-### Planned (from issues above)
+### Not Planned (P3 / Infeasible)
 
-`eval`, `fill`, `drag`, `upload`, `screenshot`, `resize`, `dialog-accept`,
-`dialog-dismiss`, `close` (alias), `goto` (alias), `go-back` (alias),
-`go-forward` (alias), `cookie-*` (5), `localstorage-*` (5),
-`sessionstorage-*` (5), `console`, `network`, `route`, `route-list`,
-`unroute`, `state-save`, `state-load`, `delete-data`,
-`keydown`, `keyup`, `mousemove`, `mousedown`, `mouseup`, `mousewheel`
+The following are tracked in open issues but not prioritized for initial release:
+
+- `keydown`, `keyup`, `mousemove`, `mousedown`, `mouseup`, `mousewheel` — P3, synthetic events only (#62)
+- `delete-data`, browser config on open — P3 (#63)

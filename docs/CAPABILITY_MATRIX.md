@@ -18,35 +18,35 @@
 
 ### Core
 
-| playwright-cli command     | Classification | cypress-cli | Cypress API / Approach                    | Notes                                                                         |
-| -------------------------- | -------------- | ----------- | ----------------------------------------- | ----------------------------------------------------------------------------- |
-| `open [url]`               | Direct         | `open`      | `cypress.run()` + `cy.visit(url)`         | Implemented                                                                   |
-| `goto <url>`               | Direct         | `navigate`  | `cy.visit(url)`                           | Implemented (alias `goto` planned in #55)                                     |
-| `close`                    | Direct         | `stop`      | Terminate Cypress process                 | Implemented (alias `close` planned in #55)                                    |
-| `type <text>`              | Direct         | `type`      | `cy.get(sel).type(text)`                  | Implemented                                                                   |
-| `click <ref>`              | Direct         | `click`     | `cy.get(sel).click()`                     | Implemented                                                                   |
-| `dblclick <ref>`           | Direct         | `dblclick`  | `cy.get(sel).dblclick()`                  | Implemented                                                                   |
-| `fill <ref> <text>`        | Direct         | —           | `cy.get(sel).clear().type(text)`          | Planned in #49                                                                |
-| `drag <startRef> <endRef>` | Limited        | —           | `cy.trigger()` chain or plugin            | Planned in #53; synthetic events — may not work with all drag-and-drop libs   |
-| `hover <ref>`              | Limited        | `hover`     | `cy.get(sel).trigger('mouseover')`        | Implemented; synthetic event, not native hover — CSS `:hover` may not trigger |
-| `select <ref> <val>`       | Direct         | `select`    | `cy.get(sel).select(value)`               | Implemented                                                                   |
-| `upload <file>`            | Direct         | —           | `cy.get(sel).selectFile(path)`            | Planned in #54; `selectFile()` available since Cypress 9.3                    |
-| `check <ref>`              | Direct         | `check`     | `cy.get(sel).check()`                     | Implemented                                                                   |
-| `uncheck <ref>`            | Direct         | `uncheck`   | `cy.get(sel).uncheck()`                   | Implemented                                                                   |
-| `snapshot`                 | Direct         | `snapshot`  | Injected aria snapshot IIFE               | Implemented                                                                   |
-| `snapshot --filename=f`    | Direct         | `snapshot`  | Same, with file output                    | Planned in #45 (snapshot-to-file)                                             |
-| `eval <func> [ref]`        | Workaround     | —           | `cy.window().then(win => win.eval(func))` | Planned in #48; page-level eval is straightforward, element eval needs ref    |
-| `dialog-accept [prompt]`   | Workaround     | —           | `cy.on('window:confirm', () => true)`     | Planned in #50; must register listener _before_ trigger action                |
-| `dialog-dismiss`           | Workaround     | —           | `cy.on('window:confirm', () => false)`    | Planned in #50; same pre-registration requirement                             |
-| `resize <w> <h>`           | Direct         | —           | `cy.viewport(w, h)`                       | Planned in #51                                                                |
+| playwright-cli command     | Classification | cypress-cli      | Cypress API / Approach                    | Notes                                                                         |
+| -------------------------- | -------------- | ---------------- | ----------------------------------------- | ----------------------------------------------------------------------------- |
+| `open [url]`               | Direct         | `open`           | `cypress.run()` + `cy.visit(url)`         | Implemented                                                                   |
+| `goto <url>`               | Direct         | `navigate`       | `cy.visit(url)`                           | Implemented (alias `goto` added in #55)                                       |
+| `close`                    | Direct         | `stop`           | Terminate Cypress process                 | Implemented (alias `close` added in #55)                                      |
+| `type <text>`              | Direct         | `type`           | `cy.get(sel).type(text)`                  | Implemented                                                                   |
+| `click <ref>`              | Direct         | `click`          | `cy.get(sel).click()`                     | Implemented                                                                   |
+| `dblclick <ref>`           | Direct         | `dblclick`       | `cy.get(sel).dblclick()`                  | Implemented                                                                   |
+| `fill <ref> <text>`        | Direct         | `fill`           | `cy.get(sel).clear().type(text)`          | ✅ Implemented                                                                |
+| `drag <startRef> <endRef>` | Limited        | `drag`           | `cy.trigger()` chain or plugin            | ✅ Implemented; synthetic events — may not work with all drag-and-drop libs   |
+| `hover <ref>`              | Limited        | `hover`          | `cy.get(sel).trigger('mouseover')`        | Implemented; synthetic event, not native hover — CSS `:hover` may not trigger |
+| `select <ref> <val>`       | Direct         | `select`         | `cy.get(sel).select(value)`               | Implemented                                                                   |
+| `upload <file>`            | Direct         | `upload`         | `cy.get(sel).selectFile(path)`            | ✅ Implemented; `selectFile()` available since Cypress 9.3                    |
+| `check <ref>`              | Direct         | `check`          | `cy.get(sel).check()`                     | Implemented                                                                   |
+| `uncheck <ref>`            | Direct         | `uncheck`        | `cy.get(sel).uncheck()`                   | Implemented                                                                   |
+| `snapshot`                 | Direct         | `snapshot`       | Injected aria snapshot IIFE               | Implemented                                                                   |
+| `snapshot --filename=f`    | Direct         | `snapshot`       | Same, with file output                    | ✅ Implemented (snapshot-to-file)                                             |
+| `eval <func> [ref]`        | Workaround     | `eval`           | `cy.window().then(win => win.eval(func))` | ✅ Implemented; page-level eval is straightforward, element eval needs ref    |
+| `dialog-accept [prompt]`   | Workaround     | `dialog-accept`  | `cy.on('window:confirm', () => true)`     | ✅ Implemented; must register listener _before_ trigger action                |
+| `dialog-dismiss`           | Workaround     | `dialog-dismiss` | `cy.on('window:confirm', () => false)`    | ✅ Implemented; same pre-registration requirement                             |
+| `resize <w> <h>`           | Direct         | `resize`         | `cy.viewport(w, h)`                       | ✅ Implemented                                                                |
 
 ### Navigation
 
-| playwright-cli command | Classification | cypress-cli | Cypress API / Approach | Notes                              |
-| ---------------------- | -------------- | ----------- | ---------------------- | ---------------------------------- |
-| `go-back`              | Direct         | `back`      | `cy.go('back')`        | Implemented (alias planned in #55) |
-| `go-forward`           | Direct         | `forward`   | `cy.go('forward')`     | Implemented (alias planned in #55) |
-| `reload`               | Direct         | `reload`    | `cy.reload()`          | Implemented                        |
+| playwright-cli command | Classification | cypress-cli | Cypress API / Approach | Notes                                         |
+| ---------------------- | -------------- | ----------- | ---------------------- | --------------------------------------------- |
+| `go-back`              | Direct         | `back`      | `cy.go('back')`        | Implemented (alias `go-back` added in #55)    |
+| `go-forward`           | Direct         | `forward`   | `cy.go('forward')`     | Implemented (alias `go-forward` added in #55) |
+| `reload`               | Direct         | `reload`    | `cy.reload()`          | Implemented                                   |
 
 ### Keyboard
 
@@ -67,12 +67,12 @@
 
 ### Save As
 
-| playwright-cli command    | Classification | cypress-cli | Cypress API / Approach                         | Notes                                                                 |
-| ------------------------- | -------------- | ----------- | ---------------------------------------------- | --------------------------------------------------------------------- |
-| `screenshot [ref]`        | Direct         | —           | `cy.screenshot()` / `cy.get(sel).screenshot()` | Planned in #52; Cypress supports both page and element screenshots    |
-| `screenshot --filename=f` | Direct         | —           | `cy.screenshot(filename)`                      | Planned in #52                                                        |
-| `pdf`                     | Infeasible     | —           | —                                              | Cypress has no PDF generation API; would require CDP or external tool |
-| `pdf --filename=page.pdf` | Infeasible     | —           | —                                              | Same — no Cypress PDF support                                         |
+| playwright-cli command    | Classification | cypress-cli  | Cypress API / Approach                         | Notes                                                                 |
+| ------------------------- | -------------- | ------------ | ---------------------------------------------- | --------------------------------------------------------------------- |
+| `screenshot [ref]`        | Direct         | `screenshot` | `cy.screenshot()` / `cy.get(sel).screenshot()` | ✅ Implemented; Cypress supports both page and element screenshots    |
+| `screenshot --filename=f` | Direct         | `screenshot` | `cy.screenshot(filename)`                      | ✅ Implemented                                                        |
+| `pdf`                     | Infeasible     | —            | —                                              | Cypress has no PDF generation API; would require CDP or external tool |
+| `pdf --filename=page.pdf` | Infeasible     | —            | —                                              | Same — no Cypress PDF support                                         |
 
 ### Tabs
 
@@ -85,25 +85,25 @@
 
 ### Storage
 
-| playwright-cli command       | Classification | cypress-cli | Cypress API / Approach                                                 | Notes                                                 |
-| ---------------------------- | -------------- | ----------- | ---------------------------------------------------------------------- | ----------------------------------------------------- |
-| `state-save [filename]`      | Workaround     | —           | Serialize cookies + localStorage via `cy.getCookies()` + `cy.window()` | Planned in #60; manual serialization to JSON file     |
-| `state-load <filename>`      | Workaround     | —           | Restore via `cy.setCookie()` + `cy.window().then()`                    | Planned in #60; manual deserialization from JSON file |
-| `cookie-list [--domain]`     | Direct         | —           | `cy.getCookies()`                                                      | Planned in #56                                        |
-| `cookie-get <name>`          | Direct         | —           | `cy.getCookie(name)`                                                   | Planned in #56                                        |
-| `cookie-set <name> <val>`    | Direct         | —           | `cy.setCookie(name, value)`                                            | Planned in #56                                        |
-| `cookie-delete <name>`       | Direct         | —           | `cy.clearCookie(name)`                                                 | Planned in #56                                        |
-| `cookie-clear`               | Direct         | —           | `cy.clearCookies()`                                                    | Planned in #56                                        |
-| `localstorage-list`          | Workaround     | —           | `cy.window().then(win => Object.entries(win.localStorage))`            | Planned in #57                                        |
-| `localstorage-get <key>`     | Workaround     | —           | `cy.window().then(win => win.localStorage.getItem(key))`               | Planned in #57                                        |
-| `localstorage-set <k> <v>`   | Workaround     | —           | `cy.window().then(win => win.localStorage.setItem(k, v))`              | Planned in #57                                        |
-| `localstorage-delete <k>`    | Workaround     | —           | `cy.window().then(win => win.localStorage.removeItem(k))`              | Planned in #57                                        |
-| `localstorage-clear`         | Workaround     | —           | `cy.window().then(win => win.localStorage.clear())`                    | Planned in #57                                        |
-| `sessionstorage-list`        | Workaround     | —           | `cy.window().then(win => Object.entries(win.sessionStorage))`          | Planned in #57                                        |
-| `sessionstorage-get <k>`     | Workaround     | —           | `cy.window().then(win => win.sessionStorage.getItem(k))`               | Planned in #57                                        |
-| `sessionstorage-set <k> <v>` | Workaround     | —           | `cy.window().then(win => win.sessionStorage.setItem(k, v))`            | Planned in #57                                        |
-| `sessionstorage-delete <k>`  | Workaround     | —           | `cy.window().then(win => win.sessionStorage.removeItem(k))`            | Planned in #57                                        |
-| `sessionstorage-clear`       | Workaround     | —           | `cy.window().then(win => win.sessionStorage.clear())`                  | Planned in #57                                        |
+| playwright-cli command       | Classification | cypress-cli             | Cypress API / Approach                                                 | Notes          |
+| ---------------------------- | -------------- | ----------------------- | ---------------------------------------------------------------------- | -------------- |
+| `state-save [filename]`      | Workaround     | `state-save`            | Serialize cookies + localStorage via `cy.getCookies()` + `cy.window()` | ✅ Implemented |
+| `state-load <filename>`      | Workaround     | `state-load`            | Restore via `cy.setCookie()` + `cy.window().then()`                    | ✅ Implemented |
+| `cookie-list [--domain]`     | Direct         | `cookie-list`           | `cy.getCookies()`                                                      | ✅ Implemented |
+| `cookie-get <name>`          | Direct         | `cookie-get`            | `cy.getCookie(name)`                                                   | ✅ Implemented |
+| `cookie-set <name> <val>`    | Direct         | `cookie-set`            | `cy.setCookie(name, value)`                                            | ✅ Implemented |
+| `cookie-delete <name>`       | Direct         | `cookie-delete`         | `cy.clearCookie(name)`                                                 | ✅ Implemented |
+| `cookie-clear`               | Direct         | `cookie-clear`          | `cy.clearCookies()`                                                    | ✅ Implemented |
+| `localstorage-list`          | Workaround     | `localstorage-list`     | `cy.window().then(win => Object.entries(win.localStorage))`            | ✅ Implemented |
+| `localstorage-get <key>`     | Workaround     | `localstorage-get`      | `cy.window().then(win => win.localStorage.getItem(key))`               | ✅ Implemented |
+| `localstorage-set <k> <v>`   | Workaround     | `localstorage-set`      | `cy.window().then(win => win.localStorage.setItem(k, v))`              | ✅ Implemented |
+| `localstorage-delete <k>`    | Workaround     | `localstorage-delete`   | `cy.window().then(win => win.localStorage.removeItem(k))`              | ✅ Implemented |
+| `localstorage-clear`         | Workaround     | `localstorage-clear`    | `cy.window().then(win => win.localStorage.clear())`                    | ✅ Implemented |
+| `sessionstorage-list`        | Workaround     | `sessionstorage-list`   | `cy.window().then(win => Object.entries(win.sessionStorage))`          | ✅ Implemented |
+| `sessionstorage-get <k>`     | Workaround     | `sessionstorage-get`    | `cy.window().then(win => win.sessionStorage.getItem(k))`               | ✅ Implemented |
+| `sessionstorage-set <k> <v>` | Workaround     | `sessionstorage-set`    | `cy.window().then(win => win.sessionStorage.setItem(k, v))`            | ✅ Implemented |
+| `sessionstorage-delete <k>`  | Workaround     | `sessionstorage-delete` | `cy.window().then(win => win.sessionStorage.removeItem(k))`            | ✅ Implemented |
+| `sessionstorage-clear`       | Workaround     | `sessionstorage-clear`  | `cy.window().then(win => win.sessionStorage.clear())`                  | ✅ Implemented |
 
 ### Network
 
@@ -117,14 +117,14 @@
 
 ### DevTools
 
-| playwright-cli command  | Classification | cypress-cli | Cypress API / Approach                                           | Notes                                                                                         |
-| ----------------------- | -------------- | ----------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `console [min-level]`   | Workaround     | —           | `Cypress.on('window:before:load', win => win.console.log = spy)` | Planned in #58; requires monkey-patching console before page load                             |
-| `run-code <code>`       | Workaround     | —           | `cy.window().then(win => win.eval(code))`                        | Planned in #61; equivalent to eval but runs arbitrary Playwright code → needs Cypress mapping |
-| `tracing-start`         | Infeasible     | —           | —                                                                | Cypress only supports config-level `video: true`; no runtime start/stop                       |
-| `tracing-stop`          | Infeasible     | —           | —                                                                | Same — tracing is a launch-time config, not a runtime toggle                                  |
-| `video-start`           | Infeasible     | —           | —                                                                | Cypress `video: true` is config-only; cannot start mid-session                                |
-| `video-stop [filename]` | Infeasible     | —           | —                                                                | Cannot stop/save video mid-session; file is written at Cypress process exit                   |
+| playwright-cli command  | Classification | cypress-cli | Cypress API / Approach                                           | Notes                                                                       |
+| ----------------------- | -------------- | ----------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `console [min-level]`   | Workaround     | `console`   | `Cypress.on('window:before:load', win => win.console.log = spy)` | ✅ Implemented; monkey-patches console before page load                     |
+| `run-code <code>`       | Workaround     | `run-code`  | `cy.window().then(win => win.eval(code))`                        | ✅ Implemented (PR #93)                                                     |
+| `tracing-start`         | Infeasible     | —           | —                                                                | Cypress only supports config-level `video: true`; no runtime start/stop     |
+| `tracing-stop`          | Infeasible     | —           | —                                                                | Same — tracing is a launch-time config, not a runtime toggle                |
+| `video-start`           | Infeasible     | —           | —                                                                | Cypress `video: true` is config-only; cannot start mid-session              |
+| `video-stop [filename]` | Infeasible     | —           | —                                                                | Cannot stop/save video mid-session; file is written at Cypress process exit |
 
 ### Session Management
 

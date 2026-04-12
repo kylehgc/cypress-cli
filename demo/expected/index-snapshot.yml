@@ -1,0 +1,51 @@
+- document [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]: Browser demo target
+      - heading "cypress-cli Toy App" [level=1] [ref=e6]
+      - paragraph [ref=e7]: A same-origin site for exercising aria snapshots, DOM commands, and Cypress code generation inside the browser demo.
+      - navigation "Toy app pages" [ref=e8]:
+        - list [ref=e9]:
+          - listitem [ref=e10]:
+            - link "Home" [ref=e11] [cursor=pointer]:
+              - /url: ./index.html
+          - listitem [ref=e12]:
+            - link "Form" [ref=e13] [cursor=pointer]:
+              - /url: ./form.html
+          - listitem [ref=e14]:
+            - link "Todo" [ref=e15] [cursor=pointer]:
+              - /url: ./todo.html
+    - generic [ref=e16]:
+      - region "Quick Actions" [ref=e17]:
+        - heading "Quick Actions" [level=2] [ref=e18]
+        - paragraph [ref=e19]: Waiting for interaction
+        - generic [ref=e20]:
+          - button "Say Hello" [ref=e21] [cursor=pointer]
+          - button "Clicked 0 times" [ref=e22] [cursor=pointer]
+        - paragraph [ref=e23]: Use these controls to test click, snapshot, assert, and incremental diffs.
+      - region "Selector Fixtures" [ref=e24]:
+        - heading "Selector Fixtures" [level=2] [ref=e25]
+        - list [ref=e26]:
+          - listitem [ref=e27]:
+            - generic [ref=e28]:
+              - strong [ref=e29]: data-cy
+              - text: Preferred for exported selectors.
+            - link "Open form" [ref=e30] [cursor=pointer]:
+              - /url: ./form.html
+          - listitem [ref=e31]:
+            - generic [ref=e32]:
+              - strong [ref=e33]: ID selector
+              - text: Fallback for stable export and assert checks.
+            - generic [ref=e34]: "#fixture-id"
+      - region "Demo Metrics" [ref=e35]:
+        - heading "Demo Metrics" [level=2] [ref=e36]
+        - list [ref=e37]:
+          - listitem [ref=e38]:
+            - strong [ref=e39]: "3"
+            - text: Pages
+          - listitem [ref=e40]:
+            - strong [ref=e41]: 20+
+            - text: Command surfaces
+          - listitem [ref=e42]:
+            - strong [ref=e43]: localStorage
+            - text: Persistence demo

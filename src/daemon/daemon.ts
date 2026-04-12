@@ -406,7 +406,7 @@ export class Daemon {
 		}
 
 		if (action === 'run') {
-			void handleRunTest(conn, message);
+			void handleRunTest(conn, message, this._findRunningSession());
 			return;
 		}
 
@@ -483,11 +483,7 @@ export class Daemon {
 
 					// state-save: write evalResult (state JSON) to a file
 					let stateFilePath: string | undefined;
-					if (
-						action === 'state-save' &&
-						result.success &&
-						result.evalResult
-					) {
+					if (action === 'state-save' && result.success && result.evalResult) {
 						const stateFilename =
 							typeof command.options?.['filename'] === 'string'
 								? command.options['filename']
@@ -680,11 +676,9 @@ export class Daemon {
 				const relativeToBase = path.relative(baseDir, filePath);
 				const relativeToCwd = path.relative(process.cwd(), filePath);
 				const withinBase =
-					!relativeToBase.startsWith('..') &&
-					!path.isAbsolute(relativeToBase);
+					!relativeToBase.startsWith('..') && !path.isAbsolute(relativeToBase);
 				const withinCwd =
-					!relativeToCwd.startsWith('..') &&
-					!path.isAbsolute(relativeToCwd);
+					!relativeToCwd.startsWith('..') && !path.isAbsolute(relativeToCwd);
 
 				if (!withinBase && !withinCwd) {
 					continue;
@@ -823,9 +817,12 @@ export class Daemon {
 			});
 		}, this._sessionInactivityTimeout);
 	}
-
 }
 
 export { buildQueuedCommand } from './commandBuilder.js';
-export { resolveSocketDir, isSocketAlive, cleanStaleSockets } from './socketUtils.js';
+export {
+	resolveSocketDir,
+	isSocketAlive,
+	cleanStaleSockets,
+} from './socketUtils.js';
 export { DaemonError } from './errors.js';

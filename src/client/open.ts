@@ -135,7 +135,9 @@ export async function openSession(
 	if (!requestedResume) {
 		const existingResult = await tryReuseOpenSession(session, parsedCommand);
 		if (existingResult) {
-			return existingResult;
+			return existingResult.success
+				? existingResult
+				: sanitizeFailedOpenResult(existingResult);
 		}
 	}
 
@@ -160,6 +162,13 @@ export async function openSession(
 		dependencies.sleep ?? defaultSleep,
 		dependencies.startupTimeoutMs ?? DEFAULT_STARTUP_TIMEOUT_MS,
 	);
+}
+
+function sanitizeFailedOpenResult(result: ClientResult): ClientResult {
+	return {
+		success: false,
+		...(result.error !== undefined && { error: result.error }),
+	};
 }
 
 async function tryReuseOpenSession(

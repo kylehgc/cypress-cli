@@ -1,0 +1,40 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"strict": false,
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"skipLibCheck": true,
+		"noEmit": true,
+		"types": ["cypress", "node"],
+		"baseUrl": ".",
+		"paths": {
+			"@packages/errors": ["./shims/errors"],
+			"@packages/errors/src/stackUtils": ["./shims/errors-stack-utils"],
+			"@packages/types": ["./shims/types"],
+			"@packages/network/lib/cors": ["./shims/network"],
+			"@packages/network/lib/document-domain-injection": ["./shims/network"],
+			"@packages/server/lib/automation/commands/key_press": ["./shims/server"],
+			"@packages/server/lib/util/cookies": ["./shims/server"],
+			"@packages/telemetry/src/browser": ["./shims/telemetry"],
+			"@packages/config": ["./shims/config_validate"],
+			"sinon": ["./shims/sinon"],
+			"js-cookie": ["./shims/js-cookie"],
+			"md5": ["./shims/md5"],
+			"methods": ["./shims/methods"],
+			"error-stack-parser": ["./shims/error-stack-parser"],
+			"@babel/code-frame": ["./shims/code-frame"],
+			"core-js-pure/actual/structured-clone": ["./shims/structured-clone"]
+		}
+	},
+	"include": [
+		"vendor/**/*",
+		"shims/**/*",
+		"commands/**/*",
+		"types/**/*",
+		"index.ts"
+	]
+}

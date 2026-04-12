@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>cypress-cli Browser Demo</title>
+		<style>
+			:root {
+				color-scheme: light;
+				font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+				color: #132238;
+				background:
+					radial-gradient(circle at top left, rgba(14, 165, 233, 0.18), transparent 24%),
+					radial-gradient(circle at bottom right, rgba(251, 146, 60, 0.18), transparent 20%),
+					linear-gradient(180deg, #f3f7fb 0%, #ebf2fb 100%);
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			body {
+				margin: 0;
+				min-height: 100vh;
+				background: transparent;
+			}
+
+			button,
+			input {
+				font: inherit;
+			}
+
+			.demo-shell {
+				min-height: 100vh;
+				padding: 20px;
+				display: grid;
+				grid-template-rows: auto 1fr auto;
+				gap: 16px;
+			}
+
+			.topbar,
+			.command-bar,
+			.panel,
+			.stage {
+				background: rgba(255, 255, 255, 0.88);
+				backdrop-filter: blur(18px);
+				border: 1px solid rgba(19, 34, 56, 0.08);
+				box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+			}
+
+			.topbar,
+			.command-bar {
+				border-radius: 24px;
+				padding: 16px 18px;
+			}
+
+			.topbar {
+				display: flex;
+				justify-content: space-between;
+				gap: 20px;
+				align-items: center;
+				flex-wrap: wrap;
+			}
+
+			.topbar h1 {
+				margin: 0 0 6px;
+				font-family: "IBM Plex Serif", Georgia, serif;
+				font-size: clamp(1.6rem, 3vw, 2.4rem);
+				letter-spacing: -0.03em;
+			}
+
+			.topbar p {
+				margin: 0;
+				color: #55718f;
+			}
+
+			.meta {
+				display: grid;
+				gap: 8px;
+				min-width: min(460px, 100%);
+			}
+
+			.meta-row {
+				display: flex;
+				gap: 8px;
+				flex-wrap: wrap;
+			}
+
+			.meta-pill {
+				display: inline-flex;
+				gap: 8px;
+				align-items: center;
+				padding: 8px 12px;
+				border-radius: 999px;
+				background: rgba(19, 34, 56, 0.06);
+				font-size: 0.92rem;
+			}
+
+			.meta-pill strong {
+				color: #0f172a;
+			}
+
+			.meta-pill span {
+				color: #35506d;
+				max-width: 32ch;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			button.action,
+			.command-bar button,
+			.snapshot-ref {
+				border: 0;
+				font: inherit;
+				cursor: pointer;
+			}
+
+			button.action,
+			.command-bar button {
+				padding: 11px 16px;
+				border-radius: 14px;
+				font-weight: 600;
+				color: #fff;
+				background: linear-gradient(135deg, #0284c7, #0f766e);
+				box-shadow: 0 18px 34px rgba(15, 118, 110, 0.22);
+			}
+
+			.workspace {
+				display: grid;
+				grid-template-columns: minmax(360px, 0.96fr) minmax(420px, 1.24fr);
+				gap: 16px;
+				min-height: 0;
+			}
+
+			.sidebar {
+				display: grid;
+				grid-template-rows: minmax(220px, 1fr) minmax(240px, 1fr) minmax(240px, 1fr);
+				gap: 16px;
+				min-height: 0;
+			}
+
+			.panel,
+			.stage {
+				border-radius: 28px;
+				padding: 16px;
+				min-height: 0;
+				display: flex;
+				flex-direction: column;
+			}
+
+			.panel header,
+			.stage header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				gap: 12px;
+				margin-bottom: 12px;
+			}
+
+			.panel h2,
+			.stage h2 {
+				margin: 0;
+				font-size: 1rem;
+				letter-spacing: 0.02em;
+				text-transform: uppercase;
+				color: #475569;
+			}
+
+			.panel p,
+			.stage p {
+				margin: 0;
+				font-size: 0.92rem;
+				color: #64748b;
+			}
+
+			.panel-body,
+			.stage-body {
+				min-height: 0;
+				flex: 1;
+			}
+
+			.output-log,
+			.code-panel {
+				width: 100%;
+				height: 100%;
+				overflow: auto;
+				border-radius: 20px;
+				padding: 14px;
+				background: rgba(248, 250, 252, 0.96);
+				border: 1px solid rgba(19, 34, 56, 0.08);
+			}
+
+			.output-log {
+				display: grid;
+				gap: 12px;
+			}
+
+			.code-panel {
+				margin: 0;
+				font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+				font-size: 0.9rem;
+				line-height: 1.55;
+				white-space: pre-wrap;
+				word-break: break-word;
+			}
+
+			.log-entry {
+				padding: 14px;
+				border-radius: 18px;
+				border: 1px solid rgba(19, 34, 56, 0.08);
+				background: rgba(255, 255, 255, 0.96);
+			}
+
+			.log-entry.is-error {
+				border-color: rgba(239, 68, 68, 0.22);
+				background: rgba(254, 242, 242, 0.96);
+			}
+
+			.log-command,
+			.log-status,
+			.log-hint {
+				margin: 0;
+			}
+
+			.log-command {
+				font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+				font-size: 0.92rem;
+				color: #0f172a;
+			}
+
+			.log-status {
+				margin-top: 8px;
+				font-weight: 600;
+				color: #0f766e;
+			}
+
+			.log-entry.is-error .log-status {
+				color: #b91c1c;
+			}
+
+			.log-code,
+			.log-detail {
+				margin: 10px 0 0;
+				padding: 12px;
+				border-radius: 16px;
+				background: rgba(15, 23, 42, 0.95);
+				color: #e2e8f0;
+				font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+				font-size: 0.86rem;
+				white-space: pre-wrap;
+				word-break: break-word;
+			}
+
+			.log-hint {
+				margin-top: 10px;
+				color: #64748b;
+			}
+
+			.snapshot-ref {
+				padding: 0;
+				border-radius: 8px;
+				background: rgba(14, 165, 233, 0.14);
+				color: #0c4a6e;
+				font-family: inherit;
+				font-size: inherit;
+			}
+
+			.snapshot-ref:hover,
+			.snapshot-ref:focus-visible {
+				background: rgba(249, 115, 22, 0.18);
+				outline: none;
+			}
+
+			.stage {
+				padding-bottom: 12px;
+			}
+
+			.stage-body {
+				position: relative;
+				border-radius: 22px;
+				overflow: hidden;
+				border: 1px solid rgba(19, 34, 56, 0.08);
+				background: #fff;
+			}
+
+			iframe {
+				width: 100%;
+				height: 100%;
+				border: 0;
+				background: #fff;
+			}
+
+			.command-bar {
+				display: grid;
+				grid-template-columns: auto 1fr auto;
+				gap: 12px;
+				align-items: center;
+			}
+
+			.command-prompt {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				width: 44px;
+				height: 44px;
+				border-radius: 14px;
+				background: rgba(19, 34, 56, 0.06);
+				font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+				font-size: 1rem;
+			}
+
+			.command-bar input {
+				width: 100%;
+				padding: 12px 14px;
+				border-radius: 16px;
+				border: 1px solid rgba(19, 34, 56, 0.12);
+				background: rgba(248, 250, 252, 0.96);
+				color: #132238;
+			}
+
+			.command-bar input:focus-visible {
+				outline: 2px solid rgba(14, 165, 233, 0.36);
+				outline-offset: 2px;
+			}
+
+			.command-bar button:disabled,
+			button.action:disabled {
+				opacity: 0.6;
+				cursor: wait;
+				box-shadow: none;
+			}
+
+			@media (max-width: 1100px) {
+				.workspace {
+					grid-template-columns: 1fr;
+				}
+
+				.sidebar {
+					grid-template-rows: repeat(3, minmax(220px, 1fr));
+				}
+			}
+
+			@media (max-width: 760px) {
+				.demo-shell {
+					padding: 14px;
+				}
+
+				.topbar,
+				.command-bar,
+				.panel,
+				.stage {
+					border-radius: 20px;
+				}
+
+				.command-bar {
+					grid-template-columns: 1fr;
+				}
+
+				.command-prompt {
+					display: none;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="demo-shell">
+			<header class="topbar">
+				<div>
+					<h1>cypress-cli Browser Demo</h1>
+					<p>
+						Run browser-only cypress-cli commands against a same-origin toy app and
+						watch snapshots and Cypress code update live.
+					</p>
+				</div>
+				<div class="meta">
+					<div class="meta-row">
+						<div class="meta-pill"><strong>URL</strong> <span id="page-url">Loading...</span></div>
+						<div class="meta-pill"><strong>Title</strong> <span id="page-title">Loading...</span></div>
+					</div>
+					<div class="meta-row">
+						<button id="export-button" class="action" type="button">Export Test</button>
+					</div>
+				</div>
+			</header>
+
+			<main class="workspace">
+				<section class="sidebar">
+					<section class="panel">
+						<header>
+							<div>
+								<h2>Command Output</h2>
+								<p>Success, failure, and inline Cypress code appear here.</p>
+							</div>
+						</header>
+						<div class="panel-body">
+							<div id="output-panel" class="output-log"></div>
+						</div>
+					</section>
+
+					<section class="panel">
+						<header>
+							<div>
+								<h2>Snapshot</h2>
+								<p>Click a ref to highlight its live element in the iframe.</p>
+							</div>
+						</header>
+						<div class="panel-body">
+							<pre id="snapshot-panel" class="code-panel"></pre>
+						</div>
+					</section>
+
+					<section class="panel">
+						<header>
+							<div>
+								<h2>Codegen</h2>
+								<p>The exported Cypress test updates as commands execute.</p>
+							</div>
+						</header>
+						<div class="panel-body">
+							<pre id="codegen-panel" class="code-panel"></pre>
+						</div>
+					</section>
+				</section>
+
+				<section class="stage">
+					<header>
+						<div>
+							<h2>Live App</h2>
+							<p>Same-origin iframe target used by the browser-only demo runtime.</p>
+						</div>
+					</header>
+					<div class="stage-body">
+						<iframe id="demo-iframe" src="./toy-app/" title="Browser demo toy app"></iframe>
+					</div>
+				</section>
+			</main>
+
+			<form id="repl-form" class="command-bar">
+				<div class="command-prompt" aria-hidden="true">&gt;</div>
+				<input
+					id="command-input"
+					type="text"
+					autocomplete="off"
+					spellcheck="false"
+					placeholder='Try: snapshot, click e23, type e23 "Buy milk", assert e21 have.text Hello!'
+				/>
+				<button id="run-button" type="submit">Run</button>
+			</form>
+		</div>
+
+		<script type="module" src="./dist/demo.js"></script>
+	</body>
+</html>

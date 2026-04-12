@@ -9,77 +9,174 @@ user-invocable: true
 ## What this skill does
 
 This skill teaches you how to use the `cypress-cli` tool to interact with live
-web pages through real Cypress commands. It is the primary way to browse,
-inspect, and test web pages in this project.
+web pages through real Cypress commands. Use it to open pages, inspect aria
+snapshots, interact with elements, inspect browser state, export Cypress tests,
+and run targeted browser or Cypress code.
 
 ## When to use this skill
 
 - When you need to open a web page and inspect its DOM
 - When you need to interact with elements (click, type, check, select, etc.)
 - When you need to assert element state
+- When you need cookies, localStorage, sessionStorage, or saved browser state
+- When you need network inspection or request mocking
+- When you need browser console output or screenshots
 - When you need to generate Cypress test code from a session
-- When you need to execute arbitrary Cypress code against a live page
+- When you need to execute browser-side JavaScript or Cypress chain code
 
-## Commands
+## Output format
 
-| Command           | Example                                        |
-| ----------------- | ---------------------------------------------- |
-| `open`            | `cypress-cli open https://example.com`         |
-| `snapshot`        | `cypress-cli snapshot`                         |
-| `click`           | `cypress-cli click e5`                         |
-| `type`            | `cypress-cli type e12 'hello'`                 |
-| `fill`            | `cypress-cli fill e12 'full replacement text'` |
-| `clear`           | `cypress-cli clear e12`                        |
-| `check`           | `cypress-cli check e8`                         |
-| `uncheck`         | `cypress-cli uncheck e8`                       |
-| `select`          | `cypress-cli select e15 'Option A'`            |
-| `scrollto`        | `cypress-cli scrollto e3`                      |
-| `hover`           | `cypress-cli hover e7`                         |
-| `focus`           | `cypress-cli focus e12`                        |
-| `blur`            | `cypress-cli blur e12`                         |
-| `press`           | `cypress-cli press Enter`                      |
-| `dblclick`        | `cypress-cli dblclick e5`                      |
-| `rightclick`      | `cypress-cli rightclick e5`                    |
-| `navigate`        | `cypress-cli navigate https://other.com`       |
-| `back`            | `cypress-cli back`                             |
-| `forward`         | `cypress-cli forward`                          |
-| `reload`          | `cypress-cli reload`                           |
-| `assert`          | `cypress-cli assert e5 have.text 'Submit'`     |
-| `asserturl`       | `cypress-cli asserturl include '/dashboard'`   |
-| `asserttitle`     | `cypress-cli asserttitle eq 'Home'`            |
-| `wait`            | `cypress-cli wait 1000`                        |
-| `waitfor`         | `cypress-cli waitfor e12`                      |
-| `intercept`       | `cypress-cli intercept '**/api/users'`         |
-| `waitforresponse` | `cypress-cli waitforresponse '**/api/users'`   |
-| `unintercept`     | `cypress-cli unintercept '**/api/users'`       |
-| `intercept-list`  | `cypress-cli intercept-list`                   |
-| `network`         | `cypress-cli network`                          |
-| `screenshot`      | `cypress-cli screenshot`                       |
-| `drag`            | `cypress-cli drag e3 e7`                       |
-| `upload`          | `cypress-cli upload e10 ./file.pdf`            |
-| `dialog-accept`   | `cypress-cli dialog-accept`                    |
-| `dialog-dismiss`  | `cypress-cli dialog-dismiss`                   |
-| `resize`          | `cypress-cli resize 1280 720`                  |
-| `run-code`        | `cypress-cli run-code "document.title"`        |
-| `export`          | `cypress-cli export`                           |
-| `history`         | `cypress-cli history`                          |
-| `undo`            | `cypress-cli undo`                             |
-| `stop`            | `cypress-cli stop`                             |
-
-## How to read snapshots
-
-Every command returns output in this format:
+Most page-oriented commands return output like this:
 
 ```text
 ### Page
 - Page URL: https://example.com
-- Page Title: Example Page
+- Page Title: Example
 ### Snapshot
-Snapshot → .cypress-cli/page-YYYY-MM-DDTHH-MM-SS-mmmZ.yml
+[Snapshot](.cypress-cli/page-2026-04-10T19-22-42-679Z.yml)
 ```
 
-The `### Snapshot` section contains a markdown-formatted link to the YAML
-snapshot file on disk (e.g., `.cypress-cli/page-<timestamp>.yml`).
+Structured-data commands such as `console`, `network`, `history`, storage
+commands, and `run` return JSON-like data or summaries instead of a snapshot.
+
+## Commands
+
+### Core
+
+| Command    | Example                                | Purpose                                                     |
+| ---------- | -------------------------------------- | ----------------------------------------------------------- |
+| `open`     | `cypress-cli open https://example.com` | Start or reuse a session and navigate to a URL              |
+| `repl`     | `cypress-cli repl`                     | Start interactive REPL mode for an existing session         |
+| `snapshot` | `cypress-cli snapshot`                 | Capture the current aria snapshot                           |
+| `status`   | `cypress-cli status`                   | Show session status and metadata                            |
+| `install`  | `cypress-cli install --skills`         | Install the bundled skill into `.github/skills/cypress-cli` |
+| `stop`     | `cypress-cli stop`                     | Stop the active session                                     |
+
+### Navigation
+
+| Command    | Example                                              | Purpose                                |
+| ---------- | ---------------------------------------------------- | -------------------------------------- |
+| `navigate` | `cypress-cli navigate https://example.com/dashboard` | Visit a new URL in the current session |
+| `back`     | `cypress-cli back`                                   | Go back in browser history             |
+| `forward`  | `cypress-cli forward`                                | Go forward in browser history          |
+| `reload`   | `cypress-cli reload`                                 | Reload the current page                |
+
+### Interaction
+
+| Command          | Example                                        | Purpose                                             |
+| ---------------- | ---------------------------------------------- | --------------------------------------------------- |
+| `click`          | `cypress-cli click e5`                         | Click an element by ref                             |
+| `dblclick`       | `cypress-cli dblclick e5`                      | Double-click an element by ref                      |
+| `rightclick`     | `cypress-cli rightclick e5`                    | Right-click an element by ref                       |
+| `type`           | `cypress-cli type e12 'hello'`                 | Type text into an element                           |
+| `fill`           | `cypress-cli fill e12 'full replacement text'` | Clear and replace text in an element                |
+| `clear`          | `cypress-cli clear e12`                        | Clear an input element                              |
+| `check`          | `cypress-cli check e8`                         | Check a checkbox or radio input                     |
+| `uncheck`        | `cypress-cli uncheck e8`                       | Uncheck a checkbox                                  |
+| `select`         | `cypress-cli select e15 'Option A'`            | Select an option from a `<select>`                  |
+| `focus`          | `cypress-cli focus e12`                        | Focus an element                                    |
+| `blur`           | `cypress-cli blur e12`                         | Blur an element                                     |
+| `scrollto`       | `cypress-cli scrollto e3`                      | Scroll an element into view or scroll to a position |
+| `hover`          | `cypress-cli hover e7`                         | Trigger hover on an element                         |
+| `drag`           | `cypress-cli drag e3 e7`                       | Drag one element onto another                       |
+| `upload`         | `cypress-cli upload e10 ./file.pdf`            | Upload a file through a file input                  |
+| `dialog-accept`  | `cypress-cli dialog-accept`                    | Accept the next browser dialog                      |
+| `dialog-dismiss` | `cypress-cli dialog-dismiss`                   | Dismiss the next browser dialog                     |
+| `resize`         | `cypress-cli resize 1280 720`                  | Change the browser viewport size                    |
+
+### Keyboard
+
+| Command | Example                   | Purpose                         |
+| ------- | ------------------------- | ------------------------------- |
+| `press` | `cypress-cli press Enter` | Send a keyboard key to the page |
+
+### Assertion
+
+| Command       | Example                                      | Purpose                   |
+| ------------- | -------------------------------------------- | ------------------------- |
+| `assert`      | `cypress-cli assert e5 have.text 'Submit'`   | Assert on an element      |
+| `asserturl`   | `cypress-cli asserturl include '/dashboard'` | Assert on the current URL |
+| `asserttitle` | `cypress-cli asserttitle eq 'Home'`          | Assert on the page title  |
+
+### Wait
+
+| Command   | Example                   | Purpose                             |
+| --------- | ------------------------- | ----------------------------------- |
+| `wait`    | `cypress-cli wait 1000`   | Wait a fixed number of milliseconds |
+| `waitfor` | `cypress-cli waitfor e12` | Wait for an element to exist        |
+
+### Execution
+
+| Command    | Example                                                            | Purpose                                                           |
+| ---------- | ------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| `run-code` | `cypress-cli run-code "document.querySelectorAll('input').length"` | Execute browser-side JavaScript in the page context               |
+| `eval`     | `cypress-cli eval "document.title"`                                | Evaluate a JavaScript expression on the page or on a specific ref |
+| `cyrun`    | `cypress-cli cyrun "cy.url().then(u => u)"`                        | Execute Cypress chain code in the Cypress runner context          |
+| `run`      | `cypress-cli run ./generated.cy.ts`                                | Run a Cypress spec file and report structured results             |
+
+### Export and history
+
+| Command   | Example                                       | Purpose                                       |
+| --------- | --------------------------------------------- | --------------------------------------------- |
+| `export`  | `cypress-cli export --file ./generated.cy.ts` | Export session history as a Cypress test file |
+| `history` | `cypress-cli history`                         | Show commands recorded for export             |
+| `undo`    | `cypress-cli undo`                            | Remove the last command from export history   |
+
+### Network
+
+| Command           | Example                                                                   | Purpose                                       |
+| ----------------- | ------------------------------------------------------------------------- | --------------------------------------------- |
+| `intercept`       | `cypress-cli intercept '**/api/users' --status 200 --body '{"users":[]}'` | Register a request intercept or mock response |
+| `waitforresponse` | `cypress-cli waitforresponse '**/api/users'`                              | Wait for a previously intercepted response    |
+| `unintercept`     | `cypress-cli unintercept '**/api/users'`                                  | Remove one intercept or all intercepts        |
+| `intercept-list`  | `cypress-cli intercept-list`                                              | List active intercepts                        |
+| `network`         | `cypress-cli network`                                                     | Show captured network requests                |
+
+### Cookies
+
+| Command         | Example                                | Purpose                 |
+| --------------- | -------------------------------------- | ----------------------- |
+| `cookie-list`   | `cypress-cli cookie-list`              | List cookies            |
+| `cookie-get`    | `cypress-cli cookie-get session_id`    | Read a cookie by name   |
+| `cookie-set`    | `cypress-cli cookie-set theme dark`    | Set a cookie            |
+| `cookie-delete` | `cypress-cli cookie-delete session_id` | Delete a cookie by name |
+| `cookie-clear`  | `cypress-cli cookie-clear`             | Clear all cookies       |
+
+### localStorage
+
+| Command               | Example                                     | Purpose                           |
+| --------------------- | ------------------------------------------- | --------------------------------- |
+| `localstorage-list`   | `cypress-cli localstorage-list`             | List all localStorage entries     |
+| `localstorage-get`    | `cypress-cli localstorage-get token`        | Read a localStorage value by key  |
+| `localstorage-set`    | `cypress-cli localstorage-set token abc123` | Set a localStorage key/value pair |
+| `localstorage-delete` | `cypress-cli localstorage-delete token`     | Delete a localStorage key         |
+| `localstorage-clear`  | `cypress-cli localstorage-clear`            | Clear all localStorage entries    |
+
+### sessionStorage
+
+| Command                 | Example                                      | Purpose                             |
+| ----------------------- | -------------------------------------------- | ----------------------------------- |
+| `sessionstorage-list`   | `cypress-cli sessionstorage-list`            | List all sessionStorage entries     |
+| `sessionstorage-get`    | `cypress-cli sessionstorage-get draft`       | Read a sessionStorage value by key  |
+| `sessionstorage-set`    | `cypress-cli sessionstorage-set draft hello` | Set a sessionStorage key/value pair |
+| `sessionstorage-delete` | `cypress-cli sessionstorage-delete draft`    | Delete a sessionStorage key         |
+| `sessionstorage-clear`  | `cypress-cli sessionstorage-clear`           | Clear all sessionStorage entries    |
+
+### State
+
+| Command      | Example                                          | Purpose                                                     |
+| ------------ | ------------------------------------------------ | ----------------------------------------------------------- |
+| `state-save` | `cypress-cli state-save .cypress-cli/state.json` | Save cookies, localStorage, and sessionStorage to disk      |
+| `state-load` | `cypress-cli state-load .cypress-cli/state.json` | Restore cookies, localStorage, and sessionStorage from disk |
+
+### Diagnostics and page capture
+
+| Command      | Example                  | Purpose                                  |
+| ------------ | ------------------------ | ---------------------------------------- |
+| `console`    | `cypress-cli console`    | Return captured browser console messages |
+| `screenshot` | `cypress-cli screenshot` | Capture a page or element screenshot     |
+
+## How to read snapshots
 
 The snapshot file (YAML) contains the page's aria tree with element references:
 
@@ -115,13 +212,25 @@ cypress-cli snapshot
 # 5. Assert element state
 cypress-cli assert e3 have.value 'user@test.com'
 
-# 6. Run arbitrary Cypress code
-cypress-cli run-code "cy.get('#modal').should('be.visible')"
+# 6. Run browser-side JavaScript
+cypress-cli run-code "document.querySelectorAll('input').length"
 
-# 7. Export session as a Cypress test file
-cypress-cli export
+# 7. Run Cypress chain code in the runner context
+cypress-cli cyrun "cy.url().then(u => u)"
 
-# 8. Stop the session
+# 8. Use the interactive REPL when you want a prompt
+cypress-cli repl
+# cypress-cli> snapshot
+# cypress-cli> status
+# cypress-cli> exit
+
+# 9. Export session as a Cypress test file
+cypress-cli export --file ./generated.cy.ts
+
+# 10. Run the exported Cypress spec
+cypress-cli run ./generated.cy.ts
+
+# 11. Stop the session
 cypress-cli stop
 ```
 
@@ -130,7 +239,11 @@ cypress-cli stop
 - **Always read the snapshot file** after `open` to discover element refs
 - **Snapshot files accumulate** in `.cypress-cli/` — each command writes a new one
 - Use `--json` flag on any command for machine-readable output
-- The `run-code` command accepts any valid JavaScript expression
+- `run-code` executes browser-side JavaScript via `window.eval(...)`
+- `eval` returns expression results and can optionally evaluate against a specific ref
+- `cyrun` is for Cypress chain code such as `cy.get(...)`, not browser-side JavaScript
+- `run` executes a Cypress spec file and does not require an active browser session
+- `install --skills` copies this source skill to `.github/skills/cypress-cli/`
 - If a command fails, the response includes an error message and a recovery snapshot
 
 ## Waiting after SPA navigation

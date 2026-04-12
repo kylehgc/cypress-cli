@@ -12,6 +12,7 @@ import {
 	click,
 	type_,
 	navigate,
+	repl,
 	assert_,
 	snapshot,
 	open,
@@ -110,17 +111,25 @@ describe('declareCommand', () => {
 });
 
 describe('command schemas', () => {
-	it('defines all 64 commands', () => {
-		expect(allCommands).toHaveLength(64);
+	it('defines all 65 commands', () => {
+		expect(allCommands).toHaveLength(65);
 	});
 
 	it('registers all commands plus aliases in the registry', () => {
-		expect(commandRegistry.size).toBe(68);
+		expect(commandRegistry.size).toBe(69);
+	});
+
+	it('registers repl in the command registry', () => {
+		const entry = commandRegistry.get('repl');
+		expect(entry).toBeDefined();
+		expect(entry?.schema).toBe(repl);
+		expect(entry?.positionals).toEqual([]);
 	});
 
 	describe('categories', () => {
 		it('has core commands', () => {
 			expect(open.category).toBe('core');
+			expect(repl.category).toBe('core');
 			expect(stop.category).toBe('core');
 			expect(status.category).toBe('core');
 			expect(install.category).toBe('core');
@@ -513,7 +522,9 @@ describe('command schemas', () => {
 
 		it('cookie-clear requires no args or options', () => {
 			expect(cookieClear.args.safeParse({})).toMatchObject({ success: true });
-			expect(cookieClear.options.safeParse({})).toMatchObject({ success: true });
+			expect(cookieClear.options.safeParse({})).toMatchObject({
+				success: true,
+			});
 		});
 
 		it('localstorage-list requires no args', () => {
@@ -523,9 +534,9 @@ describe('command schemas', () => {
 		});
 
 		it('localstorage-get requires a key', () => {
-			expect(
-				localstorageGet.args.safeParse({ key: 'token' }),
-			).toMatchObject({ success: true });
+			expect(localstorageGet.args.safeParse({ key: 'token' })).toMatchObject({
+				success: true,
+			});
 			expect(localstorageGet.args.safeParse({})).toMatchObject({
 				success: false,
 			});
@@ -535,15 +546,15 @@ describe('command schemas', () => {
 			expect(
 				localstorageSet.args.safeParse({ key: 'token', value: 'abc' }),
 			).toMatchObject({ success: true });
-			expect(
-				localstorageSet.args.safeParse({ key: 'token' }),
-			).toMatchObject({ success: false });
+			expect(localstorageSet.args.safeParse({ key: 'token' })).toMatchObject({
+				success: false,
+			});
 		});
 
 		it('localstorage-delete requires a key', () => {
-			expect(
-				localstorageDelete.args.safeParse({ key: 'token' }),
-			).toMatchObject({ success: true });
+			expect(localstorageDelete.args.safeParse({ key: 'token' })).toMatchObject(
+				{ success: true },
+			);
 			expect(localstorageDelete.args.safeParse({})).toMatchObject({
 				success: false,
 			});
@@ -562,9 +573,9 @@ describe('command schemas', () => {
 		});
 
 		it('sessionstorage-get requires a key', () => {
-			expect(
-				sessionstorageGet.args.safeParse({ key: 'sid' }),
-			).toMatchObject({ success: true });
+			expect(sessionstorageGet.args.safeParse({ key: 'sid' })).toMatchObject({
+				success: true,
+			});
 			expect(sessionstorageGet.args.safeParse({})).toMatchObject({
 				success: false,
 			});
@@ -574,15 +585,15 @@ describe('command schemas', () => {
 			expect(
 				sessionstorageSet.args.safeParse({ key: 'sid', value: 'x' }),
 			).toMatchObject({ success: true });
-			expect(
-				sessionstorageSet.args.safeParse({ key: 'sid' }),
-			).toMatchObject({ success: false });
+			expect(sessionstorageSet.args.safeParse({ key: 'sid' })).toMatchObject({
+				success: false,
+			});
 		});
 
 		it('sessionstorage-delete requires a key', () => {
-			expect(
-				sessionstorageDelete.args.safeParse({ key: 'sid' }),
-			).toMatchObject({ success: true });
+			expect(sessionstorageDelete.args.safeParse({ key: 'sid' })).toMatchObject(
+				{ success: true },
+			);
 			expect(sessionstorageDelete.args.safeParse({})).toMatchObject({
 				success: false,
 			});
@@ -702,9 +713,9 @@ describe('command schemas', () => {
 		});
 
 		it('localstorage-get requires a key', () => {
-			expect(
-				localstorageGet.args.safeParse({ key: 'token' }),
-			).toMatchObject({ success: true });
+			expect(localstorageGet.args.safeParse({ key: 'token' })).toMatchObject({
+				success: true,
+			});
 			expect(localstorageGet.args.safeParse({})).toMatchObject({
 				success: false,
 			});
@@ -714,15 +725,15 @@ describe('command schemas', () => {
 			expect(
 				localstorageSet.args.safeParse({ key: 'token', value: 'abc' }),
 			).toMatchObject({ success: true });
-			expect(
-				localstorageSet.args.safeParse({ key: 'token' }),
-			).toMatchObject({ success: false });
+			expect(localstorageSet.args.safeParse({ key: 'token' })).toMatchObject({
+				success: false,
+			});
 		});
 
 		it('localstorage-delete requires a key', () => {
-			expect(
-				localstorageDelete.args.safeParse({ key: 'token' }),
-			).toMatchObject({ success: true });
+			expect(localstorageDelete.args.safeParse({ key: 'token' })).toMatchObject(
+				{ success: true },
+			);
 			expect(localstorageDelete.args.safeParse({})).toMatchObject({
 				success: false,
 			});
@@ -741,9 +752,9 @@ describe('command schemas', () => {
 		});
 
 		it('sessionstorage-get requires a key', () => {
-			expect(
-				sessionstorageGet.args.safeParse({ key: 'tab-id' }),
-			).toMatchObject({ success: true });
+			expect(sessionstorageGet.args.safeParse({ key: 'tab-id' })).toMatchObject(
+				{ success: true },
+			);
 			expect(sessionstorageGet.args.safeParse({})).toMatchObject({
 				success: false,
 			});
@@ -753,9 +764,9 @@ describe('command schemas', () => {
 			expect(
 				sessionstorageSet.args.safeParse({ key: 'tab-id', value: '1' }),
 			).toMatchObject({ success: true });
-			expect(
-				sessionstorageSet.args.safeParse({ key: 'tab-id' }),
-			).toMatchObject({ success: false });
+			expect(sessionstorageSet.args.safeParse({ key: 'tab-id' })).toMatchObject(
+				{ success: false },
+			);
 		});
 
 		it('sessionstorage-delete requires a key', () => {
@@ -775,28 +786,28 @@ describe('command schemas', () => {
 
 		it('console has optional level filter', () => {
 			expect(console_.args.safeParse({})).toMatchObject({ success: true });
-			expect(
-				console_.args.safeParse({ level: 'error' }),
-			).toMatchObject({ success: true });
-			expect(
-				console_.args.safeParse({ level: 'warning' }),
-			).toMatchObject({ success: true });
-			expect(
-				console_.args.safeParse({ level: 'info' }),
-			).toMatchObject({ success: true });
-			expect(
-				console_.args.safeParse({ level: 'debug' }),
-			).toMatchObject({ success: true });
-			expect(
-				console_.args.safeParse({ level: 'invalid' }),
-			).toMatchObject({ success: false });
+			expect(console_.args.safeParse({ level: 'error' })).toMatchObject({
+				success: true,
+			});
+			expect(console_.args.safeParse({ level: 'warning' })).toMatchObject({
+				success: true,
+			});
+			expect(console_.args.safeParse({ level: 'info' })).toMatchObject({
+				success: true,
+			});
+			expect(console_.args.safeParse({ level: 'debug' })).toMatchObject({
+				success: true,
+			});
+			expect(console_.args.safeParse({ level: 'invalid' })).toMatchObject({
+				success: false,
+			});
 		});
 
 		it('console --clear option is optional boolean', () => {
 			expect(console_.options.safeParse({})).toMatchObject({ success: true });
-			expect(
-				console_.options.safeParse({ clear: true }),
-			).toMatchObject({ success: true });
+			expect(console_.options.safeParse({ clear: true })).toMatchObject({
+				success: true,
+			});
 		});
 
 		it('run requires file', () => {
@@ -1319,10 +1330,7 @@ describe('parseCommand', () => {
 	});
 
 	it("parses 'localstorage-list' correctly", () => {
-		const result = parseCommand(
-			{ _: ['localstorage-list'] },
-			commandRegistry,
-		);
+		const result = parseCommand({ _: ['localstorage-list'] }, commandRegistry);
 		expect(result).toEqual({
 			command: 'localstorage-list',
 			args: {},
@@ -1367,10 +1375,7 @@ describe('parseCommand', () => {
 	});
 
 	it("parses 'localstorage-clear' correctly", () => {
-		const result = parseCommand(
-			{ _: ['localstorage-clear'] },
-			commandRegistry,
-		);
+		const result = parseCommand({ _: ['localstorage-clear'] }, commandRegistry);
 		expect(result).toEqual({
 			command: 'localstorage-clear',
 			args: {},

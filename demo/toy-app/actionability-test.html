@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Actionability Test</title>
+</head>
+
+<body>
+  <h1>Actionability Test Page</h1>
+
+  <div id="delayed-section">
+    <p>Loading...</p>
+  </div>
+
+  <!-- Hidden → visible: button starts display:none, becomes visible after 1s -->
+  <button id="hidden-btn" style="display:none">Hidden Button</button>
+  <p id="hidden-result" style="display:none">Hidden Clicked</p>
+
+  <!-- Overlay: button covered by overlay that fades out after 1s -->
+  <div style="position:relative; width:200px; height:50px; margin:10px 0;">
+    <button id="overlay-btn" style="position:absolute; top:0; left:0; width:200px; height:50px;">Under Overlay</button>
+    <div id="overlay-cover" style="position:absolute; top:0; left:0; width:200px; height:50px; background:rgba(0,0,0,0.5); z-index:10;"></div>
+    <p id="overlay-result" style="display:none">Overlay Clicked</p>
+  </div>
+
+  <!-- Scroll: button below fold inside scrollable container -->
+  <div id="scroll-container" style="height:100px; overflow:auto; border:1px solid #ccc; margin:10px 0;">
+    <div style="height:300px; padding:10px;">
+      <p>Scroll down to find the button...</p>
+      <div style="height:250px;"></div>
+      <button id="scroll-btn">Scroll Button</button>
+      <p id="scroll-result" style="display:none">Scroll Clicked</p>
+    </div>
+  </div>
+
+  <!-- Disabled → enabled: button starts disabled, enabled after 1s -->
+  <button id="disabled-btn" disabled>Disabled Button</button>
+  <p id="disabled-result" style="display:none">Disabled Clicked</p>
+
+  <script>
+    setTimeout(() => {
+      document.getElementById('delayed-section').innerHTML = `
+        <button id="action-btn">Click Me</button>
+        <p id="result" style="display:none">Done</p>
+      `;
+
+      document.getElementById('action-btn').addEventListener('click', () => {
+        document.getElementById('result').style.display = 'block';
+      });
+    }, 1000);
+
+    // Hidden → visible after 1s
+    setTimeout(() => {
+      document.getElementById('hidden-btn').style.display = 'block';
+    }, 1000);
+    document.getElementById('hidden-btn').addEventListener('click', () => {
+      document.getElementById('hidden-result').style.display = 'block';
+    });
+
+    // Overlay fades out after 1s
+    setTimeout(() => {
+      document.getElementById('overlay-cover').style.display = 'none';
+    }, 1000);
+    document.getElementById('overlay-btn').addEventListener('click', () => {
+      document.getElementById('overlay-result').style.display = 'block';
+    });
+
+    // Scroll button click handler
+    document.getElementById('scroll-btn').addEventListener('click', () => {
+      document.getElementById('scroll-result').style.display = 'block';
+    });
+
+    // Disabled → enabled after 1s
+    setTimeout(() => {
+      document.getElementById('disabled-btn').removeAttribute('disabled');
+    }, 1000);
+    document.getElementById('disabled-btn').addEventListener('click', () => {
+      document.getElementById('disabled-result').style.display = 'block';
+    });
+  </script>
+</body>
+
+</html>
