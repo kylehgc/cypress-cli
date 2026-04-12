@@ -435,10 +435,10 @@ All planned functionality is implemented and tested (1009 tests across 52 test f
   incremental diffs, role/accessible name computation).
 - **Daemon**: Socket server, session management, command queue with Promise-based
   blocking, graceful shutdown, idle timeout, session persistence to `$XDG_STATE_HOME`.
-- **CLI client**: Argument parsing (minimist + zod), 64 command schemas, socket
+- **CLI client**: Argument parsing (minimist + zod), 65 command schemas, socket
   connection with retry logic, REPL mode, help text, JSON output.
 - **Cypress layer**: Plugin with getCommand/commandResult task handlers, driver spec
-  with full REPL loop (64 commands), support file for IIFE injection and snapshot
+  with full REPL loop (65 commands), support file for IIFE injection and snapshot
   taking, launcher with cross-process IPC via QueueBridge.
 - **Browser module** (`src/browser/`): Element ref map, selector generation via
   `@cypress/unique-selector` with Cypress priority order, IIFE snapshot injection.

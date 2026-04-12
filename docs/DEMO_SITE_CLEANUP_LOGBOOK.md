@@ -65,3 +65,19 @@
 - `npm run build:driver` → PASS (720 KB)
 
 **Decisions:** Left `js-cookie.ts` unchanged because the existing destructuring pattern already handles the described bug correctly. The runbook description didn't match the actual code.
+
+### 2026-04-12 10:20 — Step 3: Fix Stale Docs and Skill References [PASS]
+
+**Files changed:** `.claude/skills/playwright-cli/SKILL.md`, `.github/skills/cypress-cli/references/storage-state.md`, `ARCHITECTURE.md`, `docs/READINESS_ASSESSMENT.md`
+
+**What was done:**
+- 3.1: Fixed corrupted YAML frontmatter in `.claude/skills/playwright-cli/SKILL.md` — replaced `Í›---` with `---`.
+- 3.2: Rewrote `storage-state.md` to reflect all 17 implemented storage commands (state-save/load, cookie-*, localstorage-*, sessionstorage-*).
+- 3.3: Updated ARCHITECTURE.md command count from 64 to 65 (two occurrences).
+- 3.4: Removed duplicate conflicting "Total: 1009" line from READINESS_ASSESSMENT.md, keeping "Total: 1012".
+
+**Verification:**
+- `npx tsc --noEmit` → PASS
+- `npx eslint src/ tests/` → PASS
+
+**Decisions:** Used 65 as the command count based on direct count of entries in `allCommands` array in `src/client/commands.ts`. Test count kept at 1012 (will re-verify with vitest run in final check).
