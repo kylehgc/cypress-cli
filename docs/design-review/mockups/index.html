@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>cypress-cli — Design Mockups</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: #0a0a0a;
+      color: #e5e5e5;
+      min-height: 100vh;
+      padding: 3rem 2rem;
+    }
+
+    header {
+      max-width: 960px;
+      margin: 0 auto 3rem;
+    }
+
+    header h1 {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 2rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 0.5rem;
+    }
+
+    header h1 span {
+      color: #666;
+      font-weight: 400;
+    }
+
+    header p {
+      color: #888;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      max-width: 640px;
+    }
+
+    .grid-labels {
+      max-width: 960px;
+      margin: 0 auto 1rem;
+      display: grid;
+      grid-template-columns: 140px 1fr 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .grid-labels .col-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #666;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #222;
+    }
+
+    .grid-labels .col-label:first-child {
+      border-bottom: none;
+    }
+
+    .grid-labels .col-label .accent-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .grid-labels .col-label .accent-dot.amber {
+      background: #D4A017;
+    }
+
+    .grid-labels .col-label .accent-dot.teal {
+      background: #4A9A9A;
+    }
+
+    .grid-labels .col-label .accent-dot.green {
+      background: #22C55E;
+    }
+
+    .grid {
+      max-width: 960px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 140px 1fr 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .row-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.8rem;
+      color: #888;
+      display: flex;
+      align-items: center;
+      padding-right: 1rem;
+    }
+
+    .card {
+      background: #141414;
+      border: 1px solid #222;
+      padding: 1.25rem;
+      transition: border-color 0.15s ease;
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .card:hover {
+      border-color: #444;
+    }
+
+    .card .tag {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 2px 8px;
+      display: inline-block;
+      width: fit-content;
+    }
+
+    .card .tag.amber {
+      color: #D4A017;
+      border: 1px solid #D4A01744;
+      background: #D4A01711;
+    }
+
+    .card .tag.teal {
+      color: #4A9A9A;
+      border: 1px solid #4A9A9A44;
+      background: #4A9A9A11;
+    }
+
+    .card .tag.green {
+      color: #22C55E;
+      border: 1px solid #22C55E44;
+      background: #22C55E11;
+    }
+
+    .card .title {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .card .desc {
+      font-size: 0.8rem;
+      color: #666;
+      line-height: 1.5;
+    }
+
+    .card .lib {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.65rem;
+      color: #444;
+      margin-top: auto;
+    }
+
+    footer {
+      max-width: 960px;
+      margin: 4rem auto 0;
+      padding-top: 2rem;
+      border-top: 1px solid #1a1a1a;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      color: #444;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    footer a {
+      color: #666;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      color: #888;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>cypress-cli <span>/ mockups</span></h1>
+    <p>
+      9 static mockups — 3 component libraries × 3 visual directions.
+      Compare side-by-side to pick the winning combination for the launch site.
+      Each page is self-contained HTML with CDN-loaded libraries.
+    </p>
+  </header>
+
+  <!-- Column labels -->
+  <div class="grid-labels">
+    <div class="col-label"></div>
+    <div class="col-label"><span class="accent-dot amber"></span>A — Lab Manual</div>
+    <div class="col-label"><span class="accent-dot teal"></span>B — Signal</div>
+    <div class="col-label"><span class="accent-dot green"></span>C — Terminal Native</div>
+  </div>
+
+  <!-- 3×3 grid -->
+  <div class="grid">
+    <!-- Row 1: DaisyUI -->
+    <div class="row-label">DaisyUI</div>
+
+    <a class="card" href="daisyui-a.html">
+      <span class="tag amber">Lab Manual</span>
+      <span class="title">DaisyUI × Lab Manual</span>
+      <span class="desc">Amber accent. Sharp corners. Numbered sections. Data-dense engineering spec aesthetic.</span>
+      <span class="lib">daisyui@5 + tailwind@4</span>
+    </a>
+
+    <a class="card" href="daisyui-b.html">
+      <span class="tag teal">Signal</span>
+      <span class="title">DaisyUI × Signal</span>
+      <span class="desc">Teal accent. Serif headings. Pull-quotes. Editorial calm with generous whitespace.</span>
+      <span class="lib">daisyui@5 + tailwind@4</span>
+    </a>
+
+    <a class="card" href="daisyui-c.html">
+      <span class="tag green">Terminal Native</span>
+      <span class="title">DaisyUI × Terminal Native</span>
+      <span class="desc">Green accent. Monospace headings. $-prefixed sections. CLI-first identity.</span>
+      <span class="lib">daisyui@5 + tailwind@4</span>
+    </a>
+
+    <!-- Row 2: Shoelace -->
+    <div class="row-label">Shoelace</div>
+
+    <a class="card" href="shoelace-a.html">
+      <span class="tag amber">Lab Manual</span>
+      <span class="title">Shoelace × Lab Manual</span>
+      <span class="desc">Web Components. Amber. Sharp. Tabbed command reference instead of flat table.</span>
+      <span class="lib">shoelace@2.20 + tailwind@4</span>
+    </a>
+
+    <a class="card" href="shoelace-b.html">
+      <span class="tag teal">Signal</span>
+      <span class="title">Shoelace × Signal</span>
+      <span class="desc">Web Components. Teal. Serif. Subtle shadows. Calm editorial with interactive tabs.</span>
+      <span class="lib">shoelace@2.20 + tailwind@4</span>
+    </a>
+
+    <a class="card" href="shoelace-c.html">
+      <span class="tag green">Terminal Native</span>
+      <span class="title">Shoelace × Terminal Native</span>
+      <span class="desc">Web Components. Green. Mono. Tree TOC. Terminal-styled interactive elements.</span>
+      <span class="lib">shoelace@2.20 + tailwind@4</span>
+    </a>
+
+    <!-- Row 3: Tailwind-only -->
+    <div class="row-label">Tailwind-only</div>
+
+    <a class="card" href="tailwind-a.html">
+      <span class="tag amber">Lab Manual</span>
+      <span class="title">Tailwind × Lab Manual</span>
+      <span class="desc">No component library. Hand-crafted. Amber. Maximum control baseline.</span>
+      <span class="lib">tailwind@4 only</span>
+    </a>
+
+    <a class="card" href="tailwind-b.html">
+      <span class="tag teal">Signal</span>
+      <span class="title">Tailwind × Signal</span>
+      <span class="desc">No component library. Hand-crafted. Teal. Serif. Editorial whitespace.</span>
+      <span class="lib">tailwind@4 only</span>
+    </a>
+
+    <a class="card" href="tailwind-c.html">
+      <span class="tag green">Terminal Native</span>
+      <span class="title">Tailwind × Terminal Native</span>
+      <span class="desc">No component library. Hand-crafted. Green. Mono. Terminal window components.</span>
+      <span class="lib">tailwind@4 only</span>
+    </a>
+  </div>
+
+  <footer>
+    <span>cypress-cli design mockups — static comparison only</span>
+    <a href="https://github.com/kylehgc/cypress-cli">github</a>
+  </footer>
+</body>
+
+</html>

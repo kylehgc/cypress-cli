@@ -27,9 +27,9 @@ vi.mock('cypress', () => ({
 
 function makeConnection(): {
 	conn: SocketConnection;
-	send: ReturnType<typeof vi.fn<[ResponseMessage], void>>;
+	send: ReturnType<typeof vi.fn<(msg: ResponseMessage) => void>>;
 } {
-	const send = vi.fn<[ResponseMessage], void>();
+	const send = vi.fn<(msg: ResponseMessage) => void>();
 	return {
 		conn: { send } as unknown as SocketConnection,
 		send,
@@ -70,7 +70,10 @@ describe('daemon handlers', () => {
 
 	it('formats history entries with active flags based on undo state', () => {
 		const { conn, send } = makeConnection();
-		const session = new Session({ id: 'session-1', url: 'https://example.com' });
+		const session = new Session({
+			id: 'session-1',
+			url: 'https://example.com',
+		});
 
 		session.recordHistory(
 			{ id: 1, action: 'click', ref: 'e1' },
@@ -183,7 +186,10 @@ describe('handleRunTest', () => {
 	it('maps successful Cypress run result to structured response', async () => {
 		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'run-test-'));
 		const testFile = path.join(tmpDir, 'test.cy.ts');
-		await fs.writeFile(testFile, 'describe("test", () => { it("passes", () => {}) })');
+		await fs.writeFile(
+			testFile,
+			'describe("test", () => { it("passes", () => {}) })',
+		);
 
 		const { conn, send } = makeConnection();
 
@@ -196,8 +202,16 @@ describe('handleRunTest', () => {
 				{
 					tests: [
 						{ title: ['Suite', 'passes'], state: 'passed', displayError: null },
-						{ title: ['Suite', 'also passes'], state: 'passed', displayError: null },
-						{ title: ['Suite', 'fails'], state: 'failed', displayError: 'AssertionError: expected true to be false' },
+						{
+							title: ['Suite', 'also passes'],
+							state: 'passed',
+							displayError: null,
+						},
+						{
+							title: ['Suite', 'fails'],
+							state: 'failed',
+							displayError: 'AssertionError: expected true to be false',
+						},
 					],
 				},
 			],
@@ -297,22 +311,24 @@ describe('handleRunTest', () => {
 		const { conn } = makeConnection();
 		let capturedProject = '';
 
-		cypressMock.run.mockImplementation(async (opts: Record<string, unknown>) => {
-			capturedProject = opts.project as string;
-			// Read the generated config before it gets cleaned up
-			const configContent = await fs.readFile(
-				path.join(capturedProject, 'cypress.config.js'),
-				'utf-8',
-			);
-			expect(configContent).toContain('https://example.com');
-			return {
-				totalTests: 1,
-				totalPassed: 1,
-				totalFailed: 0,
-				totalDuration: 100,
-				runs: [],
-			};
-		});
+		cypressMock.run.mockImplementation(
+			async (opts: Record<string, unknown>) => {
+				capturedProject = opts.project as string;
+				// Read the generated config before it gets cleaned up
+				const configContent = await fs.readFile(
+					path.join(capturedProject, 'cypress.config.js'),
+					'utf-8',
+				);
+				expect(configContent).toContain('https://example.com');
+				return {
+					totalTests: 1,
+					totalPassed: 1,
+					totalFailed: 0,
+					totalDuration: 100,
+					runs: [],
+				};
+			},
+		);
 
 		const session = new Session({
 			id: 'test-session',
@@ -334,18 +350,20 @@ describe('handleRunTest', () => {
 		const { conn } = makeConnection();
 		let capturedProject = '';
 
-		cypressMock.run.mockImplementation(async (opts: Record<string, unknown>) => {
-			capturedProject = opts.project as string;
-			// Verify temp dir exists during the run
-			await fs.access(capturedProject);
-			return {
-				totalTests: 1,
-				totalPassed: 1,
-				totalFailed: 0,
-				totalDuration: 100,
-				runs: [],
-			};
-		});
+		cypressMock.run.mockImplementation(
+			async (opts: Record<string, unknown>) => {
+				capturedProject = opts.project as string;
+				// Verify temp dir exists during the run
+				await fs.access(capturedProject);
+				return {
+					totalTests: 1,
+					totalPassed: 1,
+					totalFailed: 0,
+					totalDuration: 100,
+					runs: [],
+				};
+			},
+		);
 
 		await handleRunTest(conn, makeMessage('run', [testFile]));
 

@@ -1,0 +1,8 @@
+{
+	"compilerOptions": {
+		"types": ["cypress"],
+		"allowJs": true,
+		"noEmit": true
+	},
+	"include": ["e2e/**/*.js"]
+}

@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="terminal-light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>cypress-cli — Terminal Native (DaisyUI)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@5/daisyui.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-sans: 'IBM Plex Sans', sans-serif;
+    }
+
+    [data-theme="terminal-light"] {
+      --color-base-100: #FFFFFF;
+      --color-base-200: #F5F5F5;
+      --color-base-300: #E0E0E0;
+      --color-base-content: #0D0D0D;
+      --color-primary: #16A34A;
+      --color-primary-content: #FFFFFF;
+      --color-secondary: #15803D;
+      --color-secondary-content: #FFFFFF;
+      --color-accent: #22C55E;
+      --color-accent-content: #0D0D0D;
+      --color-neutral: #1A1A1A;
+      --color-neutral-content: #22C55E;
+      --rounded-box: 0;
+      --rounded-btn: 0;
+      --rounded-badge: 0;
+    }
+
+    [data-theme="terminal-dark"] {
+      --color-base-100: #0D0D0D;
+      --color-base-200: #141414;
+      --color-base-300: #1E1E1E;
+      --color-base-content: #D4D4D4;
+      --color-primary: #22C55E;
+      --color-primary-content: #0D0D0D;
+      --color-secondary: #16A34A;
+      --color-secondary-content: #0D0D0D;
+      --color-accent: #22C55E;
+      --color-accent-content: #0D0D0D;
+      --color-neutral: #1E1E1E;
+      --color-neutral-content: #22C55E;
+      --rounded-box: 0;
+      --rounded-btn: 0;
+      --rounded-badge: 0;
+    }
+
+    .prompt-heading::before {
+      content: '$ ';
+      color: var(--color-primary);
+    }
+
+    .terminal-window {
+      border: 1px solid var(--color-base-300);
+      background: var(--color-neutral);
+      color: var(--color-neutral-content);
+    }
+
+    .terminal-titlebar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: var(--color-base-300);
+      border-bottom: 1px solid var(--color-base-300);
+    }
+
+    [data-theme="terminal-dark"] .terminal-titlebar {
+      background: #1a1a1a;
+    }
+
+    .terminal-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .terminal-body {
+      padding: 1rem;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.85rem;
+      line-height: 1.6;
+    }
+
+    .card-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.05em;
+      color: var(--color-primary);
+      border: 1px solid var(--color-primary);
+      padding: 2px 8px;
+      display: inline-block;
+      margin-bottom: 0.75rem;
+    }
+  </style>
+</head>
+
+<body>
+  <script>
+    (function () {
+      const dark = window.matchMedia('(prefers-color-scheme: dark)');
+      function apply(e) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'terminal-dark' : 'terminal-light');
+      }
+      apply(dark);
+      dark.addEventListener('change', apply);
+    })();
+  </script>
+
+  <!-- Navbar -->
+  <div class="navbar bg-base-200 border-b border-base-300 px-6">
+    <div class="navbar-start">
+      <a class="font-mono text-lg font-bold" style="color: var(--color-primary);">cypress-cli<span
+          class="animate-pulse">_</span></a>
+    </div>
+    <div class="navbar-end gap-6">
+      <a class="font-mono text-sm hover:text-primary transition-colors" href="#">docs</a>
+      <a class="font-mono text-sm hover:text-primary transition-colors" href="#">commands</a>
+      <a class="font-mono text-sm hover:text-primary transition-colors" href="#">demo</a>
+      <a class="font-mono text-sm hover:text-primary transition-colors" href="#">github</a>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <section class="hero min-h-[60vh] bg-base-100">
+    <div class="hero-content text-center flex-col max-w-4xl py-20">
+      <h1 class="text-4xl md:text-5xl font-bold font-mono leading-tight mb-6 prompt-heading">
+        REPL-like access to a live web page through real Cypress commands
+      </h1>
+      <p class="text-base mb-8 opacity-60 font-mono">
+        65+ commands • aria snapshots • cypress test export • ai-agent ready
+      </p>
+
+      <!-- Terminal Window -->
+      <div class="terminal-window w-full max-w-xl mb-8">
+        <div class="terminal-titlebar">
+          <div class="terminal-dot" style="background: #FF5F56;"></div>
+          <div class="terminal-dot" style="background: #FFBD2E;"></div>
+          <div class="terminal-dot" style="background: #27C93F;"></div>
+          <span class="font-mono text-xs ml-2 opacity-50">bash</span>
+        </div>
+        <div class="terminal-body">
+          <div><span style="color: var(--color-primary);">$</span> npm install -g cypress-cli</div>
+        </div>
+      </div>
+
+      <div class="flex gap-4">
+        <button class="btn btn-primary font-mono">try the demo</button>
+        <button class="btn btn-outline border-base-300 font-mono">read the docs</button>
+      </div>
+    </div>
+  </section>
+
+  <hr class="border-base-300 mx-6">
+
+  <!-- Features -->
+  <section class="py-16 px-6 bg-base-100">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-2xl font-bold font-mono mb-10 prompt-heading">features</h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="card bg-base-200 border border-base-300">
+          <div class="card-body">
+            <div class="card-label">[01/COMMANDS]</div>
+            <h3 class="card-title font-mono text-base">Real Cypress Commands</h3>
+            <p class="text-sm opacity-60 font-sans">
+              cy.click(), cy.type(), cy.visit() — not simulated. Every action executes as a genuine Cypress command in a
+              live browser.
+            </p>
+          </div>
+        </div>
+
+        <div class="card bg-base-200 border border-base-300">
+          <div class="card-body">
+            <div class="card-label">[02/SNAPSHOTS]</div>
+            <h3 class="card-title font-mono text-base">Aria Snapshots</h3>
+            <p class="text-sm opacity-60 font-sans">
+              Accessibility-tree DOM representation. Compact, semantic, and LLM-readable. Ported from Playwright's aria
+              snapshot implementation.
+            </p>
+          </div>
+        </div>
+
+        <div class="card bg-base-200 border border-base-300">
+          <div class="card-body">
+            <div class="card-label">[03/CODEGEN]</div>
+            <h3 class="card-title font-mono text-base">Test Generation</h3>
+            <p class="text-sm opacity-60 font-sans">
+              Export your entire session as a ready-to-run .cy.ts test file. Every command maps 1-to-1 to a Cypress API
+              call.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="border-base-300 mx-6">
+
+  <!-- Workshop Preview -->
+  <section class="py-16 px-6 bg-base-100">
+    <div class="max-w-6xl mx-auto">
+      <h2 class="text-2xl font-bold font-mono mb-10 prompt-heading">workspace</h2>
+
+      <div class="grid grid-cols-1 lg:grid-cols-[200px_1fr_280px] gap-4">
+        <!-- TOC -->
+        <div class="bg-base-200 border border-base-300 p-4">
+          <div class="font-mono text-xs mb-4" style="color: var(--color-primary);">// toc</div>
+          <ul class="menu menu-sm font-mono text-sm">
+            <li><a class="active text-primary">commands</a></li>
+            <li><a>assertions</a></li>
+            <li><a>network</a></li>
+            <li><a>storage</a></li>
+            <li><a>navigation</a></li>
+          </ul>
+        </div>
+
+        <!-- REPL as terminal -->
+        <div class="terminal-window">
+          <div class="terminal-titlebar">
+            <div class="terminal-dot" style="background: #FF5F56;"></div>
+            <div class="terminal-dot" style="background: #FFBD2E;"></div>
+            <div class="terminal-dot" style="background: #27C93F;"></div>
+            <span class="font-mono text-xs ml-2 opacity-50">cypress-cli</span>
+          </div>
+          <div class="terminal-body">
+            <div><span style="color: var(--color-primary);">cypress-cli &gt;</span> open https://example.com</div>
+            <div class="opacity-50"> Page URL: https://example.com</div>
+            <div class="opacity-50"> Page Title: Example Domain</div>
+            <div><span style="color: var(--color-primary);">cypress-cli &gt;</span> snapshot</div>
+            <div class="opacity-50"> [Snapshot](.cypress-cli/page-...679Z.yml)</div>
+            <div><span style="color: var(--color-primary);">cypress-cli &gt;</span> click e5</div>
+            <div class="opacity-50"> # Ran: cy.get('#btn').click()</div>
+            <div><span style="color: var(--color-primary);">cypress-cli &gt;</span> type e3 "hello world"</div>
+            <div class="opacity-50"> # Ran: cy.get('input').type('hello world')</div>
+            <div><span style="color: var(--color-primary);">cypress-cli &gt;</span> export --file my-test.cy.ts</div>
+            <div class="opacity-50"> Wrote test file: my-test.cy.ts</div>
+            <div><span style="color: var(--color-primary);">cypress-cli &gt;<span class="animate-pulse">_</span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Output -->
+        <div class="bg-base-200 border border-base-300 p-4">
+          <div class="font-mono text-xs mb-4" style="color: var(--color-primary);">// snapshot</div>
+          <pre class="font-mono text-xs leading-relaxed opacity-70 whitespace-pre-wrap">- document:
+  - navigation "Main":
+    - link "Home" [e1]
+    - link "About" [e2]
+    - link "Contact" [e3]
+  - main:
+    - heading "Welcome" [e4]
+    - textbox "Email" [e5]
+    - button "Submit" [e6]</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="border-base-300 mx-6">
+
+  <!-- Command Table -->
+  <section class="py-16 px-6 bg-base-100">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-2xl font-bold font-mono mb-10 prompt-heading">commands</h2>
+
+      <div class="overflow-x-auto">
+        <table class="table w-full font-mono text-sm">
+          <thead>
+            <tr class="font-mono text-xs uppercase tracking-widest" style="color: var(--color-primary);">
+              <th class="bg-base-200">category</th>
+              <th class="bg-base-200">commands</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="hover:bg-primary/5 transition-colors">
+              <td class="font-semibold">core</td>
+              <td><code>open</code> <code>stop</code> <code>status</code> <code>install</code> <code>snapshot</code>
+                <code>repl</code>
+              </td>
+            </tr>
+            <tr class="hover:bg-primary/5 transition-colors">
+              <td class="font-semibold">navigation</td>
+              <td><code>navigate</code> <code>back</code> <code>forward</code> <code>reload</code></td>
+            </tr>
+            <tr class="hover:bg-primary/5 transition-colors">
+              <td class="font-semibold">interaction</td>
+              <td><code>click</code> <code>dblclick</code> <code>rightclick</code> <code>type</code> <code>clear</code>
+                <code>select</code> <code>check</code> <code>uncheck</code> <code>focus</code> <code>blur</code>
+                <code>scrollto</code> <code>hover</code> <code>fill</code>
+              </td>
+            </tr>
+            <tr class="hover:bg-primary/5 transition-colors">
+              <td class="font-semibold">keyboard</td>
+              <td><code>press</code></td>
+            </tr>
+            <tr class="hover:bg-primary/5 transition-colors">
+              <td class="font-semibold">assertion</td>
+              <td><code>assert</code> <code>asserturl</code> <code>asserttitle</code></td>
+            </tr>
+            <tr class="hover:bg-primary/5 transition-colors">
+              <td class="font-semibold">execution</td>
+              <td><code>run-code</code> <code>eval</code> <code>cyrun</code> <code>run</code></td>
+            </tr>
+            <tr class="hover:bg-primary/5 transition-colors">
+              <td class="font-semibold">wait</td>
+              <td><code>wait</code> <code>waitfor</code></td>
+            </tr>
+            <tr class="hover:bg-primary/5 transition-colors">
+              <td class="font-semibold">network</td>
+              <td><code>intercept</code> <code>waitforresponse</code> <code>unintercept</code>
+                <code>intercept-list</code> <code>network</code>
+              </td>
+            </tr>
+            <tr class="hover:bg-primary/5 transition-colors">
+              <td class="font-semibold">cookies</td>
+              <td><code>cookie-list</code> <code>cookie-get</code> <code>cookie-set</code> <code>cookie-delete</code>
+                <code>cookie-clear</code>
+              </td>
+            </tr>
+            <tr class="hover:bg-primary/5 transition-colors">
+              <td class="font-semibold">storage</td>
+              <td><code>localstorage-*</code> <code>sessionstorage-*</code> <code>state-save</code>
+                <code>state-load</code>
+              </td>
+            </tr>
+            <tr class="hover:bg-primary/5 transition-colors">
+              <td class="font-semibold">devtools</td>
+              <td><code>console</code> <code>screenshot</code></td>
+            </tr>
+            <tr class="hover:bg-primary/5 transition-colors">
+              <td class="font-semibold">page</td>
+              <td><code>drag</code> <code>upload</code> <code>dialog-accept</code> <code>dialog-dismiss</code>
+                <code>resize</code>
+              </td>
+            </tr>
+            <tr class="hover:bg-primary/5 transition-colors">
+              <td class="font-semibold">export</td>
+              <td><code>export</code> <code>history</code> <code>undo</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <hr class="border-base-300 mx-6">
+
+  <!-- Capability Matrix -->
+  <section class="py-16 px-6 bg-base-100">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-2xl font-bold font-mono mb-10 prompt-heading">compatibility</h2>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-base-200 border border-base-300 p-6 text-center font-mono">
+          <div class="text-3xl font-bold" style="color: var(--color-primary);">28</div>
+          <div class="text-xs uppercase tracking-widest mt-2 opacity-50">direct</div>
+        </div>
+        <div class="bg-base-200 border border-base-300 p-6 text-center font-mono">
+          <div class="text-3xl font-bold" style="color: var(--color-primary);">20</div>
+          <div class="text-xs uppercase tracking-widest mt-2 opacity-50">workaround</div>
+        </div>
+        <div class="bg-base-200 border border-base-300 p-6 text-center font-mono">
+          <div class="text-3xl font-bold" style="color: var(--color-primary);">16</div>
+          <div class="text-xs uppercase tracking-widest mt-2 opacity-50">limited</div>
+        </div>
+        <div class="bg-base-200 border border-base-300 p-6 text-center font-mono">
+          <div class="text-3xl font-bold opacity-40">12</div>
+          <div class="text-xs uppercase tracking-widest mt-2 opacity-50">infeasible</div>
+        </div>
+      </div>
+      <p class="mt-4 text-sm font-mono opacity-40">// 76 total entries audited against playwright-cli</p>
+    </div>
+  </section>
+
+  <hr class="border-base-300 mx-6">
+
+  <!-- Agent Flow -->
+  <section class="py-16 px-6 bg-base-100">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-2xl font-bold font-mono mb-10 prompt-heading">agent flow</h2>
+
+      <div class="terminal-window w-full">
+        <div class="terminal-titlebar">
+          <div class="terminal-dot" style="background: #FF5F56;"></div>
+          <div class="terminal-dot" style="background: #FFBD2E;"></div>
+          <div class="terminal-dot" style="background: #27C93F;"></div>
+          <span class="font-mono text-xs ml-2 opacity-50">agent ↔ cypress-cli</span>
+        </div>
+        <div class="terminal-body text-sm">
+          <div><span style="color: var(--color-primary);">agent →</span> cypress-cli open https://app.example.com</div>
+          <div class="opacity-50"> ← Page URL: https://app.example.com</div>
+          <div class="opacity-50"> ← Page Title: Dashboard — My App</div>
+          <div class="opacity-50"> ← [Snapshot](.cypress-cli/page-...679Z.yml)</div>
+          <div class="my-1"></div>
+          <div><span style="color: var(--color-primary);">agent →</span> cypress-cli click e2</div>
+          <div class="opacity-50"> ← Page URL: https://app.example.com/settings</div>
+          <div class="opacity-50"> ← # Ran: cy.get('[data-cy="settings"]').click()</div>
+          <div class="opacity-50"> ← [Snapshot](.cypress-cli/page-...123Z.yml)</div>
+          <div class="my-1"></div>
+          <div><span style="color: var(--color-primary);">agent →</span> cypress-cli export --file settings.cy.ts</div>
+          <div class="opacity-50"> ← Wrote test file: settings.cy.ts</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="border-base-300 mx-6">
+
+  <!-- Architecture -->
+  <section class="py-16 px-6 bg-base-100">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-2xl font-bold font-mono mb-10 prompt-heading">architecture</h2>
+
+      <div class="terminal-window w-full">
+        <div class="terminal-titlebar">
+          <div class="terminal-dot" style="background: #FF5F56;"></div>
+          <div class="terminal-dot" style="background: #FFBD2E;"></div>
+          <div class="terminal-dot" style="background: #27C93F;"></div>
+          <span class="font-mono text-xs ml-2 opacity-50">system diagram</span>
+        </div>
+        <div class="terminal-body">
+          <pre class="opacity-80">┌─────────────┐     ┌──────────────┐     ┌───────────────┐     ┌─────────────┐
+│  LLM / User │────▶│  CLI Client  │────▶│    Daemon     │────▶│   Cypress   │
+│             │◀────│  (one-shot)  │◀────│ (persistent)  │◀────│  (browser)  │
+└─────────────┘     └──────────────┘     └───────────────┘     └─────────────┘
+                     Unix socket IPC      cy.task() bridge</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="border-t border-base-300 py-6 px-6 bg-base-200">
+    <div class="max-w-5xl mx-auto font-mono text-sm opacity-40 text-center">
+      <span style="color: var(--color-primary);">$</span> exit — <a href="https://github.com/kylehgc/cypress-cli"
+        class="hover:opacity-80 underline">github</a> — MIT
+    </div>
+  </footer>
+
+  <div class="fixed bottom-4 right-4">
+    <a href="index.html" class="btn btn-sm btn-neutral font-mono text-xs opacity-60 hover:opacity-100">← all mockups</a>
+  </div>
+</body>
+
+</html>

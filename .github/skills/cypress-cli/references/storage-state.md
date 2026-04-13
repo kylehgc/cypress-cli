@@ -5,10 +5,12 @@ All storage-state commands are **implemented** in the current `cypress-cli` rele
 ## Available commands
 
 ### State persistence
+
 - `state-save` — Save all cookies, localStorage, and sessionStorage to a JSON file
 - `state-load` — Restore state from a previously saved JSON file
 
 ### Cookie commands
+
 - `cookie-list` — List all cookies for the current domain
 - `cookie-get <name>` — Get a specific cookie by name
 - `cookie-set <name> <value>` — Set a cookie
@@ -16,6 +18,7 @@ All storage-state commands are **implemented** in the current `cypress-cli` rele
 - `cookie-clear` — Clear all cookies
 
 ### localStorage commands
+
 - `localstorage-list` — List all localStorage key/value pairs
 - `localstorage-get <key>` — Get a localStorage value by key
 - `localstorage-set <key> <value>` — Set a localStorage key/value pair
@@ -23,6 +26,7 @@ All storage-state commands are **implemented** in the current `cypress-cli` rele
 - `localstorage-clear` — Clear all localStorage
 
 ### sessionStorage commands
+
 - `sessionstorage-list` — List all sessionStorage key/value pairs
 - `sessionstorage-get <key>` — Get a sessionStorage value by key
 - `sessionstorage-set <key> <value>` — Set a sessionStorage key/value pair

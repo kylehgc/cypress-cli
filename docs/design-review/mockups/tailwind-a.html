@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>cypress-cli — Lab Manual (Tailwind)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --color-accent: oklch(0.75 0.18 60);
+      --color-accent-dim: oklch(0.65 0.15 60);
+      --color-bg: #FAFAFA;
+      --color-bg-alt: #F0F0F0;
+      --color-fg: #0A0A0A;
+      --color-fg-muted: #666;
+      --color-border: #D4D4D4;
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-sans: 'IBM Plex Sans', sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      @theme {
+        --color-bg: #0A0A0A;
+        --color-bg-alt: #141414;
+        --color-fg: #E5E5E5;
+        --color-fg-muted: #888;
+        --color-border: #2A2A2A;
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-bg text-fg font-sans">
+
+  <!-- Navbar -->
+  <nav class="flex items-center justify-between px-6 py-4 bg-bg-alt border-b border-border">
+    <span class="font-mono text-lg font-bold text-accent">cypress-cli</span>
+    <div class="flex gap-6">
+      <a class="font-mono text-sm hover:text-accent transition-colors" href="#">Docs</a>
+      <a class="font-mono text-sm hover:text-accent transition-colors" href="#">Commands</a>
+      <a class="font-mono text-sm hover:text-accent transition-colors" href="#">Demo</a>
+      <a class="font-mono text-sm hover:text-accent transition-colors" href="#">GitHub</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="min-h-[60vh] flex flex-col items-center justify-center text-center px-6 py-20">
+    <div class="font-mono text-xs tracking-widest uppercase text-accent mb-2">01. Introduction</div>
+    <h1 class="text-4xl md:text-5xl font-bold font-mono leading-tight mb-6 max-w-4xl">
+      A CLI tool that gives LLMs REPL-like access to a live web page through real Cypress commands
+    </h1>
+    <p class="text-lg mb-8 text-fg-muted">
+      65+ commands &bull; Aria snapshots &bull; Cypress test export &bull; AI-agent ready
+    </p>
+
+    <!-- Install command -->
+    <div class="bg-bg-alt border border-border px-6 py-4 font-mono text-sm mb-8 max-w-xl w-full text-left">
+      <span class="text-accent">$</span> npm install -g cypress-cli
+    </div>
+
+    <div class="flex gap-4">
+      <a href="#"
+        class="bg-accent text-bg px-6 py-2.5 font-mono text-sm font-semibold hover:opacity-90 transition-opacity">Try
+        the Demo</a>
+      <a href="#" class="border border-border px-6 py-2.5 font-mono text-sm hover:border-accent transition-colors">Read
+        the Docs</a>
+    </div>
+  </section>
+
+  <hr class="border-border mx-6">
+
+  <!-- Features -->
+  <section class="py-16 px-6">
+    <div class="max-w-5xl mx-auto">
+      <div class="font-mono text-xs tracking-widest uppercase text-accent mb-2">02. Features</div>
+      <h2 class="text-2xl font-bold font-mono mb-10">What makes it different</h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-bg-alt border border-border p-6">
+          <div class="font-mono text-xs tracking-widest uppercase text-accent mb-3">01</div>
+          <h3 class="font-mono text-base font-semibold mb-2">Real Cypress Commands</h3>
+          <p class="text-sm text-fg-muted leading-relaxed">
+            cy.click(), cy.type(), cy.visit() — not simulated. Every action executes as a genuine Cypress command in a
+            live browser.
+          </p>
+        </div>
+
+        <div class="bg-bg-alt border border-border p-6">
+          <div class="font-mono text-xs tracking-widest uppercase text-accent mb-3">02</div>
+          <h3 class="font-mono text-base font-semibold mb-2">Aria Snapshots</h3>
+          <p class="text-sm text-fg-muted leading-relaxed">
+            Accessibility-tree DOM representation. Compact, semantic, and LLM-readable. Ported from Playwright's aria
+            snapshot implementation.
+          </p>
+        </div>
+
+        <div class="bg-bg-alt border border-border p-6">
+          <div class="font-mono text-xs tracking-widest uppercase text-accent mb-3">03</div>
+          <h3 class="font-mono text-base font-semibold mb-2">Test Generation</h3>
+          <p class="text-sm text-fg-muted leading-relaxed">
+            Export your entire session as a ready-to-run .cy.ts test file. Every command maps 1-to-1 to a Cypress API
+            call.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="border-border mx-6">
+
+  <!-- Workshop Preview -->
+  <section class="py-16 px-6">
+    <div class="max-w-6xl mx-auto">
+      <div class="font-mono text-xs tracking-widest uppercase text-accent mb-2">03. Workshop Layout</div>
+      <h2 class="text-2xl font-bold font-mono mb-10">Three-column workspace</h2>
+
+      <div class="grid grid-cols-1 lg:grid-cols-[200px_1fr_280px] gap-4">
+        <!-- TOC -->
+        <div class="bg-bg-alt border border-border p-4">
+          <div class="font-mono text-xs tracking-widest uppercase text-accent mb-4">Navigation</div>
+          <ul class="space-y-1 font-mono text-sm">
+            <li><a href="#" class="block px-3 py-1.5 text-accent bg-accent/10">Commands</a></li>
+            <li><a href="#" class="block px-3 py-1.5 hover:text-accent transition-colors">Assertions</a></li>
+            <li><a href="#" class="block px-3 py-1.5 hover:text-accent transition-colors">Network</a></li>
+            <li><a href="#" class="block px-3 py-1.5 hover:text-accent transition-colors">Storage</a></li>
+            <li><a href="#" class="block px-3 py-1.5 hover:text-accent transition-colors">Navigation</a></li>
+          </ul>
+        </div>
+
+        <!-- REPL -->
+        <div class="bg-bg-alt border border-border p-4 font-mono text-sm">
+          <div class="font-mono text-xs tracking-widest uppercase text-accent mb-4">Quick Start</div>
+          <pre class="whitespace-pre-wrap leading-relaxed"><span class="text-accent">$</span> cypress-cli open https://example.com
+<span class="text-accent">$</span> cypress-cli snapshot
+<span class="text-accent">$</span> cypress-cli click e5
+<span class="text-accent">$</span> cypress-cli type e3 "hello world"
+<span class="text-accent">$</span> cypress-cli assert e5 contain.text "hello"
+<span class="text-accent">$</span> cypress-cli export --file my-test.cy.ts</pre>
+        </div>
+
+        <!-- Output -->
+        <div class="bg-bg-alt border border-border p-4">
+          <div class="font-mono text-xs tracking-widest uppercase text-accent mb-4">Snapshot Output</div>
+          <pre class="font-mono text-xs leading-relaxed text-fg-muted whitespace-pre-wrap">- document:
+  - navigation "Main":
+    - link "Home" [e1]
+    - link "About" [e2]
+    - link "Contact" [e3]
+  - main:
+    - heading "Welcome" [e4]
+    - textbox "Email" [e5]
+    - button "Submit" [e6]</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="border-border mx-6">
+
+  <!-- Command Table -->
+  <section class="py-16 px-6">
+    <div class="max-w-5xl mx-auto">
+      <div class="font-mono text-xs tracking-widest uppercase text-accent mb-2">04. Commands</div>
+      <h2 class="text-2xl font-bold font-mono mb-10">65+ commands across 13 categories</h2>
+
+      <div class="overflow-x-auto">
+        <table class="w-full font-mono text-sm border-collapse">
+          <thead>
+            <tr class="text-xs uppercase tracking-widest text-accent">
+              <th class="text-left py-3 px-4 bg-bg-alt border-b border-border">Category</th>
+              <th class="text-left py-3 px-4 bg-bg-alt border-b border-border">Commands</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b border-border even:bg-bg-alt">
+              <td class="py-2.5 px-4 font-semibold">Core</td>
+              <td class="py-2.5 px-4">open, stop, status, install, snapshot, repl</td>
+            </tr>
+            <tr class="border-b border-border even:bg-bg-alt">
+              <td class="py-2.5 px-4 font-semibold">Navigation</td>
+              <td class="py-2.5 px-4">navigate, back, forward, reload</td>
+            </tr>
+            <tr class="border-b border-border even:bg-bg-alt">
+              <td class="py-2.5 px-4 font-semibold">Interaction</td>
+              <td class="py-2.5 px-4">click, dblclick, rightclick, type, clear, select, check, uncheck, focus, blur,
+                scrollto, hover, fill</td>
+            </tr>
+            <tr class="border-b border-border even:bg-bg-alt">
+              <td class="py-2.5 px-4 font-semibold">Keyboard</td>
+              <td class="py-2.5 px-4">press</td>
+            </tr>
+            <tr class="border-b border-border even:bg-bg-alt">
+              <td class="py-2.5 px-4 font-semibold">Assertion</td>
+              <td class="py-2.5 px-4">assert, asserturl, asserttitle</td>
+            </tr>
+            <tr class="border-b border-border even:bg-bg-alt">
+              <td class="py-2.5 px-4 font-semibold">Execution</td>
+              <td class="py-2.5 px-4">run-code, eval, cyrun, run</td>
+            </tr>
+            <tr class="border-b border-border even:bg-bg-alt">
+              <td class="py-2.5 px-4 font-semibold">Wait</td>
+              <td class="py-2.5 px-4">wait, waitfor</td>
+            </tr>
+            <tr class="border-b border-border even:bg-bg-alt">
+              <td class="py-2.5 px-4 font-semibold">Network</td>
+              <td class="py-2.5 px-4">intercept, waitforresponse, unintercept, intercept-list, network</td>
+            </tr>
+            <tr class="border-b border-border even:bg-bg-alt">
+              <td class="py-2.5 px-4 font-semibold">Cookies</td>
+              <td class="py-2.5 px-4">cookie-list, cookie-get, cookie-set, cookie-delete, cookie-clear</td>
+            </tr>
+            <tr class="border-b border-border even:bg-bg-alt">
+              <td class="py-2.5 px-4 font-semibold">Storage</td>
+              <td class="py-2.5 px-4">localstorage-*, sessionstorage-*, state-save, state-load</td>
+            </tr>
+            <tr class="border-b border-border even:bg-bg-alt">
+              <td class="py-2.5 px-4 font-semibold">DevTools</td>
+              <td class="py-2.5 px-4">console, screenshot</td>
+            </tr>
+            <tr class="border-b border-border even:bg-bg-alt">
+              <td class="py-2.5 px-4 font-semibold">Page</td>
+              <td class="py-2.5 px-4">drag, upload, dialog-accept, dialog-dismiss, resize</td>
+            </tr>
+            <tr class="border-b border-border even:bg-bg-alt">
+              <td class="py-2.5 px-4 font-semibold">Export</td>
+              <td class="py-2.5 px-4">export, history, undo</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <hr class="border-border mx-6">
+
+  <!-- Capability Matrix -->
+  <section class="py-16 px-6">
+    <div class="max-w-5xl mx-auto">
+      <div class="font-mono text-xs tracking-widest uppercase text-accent mb-2">05. Compatibility</div>
+      <h2 class="text-2xl font-bold font-mono mb-10">playwright-cli parity</h2>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-bg-alt border border-border p-6 text-center">
+          <div class="text-3xl font-bold font-mono text-accent">28</div>
+          <div class="text-xs font-mono uppercase tracking-widest mt-2 text-fg-muted">Direct</div>
+          <div class="text-xs font-mono text-fg-muted opacity-60">37%</div>
+        </div>
+        <div class="bg-bg-alt border border-border p-6 text-center">
+          <div class="text-3xl font-bold font-mono text-accent">20</div>
+          <div class="text-xs font-mono uppercase tracking-widest mt-2 text-fg-muted">Workaround</div>
+          <div class="text-xs font-mono text-fg-muted opacity-60">26%</div>
+        </div>
+        <div class="bg-bg-alt border border-border p-6 text-center">
+          <div class="text-3xl font-bold font-mono text-accent">16</div>
+          <div class="text-xs font-mono uppercase tracking-widest mt-2 text-fg-muted">Limited</div>
+          <div class="text-xs font-mono text-fg-muted opacity-60">21%</div>
+        </div>
+        <div class="bg-bg-alt border border-border p-6 text-center">
+          <div class="text-3xl font-bold font-mono opacity-50">12</div>
+          <div class="text-xs font-mono uppercase tracking-widest mt-2 text-fg-muted">Infeasible</div>
+          <div class="text-xs font-mono text-fg-muted opacity-60">16%</div>
+        </div>
+      </div>
+      <p class="mt-4 text-sm font-mono text-fg-muted opacity-60">76 total entries audited against playwright-cli</p>
+    </div>
+  </section>
+
+  <hr class="border-border mx-6">
+
+  <!-- Agent Flow -->
+  <section class="py-16 px-6">
+    <div class="max-w-5xl mx-auto">
+      <div class="font-mono text-xs tracking-widest uppercase text-accent mb-2">06. Agent Integration</div>
+      <h2 class="text-2xl font-bold font-mono mb-10">Tool-use flow</h2>
+
+      <div class="bg-bg-alt border border-border p-6 font-mono text-sm leading-relaxed">
+        <div><span class="text-accent">→</span> cypress-cli open https://app.example.com</div>
+        <div class="text-fg-muted">← Page URL: https://app.example.com</div>
+        <div class="text-fg-muted">← Page Title: Dashboard — My App</div>
+        <div class="text-fg-muted">← [Snapshot](.cypress-cli/page-...679Z.yml)</div>
+        <br>
+        <div><span class="text-accent">→</span> cypress-cli click e2</div>
+        <div class="text-fg-muted">← Page URL: https://app.example.com/settings</div>
+        <div class="text-fg-muted">← # Ran Cypress code:</div>
+        <div class="text-fg-muted">← cy.get('[data-cy="settings"]').click()</div>
+        <div class="text-fg-muted">← [Snapshot](.cypress-cli/page-...123Z.yml)</div>
+        <br>
+        <div><span class="text-accent">→</span> cypress-cli export --file settings.cy.ts</div>
+        <div class="text-fg-muted">← Wrote test file: settings.cy.ts</div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="border-border mx-6">
+
+  <!-- Architecture -->
+  <section class="py-16 px-6">
+    <div class="max-w-5xl mx-auto">
+      <div class="font-mono text-xs tracking-widest uppercase text-accent mb-2">07. Architecture</div>
+      <h2 class="text-2xl font-bold font-mono mb-10">How it works</h2>
+
+      <div class="bg-bg-alt border border-border p-6 font-mono text-sm overflow-x-auto">
+        <pre class="text-fg-muted">┌─────────────┐     ┌──────────────┐     ┌───────────────┐     ┌─────────────┐
+│  LLM / User │────▶│  CLI Client  │────▶│    Daemon     │────▶│   Cypress   │
+│             │◀────│  (one-shot)  │◀────│ (persistent)  │◀────│  (browser)  │
+└─────────────┘     └──────────────┘     └───────────────┘     └─────────────┘
+                     Unix socket IPC      cy.task() bridge</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="border-t border-border py-8 px-6 bg-bg-alt">
+    <div class="max-w-5xl mx-auto flex justify-between items-center font-mono text-sm text-fg-muted">
+      <span>cypress-cli</span>
+      <div class="flex gap-6">
+        <a href="https://github.com/kylehgc/cypress-cli" class="hover:text-accent transition-colors">GitHub</a>
+        <span>MIT License</span>
+      </div>
+    </div>
+  </footer>
+
+  <div class="fixed bottom-4 right-4">
+    <a href="index.html"
+      class="bg-bg-alt border border-border px-3 py-1.5 font-mono text-xs text-fg-muted hover:text-accent transition-colors">←
+      All Mockups</a>
+  </div>
+</body>
+
+</html>
