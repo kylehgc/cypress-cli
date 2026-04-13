@@ -429,10 +429,37 @@ interactive experience.
 └─────────────────────────────────────────────────────┘
 ```
 
-> **Stub — needs separate spec:** The workshop's interactivity (whether it
-> runs real cypress-cli, simulates it, or replays recorded sessions) is an
-> implementation question outside the scope of visual design. This section
-> defines layout and appearance only.
+**Interactivity model: Live cypress-cli + LLM test generation.**
+
+The workshop runs a real cypress-cli session against a live target page.
+Users interact with the REPL exactly as an agent would — typing commands,
+seeing aria snapshots, clicking refs. Additionally, users can ask an LLM
+to generate a Cypress test based on the current page state and their
+natural-language intent.
+
+**Architecture:**
+
+- A backend service (or serverless function) manages a cypress-cli session
+  per workshop visitor. The React island communicates with it over
+  WebSocket or HTTP.
+- The target page renders in a live iframe (or is proxied). Commands
+  execute against the real page — `snapshot`, `click`, `type`, `assert`
+  all produce real results.
+- An LLM integration (API call from the backend) accepts the current aria
+  snapshot + user prompt and returns a generated Cypress test. The
+  workshop displays the generated test in a code pane and optionally
+  runs it.
+- Fallback: if live sessions are unavailable (cost, scale, cold start),
+  the workshop degrades to replaying pre-recorded sessions with realistic
+  timing. The UI stays identical — only the data source changes.
+
+**Workshop columns:**
+
+| Column | Content                                                          |
+| ------ | ---------------------------------------------------------------- |
+| Left   | TOC / guided scenarios ("Try navigating", "Try form fill", etc.) |
+| Center | REPL terminal + target page iframe (stacked or tabbed)           |
+| Right  | Output: aria snapshot, console, generated test code              |
 
 **Column widths:**
 
@@ -593,14 +620,18 @@ exceeds 70KB gzip, investigate tree-shaking or Preact compat.
 
 25. Install workshop shadcn components: `resizable`, `tabs`, `command`,
     `dialog`, `sheet`
-26. Design workshop interaction model (separate spec needed)
-27. Build 3-column layout with shadcn `ResizablePanelGroup`
-28. Implement REPL component with shadcn `Command` autocomplete
-29. Build output pane with `Tabs` (snapshot / console / network)
-30. Connect to cypress-cli (or replay recorded sessions)
-31. Verify React island hydrates ONLY on workshop page
-32. Performance audit — React + shadcn < 70KB gzip
-33. Run anti-default checklist (§4.6)
+26. Build 3-column layout with shadcn `ResizablePanelGroup`
+27. Implement REPL component with shadcn `Command` autocomplete
+28. Build output pane with `Tabs` (snapshot / console / generated test)
+29. Build backend service for live cypress-cli session management
+30. Connect REPL to live cypress-cli over WebSocket
+31. Implement target page iframe / proxy
+32. Build LLM test generation flow (snapshot + prompt → Cypress test)
+33. Build generated test display pane with syntax highlighting
+34. Build recorded-session replay fallback
+35. Verify React island hydrates ONLY on workshop page
+36. Performance audit — React + shadcn < 70KB gzip
+37. Run anti-default checklist (§4.6)
 
 **Phase 4: Blog / Polish**
 
@@ -611,37 +642,42 @@ exceeds 70KB gzip, investigate tree-shaking or Preact compat.
 
 ---
 
-## 11. Open Questions
+## 11. Resolved Questions
 
-These need answers before or during implementation:
+1. ~~**Light mode terminal insets:**~~ **Resolved: Dark inset always.**
+   Terminal windows keep their dark background (`--bg-primary`) regardless
+   of page theme. A light-background terminal breaks the "real terminal"
+   illusion. One terminal component, one color scheme.
 
-1. **Light mode terminal insets:** Should terminal windows on light-mode
-   pages keep their dark background (dark inset), or use the light surface
-   color? Reviews suggest dark insets look more authentic.
+2. ~~**Workshop interactivity model:**~~ **Resolved: Live cypress-cli.**
+   Live sessions with LLM-powered test generation. Fallback to recorded
+   session replay if live is unavailable. See §5.2.
 
-2. **Workshop interactivity model:** Does the demo run real cypress-cli
-   against a live page, replay recorded sessions, or simulate output? This
-   affects the entire workshop architecture.
+3. ~~**Serif font for hero:**~~ **Resolved: IBM Plex Serif.** Stay with
+   the Plex family for cohesion — Mono, Sans, and Serif were designed
+   together and share weight/proportion. Playfair Display is more dramatic
+   but fights the rest of the typography.
 
-3. **Serif font for hero:** The mockup used IBM Plex Serif. Should we stay
-   with IBM Plex Serif for brand consistency, or use a more dramatic serif
-   (Playfair Display was suggested in one review) for the hero heading?
+4. ~~**Green saturation:**~~ **Resolved: `#22C55E` (Tailwind green-500).**
+   Primary terminal text and accent color. `#00FF41` is too fatiguing at
+   body text sizes. Reserve `#00FF41` for micro-accents only (blinking
+   cursor `▌`, brief flash effects).
 
-4. **Green saturation on dark:** The Terminal Native mockup used `#22C55E`
-   but the "hacker green" references suggest `#00FF41`. What green exactly?
-   Need to test both on actual dark backgrounds. `#22C55E` (Tailwind
-   green-500) is safer.
+5. ~~**Command table scope:**~~ **Resolved: Curated 10-15 on landing.**
+   Pick the commands that tell a session story (`open`, `snapshot`, `click`,
+   `type`, `assert`, `scroll`, `navigate`, `network`, `console`, `codegen`)
+   with a link to the full reference in docs. The workshop and docs pages
+   show the complete set.
 
-5. **Command table scope:** Show all 64+ commands on the landing page, or
-   curate a "top 10" with a link to full docs?
+6. ~~**Animated terminal hero:**~~ **Resolved: Yes, with motion respect.**
+   Typing animation on the hero terminal (~3-4 commands, ~4 seconds total).
+   Respect `prefers-reduced-motion` by showing the final state immediately.
+   This is the highest-impact landing page element.
 
-6. **Animated terminal hero:** Should the hero terminal "type" commands
-   with animation (like asciinema), or show the final state immediately?
-   Animation is engaging but delays comprehension and violates
-   `prefers-reduced-motion`.
-
-7. **GitHub stars badge in nav:** Include a live GitHub stars count in the
-   nav bar? Common in dev tool sites but adds a third-party dependency.
+7. ~~**GitHub stars badge:**~~ **Resolved: Skip for launch.** Adds a
+   third-party request (breaks the 0 third-party performance budget) and a
+   low count early on works against you. Add later when worth showing. A
+   "GitHub" nav link is sufficient.
 
 ---
 
